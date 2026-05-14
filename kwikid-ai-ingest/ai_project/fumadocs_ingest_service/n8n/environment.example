@@ -1,0 +1,27 @@
+# Copy keys into your n8n instance environment (not the Python ingest .env).
+# Workflow JSON is maintained directly in the exported JSON file.
+
+FRESHDESK_BASE_URL=https://YOURSUBDOMAIN.freshdesk.com
+# Full Authorization header value, e.g. Basic base64(api_key:X)
+FRESHDESK_BASIC_AUTH=
+
+INGEST_SERVICE_BASE_URL=http://localhost:8000
+KWIK_OPENAPI_URL=https://kd.app.getkwikid.com/openapi.json
+
+RAG_MATCH_COUNT=8
+RAG_MATCH_THRESHOLD=0.2
+RAG_SOURCE_THRESHOLD_FRESHDESK=0.30
+RAG_SOURCE_THRESHOLD_MD=0.20
+RAG_SOURCE_THRESHOLD_JSON=0.20
+RAG_SOURCE_THRESHOLD_EXCEL=0.20
+SOP_MIN_SIMILARITY=0.2
+
+ASANA_ACCESS_TOKEN=
+ASANA_PROJECT_GID=
+ASANA_WORKSPACE_GID=
+
+SUPABASE_URL=
+SUPABASE_SERVICE_ROLE_KEY=
+
+# Full URL for troubleshooting POST (optional). If unset, fix-API branch is skipped.
+KWIK_FIX_API_URL=

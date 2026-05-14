@@ -1,0 +1,79 @@
+# ── Python ───────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+*.whl
+
+# ── Virtual environments ─────────────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+
+# ── Secrets & credentials ────────────────────────────────────
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+secrets.json
+credentials.json
+service_account.json
+
+# ── Data & datasets ──────────────────────────────────────────
+data/excel/
+data/fumadocs_repo/
+data/processed/*.parquet
+data/datasets/
+*.parquet
+*.xlsx
+*.xls
+*.csv
+
+documents_video_realted.csv
+
+# ── Logs & traces ────────────────────────────────────────────
+logs/
+traces/
+*.log
+*.log.*
+
+# ── Reports ──────────────────────────────────────────────────
+data/reports/*.md
+data/reports/*.json
+!data/reports/.gitkeep
+
+# ── OS artifacts ─────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── IDE & editor ─────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ── Test artifacts ───────────────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+*.junit.xml
+
+# ── Type stubs ───────────────────────────────────────────────
+*.pyi
+
+# ── Local AI tooling ─────────────────────────────────────────
+.claude/
+.cursor/
+
+# ── Large temporary/generated artifacts ──────────────────────
+tmp/
+tmp_workflow_node_scripts/*.tmp

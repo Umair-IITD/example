@@ -1,0 +1,10 @@
+[
+  {
+    "id": "gold_001",
+    "query": "How to fix video not available error?",
+    "expected_chunks": ["chunk_uuid_1", "chunk_uuid_2"],
+    "expected_answer": "Check network connection and verify session ID.",
+    "category": "video_not_available",
+    "tags": ["video", "error"]
+  }
+]

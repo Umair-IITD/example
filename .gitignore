@@ -1,0 +1,43 @@
+# ─────────────────────────────────────────────────────────────
+# Root-level private datasets and local folders
+# ─────────────────────────────────────────────────────────────
+
+.claude/
+scratch/
+
+# Large datasets / ticket exports
+*.xlsx
+*.xls
+*.csv
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Secrets
+.env
+*.env
+*.pem
+*.key
+
+# Logs
+*.log
+logs/
+traces/
+
+# IDE
+.idea/
+.vscode/
+
+# GitHub
+.github/copilot-instructions.md

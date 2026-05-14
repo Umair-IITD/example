@@ -1,0 +1,6 @@
+{
+  "gold_001": {
+    "reference_answer": "Check network connection and verify session ID.",
+    "criteria": ["mentions network", "mentions session ID"]
+  }
+}

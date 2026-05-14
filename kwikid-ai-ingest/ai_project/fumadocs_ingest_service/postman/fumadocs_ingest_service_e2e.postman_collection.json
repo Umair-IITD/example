@@ -1,0 +1,226 @@
+{
+  "info": {
+    "_postman_id": "f8f67747-2f79-4cb4-9fa2-a40e8a7b8916",
+    "name": "Fumadocs Ingest Service E2E",
+    "description": "End-to-end workflow for health, ingest (all/freshdesk-filtered/reindex), and query APIs.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000"
+    },
+    {
+      "key": "freshdesk_from",
+      "value": "2026-03-01T00:00:00Z"
+    },
+    {
+      "key": "freshdesk_to",
+      "value": "2026-03-27T23:59:59Z"
+    },
+    {
+      "key": "freshdesk_type",
+      "value": "Issues"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/health",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "health"
+          ]
+        }
+      }
+    },
+    {
+      "name": "2. Ingest (All Sources, Incremental)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"full_reindex\": false\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/ingest",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "ingest"
+          ]
+        }
+      }
+    },
+    {
+      "name": "3. Ingest (Freshdesk Closed Issues by Date Range)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"full_reindex\": false,\n  \"freshdesk_updated_since\": \"{{freshdesk_from}}\",\n  \"freshdesk_updated_until\": \"{{freshdesk_to}}\",\n  \"freshdesk_ticket_types\": [\"{{freshdesk_type}}\"],\n  \"freshdesk_statuses\": [\"closed\"]\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/ingest",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "ingest"
+          ]
+        }
+      }
+    },
+    {
+      "name": "4. Ingest (Freshdesk by Requester/Client)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"full_reindex\": false,\n  \"freshdesk_updated_since\": \"{{freshdesk_from}}\",\n  \"freshdesk_updated_until\": \"{{freshdesk_to}}\",\n  \"freshdesk_requester_ids\": [123456789],\n  \"freshdesk_statuses\": [\"closed\", \"resolved\"],\n  \"freshdesk_priorities\": [\"high\", \"urgent\"]\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/ingest",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "ingest"
+          ]
+        }
+      }
+    },
+    {
+      "name": "5. Ingest (Full Reindex)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"full_reindex\": true\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/ingest",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "ingest"
+          ]
+        }
+      }
+    },
+    {
+      "name": "6. Query (Ticket Focused)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"query_text\": \"closed Issues ticket details from March 2026\",\n  \"match_count\": 5,\n  \"match_threshold\": -1.0\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/query",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "query"
+          ]
+        }
+      }
+    },
+    {
+      "name": "7. Query (Markdown Focused)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"query_text\": \"How do I configure celery worker async services?\",\n  \"match_count\": 5,\n  \"match_threshold\": -1.0\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/query",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "query"
+          ]
+        }
+      }
+    },
+    {
+      "name": "8. Query (Mixed Sources)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"query_text\": \"How can I track user comments and closed support issues in docs and Q&A?\",\n  \"match_count\": 8,\n  \"match_threshold\": -1.0\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/query",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "query"
+          ]
+        }
+      }
+    }
+  ]
+}

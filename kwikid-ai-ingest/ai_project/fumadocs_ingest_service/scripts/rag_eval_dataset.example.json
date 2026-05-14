@@ -1,0 +1,21 @@
+[
+  {
+    "query_text": "How do I configure celery worker async services?",
+    "expected_source_ids": [
+      "content/docs/product/async-services/celery-worker/index.md"
+    ],
+    "should_abstain": false
+  },
+  {
+    "query_text": "What is the latest status and priority for PlayStation support tickets?",
+    "expected_source_ids": [
+      "12345"
+    ],
+    "should_abstain": false
+  },
+  {
+    "query_text": "Give me policy details for a source that does not exist in knowledge base",
+    "expected_source_ids": [],
+    "should_abstain": true
+  }
+]

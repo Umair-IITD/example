@@ -1,0 +1,1020 @@
+{
+  "Unknown": {
+    "total": 1041,
+    "automation": {
+      "auto_resolvable": 0,
+      "human_review": 780,
+      "escalation": 261,
+      "exclude": 0
+    },
+    "sop": {
+      "sop_present": 3,
+      "no_sop_available": 13
+    },
+    "has_rca": 0,
+    "issue_areas": {},
+    "environments": {},
+    "tenants": {
+      "bank_of_baroda": 19,
+      "rupeeredee": 3,
+      "cbi": 80,
+      "fino": 13,
+      "cams_sbig": 9,
+      "epaylater": 7,
+      "rbl_bank": 22,
+      "nrfsi": 5,
+      "svamaan": 1,
+      "unity_bank": 799,
+      "bajaj_finance": 20,
+      "cams_oicl": 3,
+      "canara_bank": 12,
+      "shinhan_bank": 8,
+      "mohfl": 4,
+      "grihum_housing_finance_(phf)": 1,
+      "iverify": 2,
+      "karnataka_gb_(canara_rrb)": 1,
+      "easebuzz": 1,
+      "others": 2,
+      "kerala_gb_(canara_rrb)": 1,
+      "camsrep": 2
+    }
+  },
+  "Video Related": {
+    "total": 829,
+    "automation": {
+      "auto_resolvable": 414,
+      "human_review": 202,
+      "escalation": 213,
+      "exclude": 0
+    },
+    "sop": {
+      "sop_present": 170,
+      "no_sop_available": 16
+    },
+    "has_rca": 64,
+    "issue_areas": {
+      "Backend": 398,
+      "Frontend": 219,
+      "Other": 211,
+      "Database": 1
+    },
+    "environments": {
+      "Production": 828,
+      "Other": 1
+    },
+    "tenants": {
+      "fino": 5,
+      "bank_of_baroda": 13,
+      "unity_bank": 803,
+      "bajaj_finance": 3,
+      "canara_bank": 1,
+      "nrfsi": 1,
+      "mohfl": 2,
+      "rbl_bank": 1
+    }
+  },
+  "Others": {
+    "total": 384,
+    "automation": {
+      "auto_resolvable": 89,
+      "human_review": 158,
+      "escalation": 137,
+      "exclude": 0
+    },
+    "sop": {
+      "sop_present": 13,
+      "no_sop_available": 17
+    },
+    "has_rca": 126,
+    "issue_areas": {
+      "Backend": 165,
+      "Other": 90,
+      "Frontend": 65,
+      "API": 40,
+      "Database": 18,
+      "Integration": 4,
+      "DevOps": 2
+    },
+    "environments": {
+      "Production": 336,
+      "UAT": 18,
+      "Other": 29
+    },
+    "tenants": {
+      "fino": 2,
+      "rbl_bank": 2,
+      "cbi": 4,
+      "mohfl": 1,
+      "bajaj_finance": 2,
+      "bank_of_baroda": 2,
+      "shinhan_bank": 1,
+      "unity_bank": 370
+    }
+  },
+  "Reports": {
+    "total": 191,
+    "automation": {
+      "auto_resolvable": 17,
+      "human_review": 98,
+      "escalation": 76,
+      "exclude": 0
+    },
+    "sop": {
+      "sop_present": 36,
+      "no_sop_available": 30
+    },
+    "has_rca": 39,
+    "issue_areas": {
+      "Backend": 96,
+      "Database": 47,
+      "Frontend": 28,
+      "Other": 11,
+      "DevOps/infrastructure/deployments": 4,
+      "API": 3,
+      "UI/UX": 2
+    },
+    "environments": {
+      "Production": 185,
+      "UAT": 6
+    },
+    "tenants": {
+      "unity_bank": 112,
+      "fino": 3,
+      "rbl_bank": 3,
+      "cbi": 45,
+      "bank_of_baroda": 15,
+      "canara_bank": 11,
+      "bajaj_finance": 2
+    }
+  },
+  "ID Creation": {
+    "total": 142,
+    "automation": {
+      "auto_resolvable": 28,
+      "human_review": 46,
+      "escalation": 68,
+      "exclude": 0
+    },
+    "sop": {
+      "sop_present": 95,
+      "no_sop_available": 1
+    },
+    "has_rca": 16,
+    "issue_areas": {
+      "Database": 98,
+      "Backend": 26,
+      "Frontend": 12,
+      "Other": 6
+    },
+    "environments": {
+      "Production": 132,
+      "UAT": 10
+    },
+    "tenants": {
+      "unity_bank": 90,
+      "bajaj_finance": 33,
+      "cbi": 6,
+      "canara_bank": 2,
+      "bank_of_baroda": 7,
+      "rbl_bank": 3,
+      "fino": 1
+    }
+  },
+  "Connectivity Issue": {
+    "total": 137,
+    "automation": {
+      "auto_resolvable": 33,
+      "human_review": 34,
+      "escalation": 70,
+      "exclude": 0
+    },
+    "sop": {
+      "sop_present": 23,
+      "no_sop_available": 27
+    },
+    "has_rca": 37,
+    "issue_areas": {
+      "Frontend": 59,
+      "Backend": 59,
+      "Other": 5,
+      "Database": 5,
+      "API": 3,
+      "DevOps/infrastructure/deployments": 3,
+      "Network/firewall": 1,
+      "Network": 1,
+      "DevOps": 1
+    },
+    "environments": {
+      "Production": 118,
+      "UAT": 19
+    },
+    "tenants": {
+      "canara_bank": 23,
+      "unity_bank": 93,
+      "bank_of_baroda": 6,
+      "rbl_bank": 3,
+      "bajaj_finance": 5,
+      "shinhan_bank": 1,
+      "mohfl": 1,
+      "kerala_gb_(canara_rrb)": 1,
+      "cbi": 2,
+      "nrfsi": 1,
+      "karnataka_gb_(canara_rrb)": 1
+    }
+  },
+  "Audio Related": {
+    "total": 125,
+    "automation": {
+      "auto_resolvable": 35,
+      "human_review": 32,
+      "escalation": 58,
+      "exclude": 0
+    },
+    "sop": {
+      "sop_present": 43,
+      "no_sop_available": 15
+    },
+    "has_rca": 8,
+    "issue_areas": {
+      "Frontend": 83,
+      "Backend": 32,
+      "Other": 10
+    },
+    "environments": {
+      "Production": 123,
+      "UAT": 1
+    },
+    "tenants": {
+      "unity_bank": 123,
+      "bank_of_baroda": 1,
+      "rbl_bank": 1
+    }
+  },
+  "Auditor Hold": {
+    "total": 123,
+    "automation": {
+      "auto_resolvable": 1,
+      "human_review": 16,
+      "escalation": 106,
+      "exclude": 0
+    },
+    "sop": {
+      "sop_present": 99,
+      "no_sop_available": 8
+    },
+    "has_rca": 0,
+    "issue_areas": {
+      "Frontend": 83,
+      "Backend": 32,
+      "Other": 8
+    },
+    "environments": {
+      "Production": 123
+    },
+    "tenants": {
+      "rbl_bank": 113,
+      "cbi": 1,
+      "unity_bank": 9
+    }
+  },
+  "Account Creation": {
+    "total": 116,
+    "automation": {
+      "auto_resolvable": 61,
+      "human_review": 11,
+      "escalation": 44,
+      "exclude": 0
+    },
+    "sop": {
+      "sop_present": 70,
+      "no_sop_available": 1
+    },
+    "has_rca": 1,
+    "issue_areas": {
+      "Backend": 63,
+      "API": 42,
+      "Frontend": 10,
+      "Database": 1
+    },
+    "environments": {
+      "Production": 116
+    },
+    "tenants": {
+      "cbi": 63,
+      "karnataka_gb_(canara_rrb)": 8,
+      "kerala_gb_(canara_rrb)": 2,
+      "unity_bank": 43
+    }
+  },
+  "Video Recovery": {
+    "total": 80,
+    "automation": {
+      "auto_resolvable": 32,
+      "human_review": 24,
+      "escalation": 24,
+      "exclude": 0
+    },
+    "sop": {
+      "sop_present": 37,
+      "no_sop_available": 3
+    },
+    "has_rca": 13,
+    "issue_areas": {
+      "Frontend": 44,
+      "Backend": 36
+    },
+    "environments": {
+      "Production": 75,
+      "UAT": 2
+    },
+    "tenants": {
+      "fino": 2,
+      "bajaj_finance": 3,
+      "mohfl": 3,
+      "canara_bank": 3,
+      "cbi": 4,
+      "unity_bank": 63,
+      "bank_of_baroda": 2
+    }
+  },
+  "Unable to Login": {
+    "total": 70,
+    "automation": {
+      "auto_resolvable": 11,
+      "human_review": 20,
+      "escalation": 39,
+      "exclude": 0
+    },
+    "sop": {
+      "sop_present": 17,
+      "no_sop_available": 7
+    },
+    "has_rca": 7,
+    "issue_areas": {
+      "Frontend": 37,
+      "Backend": 16,
+      "Database": 12,
+      "API": 3,
+      "Other": 2
+    },
+    "environments": {
+      "Production": 67,
+      "UAT": 3
+    },
+    "tenants": {
+      "bajaj_finance": 34,
+      "cbi": 2,
+      "rbl_bank": 3,
+      "kerala_gb_(canara_rrb)": 1,
+      "fino": 1,
+      "bank_of_baroda": 1,
+      "unity_bank": 28
+    }
+  },
+  "API Issues": {
+    "total": 66,
+    "automation": {
+      "auto_resolvable": 13,
+      "human_review": 25,
+      "escalation": 28,
+      "exclude": 0
+    },
+    "sop": {
+      "sop_present": 12,
+      "no_sop_available": 11
+    },
+    "has_rca": 29,
+    "issue_areas": {
+      "API": 30,
+      "Backend": 26,
+      "Frontend": 4,
+      "Database": 3,
+      "DevOps/infrastructure/deployments": 2,
+      "Integration": 1
+    },
+    "environments": {
+      "UAT": 12,
+      "Production": 54
+    },
+    "tenants": {
+      "canara_bank": 15,
+      "unity_bank": 49,
+      "bank_of_baroda": 1,
+      "nrfsi": 1
+    }
+  },
+  "Portal Not Working": {
+    "total": 56,
+    "automation": {
+      "auto_resolvable": 5,
+      "human_review": 13,
+      "escalation": 38,
+      "exclude": 0
+    },
+    "sop": {
+      "sop_present": 9,
+      "no_sop_available": 15
+    },
+    "has_rca": 2,
+    "issue_areas": {
+      "Frontend": 39,
+      "Backend": 7,
+      "Other": 7,
+      "Database": 2,
+      "API": 1
+    },
+    "environments": {
+      "Production": 51,
+      "UAT": 5
+    },
+    "tenants": {
+      "mohfl": 2,
+      "nrfsi": 1,
+      "bajaj_finance": 9,
+      "pfizer": 1,
+      "unity_bank": 19,
+      "rbl_bank": 5,
+      "bank_of_baroda": 7,
+      "cbi": 8,
+      "fino": 4
+    }
+  },
+  "Send Link Issue": {
+    "total": 49,
+    "automation": {
+      "auto_resolvable": 1,
+      "human_review": 16,
+      "escalation": 32,
+      "exclude": 0
+    },
+    "sop": {
+      "sop_present": 27,
+      "no_sop_available": 3
+    },
+    "has_rca": 1,
+    "issue_areas": {
+      "Frontend": 38,
+      "Backend": 9,
+      "Other": 1,
+      "API": 1
+    },
+    "environments": {
+      "Production": 43,
+      "UAT": 2
+    },
+    "tenants": {
+      "bajaj_finance": 37,
+      "unity_bank": 12
+    }
+  },
+  "Audit Lock": {
+    "total": 43,
+    "automation": {
+      "auto_resolvable": 14,
+      "human_review": 10,
+      "escalation": 19,
+      "exclude": 0
+    },
+    "sop": {
+      "sop_present": 17,
+      "no_sop_available": 2
+    },
+    "has_rca": 9,
+    "issue_areas": {
+      "Backend": 24,
+      "Frontend": 16,
+      "Database": 2,
+      "Other": 1
+    },
+    "environments": {
+      "Production": 43
+    },
+    "tenants": {
+      "bajaj_finance": 1,
+      "fino": 3,
+      "cbi": 3,
+      "rbl_bank": 3,
+      "unity_bank": 30,
+      "bank_of_baroda": 3
+    }
+  },
+  "User Form Issue": {
+    "total": 27,
+    "automation": {
+      "auto_resolvable": 0,
+      "human_review": 17,
+      "escalation": 10,
+      "exclude": 0
+    },
+    "sop": {
+      "sop_present": 8,
+      "no_sop_available": 3
+    },
+    "has_rca": 1,
+    "issue_areas": {
+      "Frontend": 16,
+      "Backend": 10,
+      "DevOps/infrastructure/deployments": 1
+    },
+    "environments": {
+      "Production": 26,
+      "UAT": 1
+    },
+    "tenants": {
+      "canara_bank": 14,
+      "cbi": 12,
+      "unity_bank": 1
+    }
+  },
+  "NSDL/PAN Related": {
+    "total": 26,
+    "automation": {
+      "auto_resolvable": 0,
+      "human_review": 15,
+      "escalation": 11,
+      "exclude": 0
+    },
+    "sop": {
+      "sop_present": 6,
+      "no_sop_available": 12
+    },
+    "has_rca": 8,
+    "issue_areas": {
+      "Backend": 14,
+      "Frontend": 6,
+      "Other": 3,
+      "Database": 2,
+      "API": 1
+    },
+    "environments": {
+      "Production": 25,
+      "UAT": 1
+    },
+    "tenants": {
+      "rbl_bank": 2,
+      "cbi": 2,
+      "unity_bank": 20,
+      "nrfsi": 2
+    }
+  },
+  "Case Not Visible In Agent/Admin": {
+    "total": 21,
+    "automation": {
+      "auto_resolvable": 0,
+      "human_review": 7,
+      "escalation": 14,
+      "exclude": 0
+    },
+    "sop": {
+      "sop_present": 15,
+      "no_sop_available": 1
+    },
+    "has_rca": 0,
+    "issue_areas": {
+      "Frontend": 10,
+      "Database": 6,
+      "Backend": 3,
+      "Other": 2
+    },
+    "environments": {
+      "Production": 21
+    },
+    "tenants": {
+      "rbl_bank": 17,
+      "kerala_gb_(canara_rrb)": 2,
+      "unity_bank": 2
+    }
+  },
+  "Summary Data Not Available": {
+    "total": 17,
+    "automation": {
+      "auto_resolvable": 12,
+      "human_review": 2,
+      "escalation": 3,
+      "exclude": 0
+    },
+    "sop": {
+      "sop_present": 1,
+      "no_sop_available": 0
+    },
+    "has_rca": 2,
+    "issue_areas": {
+      "Backend": 7,
+      "Frontend": 7,
+      "Other": 3
+    },
+    "environments": {
+      "Production": 16,
+      "UAT": 1
+    },
+    "tenants": {
+      "unity_bank": 17
+    }
+  },
+  "CBS Related": {
+    "total": 15,
+    "automation": {
+      "auto_resolvable": 4,
+      "human_review": 0,
+      "escalation": 11,
+      "exclude": 0
+    },
+    "sop": {
+      "sop_present": 2,
+      "no_sop_available": 3
+    },
+    "has_rca": 0,
+    "issue_areas": {
+      "Backend": 6,
+      "Frontend": 5,
+      "API": 4
+    },
+    "environments": {
+      "Production": 15
+    },
+    "tenants": {
+      "bank_of_baroda": 6,
+      "cbi": 2,
+      "unity_bank": 7
+    }
+  },
+  "CKYC Related Issue": {
+    "total": 14,
+    "automation": {
+      "auto_resolvable": 3,
+      "human_review": 8,
+      "escalation": 3,
+      "exclude": 0
+    },
+    "sop": {
+      "sop_present": 11,
+      "no_sop_available": 2
+    },
+    "has_rca": 0,
+    "issue_areas": {
+      "Backend": 13,
+      "Database": 1
+    },
+    "environments": {
+      "Production": 14
+    },
+    "tenants": {
+      "cbi": 12,
+      "shinhan_bank": 2
+    }
+  },
+  "Call not getting connected": {
+    "total": 13,
+    "automation": {
+      "auto_resolvable": 0,
+      "human_review": 5,
+      "escalation": 8,
+      "exclude": 0
+    },
+    "sop": {
+      "sop_present": 6,
+      "no_sop_available": 2
+    },
+    "has_rca": 1,
+    "issue_areas": {
+      "Backend": 7,
+      "Frontend": 6
+    },
+    "environments": {
+      "Production": 12,
+      "UAT": 1
+    },
+    "tenants": {
+      "karnataka_gb_(canara_rrb)": 2,
+      "rbl_bank": 4,
+      "cbi": 3,
+      "mohfl": 1,
+      "bajaj_finance": 2,
+      "unity_bank": 1
+    }
+  },
+  "Session Not Available": {
+    "total": 13,
+    "automation": {
+      "auto_resolvable": 6,
+      "human_review": 2,
+      "escalation": 5,
+      "exclude": 0
+    },
+    "sop": {
+      "sop_present": 1,
+      "no_sop_available": 1
+    },
+    "has_rca": 8,
+    "issue_areas": {
+      "Backend": 5,
+      "Database": 4,
+      "Integration": 1,
+      "API": 1,
+      "Other": 1,
+      "Frontend": 1
+    },
+    "environments": {
+      "Production": 13
+    },
+    "tenants": {
+      "unity_bank": 13
+    }
+  },
+  "Aadhaar Masking": {
+    "total": 11,
+    "automation": {
+      "auto_resolvable": 3,
+      "human_review": 1,
+      "escalation": 7,
+      "exclude": 0
+    },
+    "sop": {
+      "sop_present": 7,
+      "no_sop_available": 1
+    },
+    "has_rca": 1,
+    "issue_areas": {
+      "Backend": 6,
+      "Frontend": 4,
+      "Database": 1
+    },
+    "environments": {
+      "Production": 11
+    },
+    "tenants": {
+      "bank_of_baroda": 4,
+      "cbi": 2,
+      "fino": 1,
+      "unity_bank": 4
+    }
+  },
+  "Call Connected to Multiple Agents": {
+    "total": 5,
+    "automation": {
+      "auto_resolvable": 0,
+      "human_review": 1,
+      "escalation": 4,
+      "exclude": 0
+    },
+    "sop": {
+      "sop_present": 0,
+      "no_sop_available": 1
+    },
+    "has_rca": 1,
+    "issue_areas": {
+      "Backend": 2,
+      "Frontend": 1,
+      "Integration": 1,
+      "Database": 1
+    },
+    "environments": {
+      "Production": 5
+    },
+    "tenants": {
+      "kerala_gb_(canara_rrb)": 1,
+      "unity_bank": 4
+    }
+  },
+  "Failed To Capture Image": {
+    "total": 4,
+    "automation": {
+      "auto_resolvable": 0,
+      "human_review": 0,
+      "escalation": 4,
+      "exclude": 0
+    },
+    "sop": {
+      "sop_present": 2,
+      "no_sop_available": 1
+    },
+    "has_rca": 0,
+    "issue_areas": {
+      "Frontend": 3,
+      "Backend": 1
+    },
+    "environments": {
+      "Production": 4
+    },
+    "tenants": {
+      "cbi": 2,
+      "rbl_bank": 1,
+      "mohfl": 1
+    }
+  },
+  "Document Required": {
+    "total": 3,
+    "automation": {
+      "auto_resolvable": 0,
+      "human_review": 1,
+      "escalation": 2,
+      "exclude": 0
+    },
+    "sop": {
+      "sop_present": 2,
+      "no_sop_available": 0
+    },
+    "has_rca": 0,
+    "issue_areas": {
+      "Backend": 2,
+      "Frontend": 1
+    },
+    "environments": {
+      "Production": 3
+    },
+    "tenants": {
+      "cbi": 2,
+      "unity_bank": 1
+    }
+  },
+  "Production Down": {
+    "total": 3,
+    "automation": {
+      "auto_resolvable": 0,
+      "human_review": 0,
+      "escalation": 3,
+      "exclude": 0
+    },
+    "sop": {
+      "sop_present": 0,
+      "no_sop_available": 0
+    },
+    "has_rca": 2,
+    "issue_areas": {
+      "Backend": 2,
+      "DevOps": 1
+    },
+    "environments": {
+      "Production": 3
+    },
+    "tenants": {
+      "unity_bank": 3
+    }
+  },
+  "SUMMARY_DATA MISSING OR NOT AVAILABLE": {
+    "total": 2,
+    "automation": {
+      "auto_resolvable": 0,
+      "human_review": 0,
+      "escalation": 2,
+      "exclude": 0
+    },
+    "sop": {
+      "sop_present": 1,
+      "no_sop_available": 1
+    },
+    "has_rca": 0,
+    "issue_areas": {
+      "Backend": 1,
+      "Frontend": 1
+    },
+    "environments": {
+      "Production": 2
+    },
+    "tenants": {
+      "cbi": 1,
+      "unity_bank": 1
+    }
+  },
+  "Sessions Tab Not Working": {
+    "total": 2,
+    "automation": {
+      "auto_resolvable": 0,
+      "human_review": 0,
+      "escalation": 2,
+      "exclude": 0
+    },
+    "sop": {
+      "sop_present": 0,
+      "no_sop_available": 0
+    },
+    "has_rca": 1,
+    "issue_areas": {
+      "Frontend": 1,
+      "Database": 1
+    },
+    "environments": {
+      "Production": 2
+    },
+    "tenants": {
+      "unity_bank": 2
+    }
+  },
+  "CR": {
+    "total": 2,
+    "automation": {
+      "auto_resolvable": 1,
+      "human_review": 0,
+      "escalation": 1,
+      "exclude": 0
+    },
+    "sop": {
+      "sop_present": 0,
+      "no_sop_available": 1
+    },
+    "has_rca": 0,
+    "issue_areas": {
+      "Frontend": 1,
+      "Backend": 1
+    },
+    "environments": {
+      "Production": 2
+    },
+    "tenants": {
+      "unity_bank": 2
+    }
+  },
+  "RCA": {
+    "total": 2,
+    "automation": {
+      "auto_resolvable": 1,
+      "human_review": 1,
+      "escalation": 0,
+      "exclude": 0
+    },
+    "sop": {
+      "sop_present": 0,
+      "no_sop_available": 0
+    },
+    "has_rca": 0,
+    "issue_areas": {
+      "API": 1,
+      "Frontend": 1
+    },
+    "environments": {
+      "Production": 2
+    },
+    "tenants": {
+      "unity_bank": 2
+    }
+  },
+  "Back to Branch": {
+    "total": 1,
+    "automation": {
+      "auto_resolvable": 1,
+      "human_review": 0,
+      "escalation": 0,
+      "exclude": 0
+    },
+    "sop": {
+      "sop_present": 0,
+      "no_sop_available": 0
+    },
+    "has_rca": 0,
+    "issue_areas": {
+      "Other": 1
+    },
+    "environments": {
+      "Production": 1
+    },
+    "tenants": {
+      "unity_bank": 1
+    }
+  },
+  "Product Code Missing": {
+    "total": 1,
+    "automation": {
+      "auto_resolvable": 0,
+      "human_review": 0,
+      "escalation": 1,
+      "exclude": 0
+    },
+    "sop": {
+      "sop_present": 0,
+      "no_sop_available": 0
+    },
+    "has_rca": 0,
+    "issue_areas": {
+      "Frontend": 1
+    },
+    "environments": {
+      "Production": 1
+    },
+    "tenants": {
+      "unity_bank": 1
+    }
+  },
+  "Live Tab Not Working": {
+    "total": 1,
+    "automation": {
+      "auto_resolvable": 1,
+      "human_review": 0,
+      "escalation": 0,
+      "exclude": 0
+    },
+    "sop": {
+      "sop_present": 0,
+      "no_sop_available": 0
+    },
+    "has_rca": 0,
+    "issue_areas": {
+      "Database": 1
+    },
+    "environments": {
+      "Production": 1
+    },
+    "tenants": {
+      "unity_bank": 1
+    }
+  }
+}

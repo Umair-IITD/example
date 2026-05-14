@@ -1,0 +1,14 @@
+fastapi==0.116.1
+uvicorn==0.35.0
+python-dotenv==1.1.1
+httpx==0.28.1
+pydantic==2.11.9
+supabase==2.18.1
+openpyxl==3.1.5
+pandas
+pyarrow              # Parquet support for unified_cleaned_dataset.parquet
+xlrd
+pytest==8.4.2
+
+# Phase B1 additions
+tiktoken             # Token counting for OpenAI embedding models (cl100k_base)

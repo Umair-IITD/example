@@ -1,0 +1,27 @@
+services:
+  fumadocs-api:
+    container_name: fumadocs-api
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./:/app
+    restart: unless-stopped
+
+  # Optional local embeddings service.
+  # Enable only if EMBEDDING_PROVIDER=ollama and OLLAMA_BASE_URL=http://ollama:11434
+  # ollama:
+  #   image: ollama/ollama:latest
+  #   container_name: ollama
+  #   ports:
+  #     - "11434:11434"
+  #   volumes:
+  #     - ollama_data:/root/.ollama
+  #   restart: unless-stopped
+
+# volumes:
+#   ollama_data:
