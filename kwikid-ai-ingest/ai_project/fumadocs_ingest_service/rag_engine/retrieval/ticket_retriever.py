@@ -147,6 +147,13 @@ class TicketRetriever:
         chunks = [self._row_to_chunk(r) for r in raw_results]
         total_candidates = len(chunks)
 
+        # ── Step 3b: chunk_type filter ──────────────────────────────────────
+        # match_all_b1_sources returns all chunk types; filter here when requested.
+        # total_candidates above reflects the pre-filter RPC count for observability.
+        if request.chunk_types:
+            allowed = set(request.chunk_types)
+            chunks = [c for c in chunks if c.chunk_type in allowed]
+
         # ── Step 4: Reranking (NullReranker by default) ─────────────────────
         chunks = self._reranker.rerank(
             query=request.query_text,
