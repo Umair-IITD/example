@@ -5,11 +5,21 @@ import hashlib
 import os
 import uuid
 import time
+from contextlib import asynccontextmanager
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator
+
+from app.security import (
+    api_key_auth_middleware,
+    initialize as security_initialize,
+    load_api_keys,
+    validate_startup_security,
+)
 
 from observability import logger, tracer, ChunkMetadata, LLMResponseMetadata
 
@@ -50,7 +60,39 @@ from rag_engine.generation.llm_client import B1LLMClient
 from rag_engine.retrieval.ticket_retriever import TicketRetriever
 
 
-app = FastAPI(title="Fuma Docs Ingestion Service", version="1.0.0")
+_LOGGER_PRE = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    """Startup: validate security config and cache API keys. Shutdown: log."""
+    api_keys = load_api_keys()
+    openai_key = os.getenv("OPENAI_API_KEY", "").strip()
+    errors = validate_startup_security(api_keys, openai_key)
+    if errors:
+        for msg in errors:
+            _LOGGER_PRE.critical("STARTUP_SECURITY_ERROR: %s", msg)
+        raise RuntimeError(
+            f"Security configuration error — service refuses to start: {errors[0]}"
+        )
+    security_initialize(api_keys)
+    _LOGGER_PRE.info("security_initialized api_keys_count=%d", len(api_keys))
+    yield
+    _LOGGER_PRE.info("service_shutdown")
+
+
+_docs_enabled = os.getenv("FASTAPI_DOCS_ENABLED", "false").strip().lower() in {
+    "1", "true", "yes", "on"
+}
+
+app = FastAPI(
+    title="Fuma Docs Ingestion Service",
+    version="1.0.0",
+    lifespan=lifespan,
+    docs_url="/docs" if _docs_enabled else None,
+    redoc_url="/redoc" if _docs_enabled else None,
+    openapi_url="/openapi.json" if _docs_enabled else None,
+)
 LOGGER = logging.getLogger(__name__)
 
 app.add_middleware(
@@ -98,6 +140,37 @@ async def log_requests(request: Request, call_next):
             }
         )
         raise
+
+
+# Security middleware is registered AFTER log_requests so it is outermost
+# (Starlette LIFO: last registered = first to process inbound requests).
+app.middleware("http")(api_key_auth_middleware)
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    LOGGER.exception(
+        "unhandled_exception method=%s path=%s type=%s",
+        request.method, request.url.path, type(exc).__name__,
+    )
+    return JSONResponse(
+        status_code=500,
+        content={"error": "internal_server_error", "message": "An unexpected error occurred."},
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(
+    request: Request, exc: RequestValidationError
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=422,
+        content={
+            "error": "validation_error",
+            "message": "Request validation failed.",
+            "details": exc.errors(),
+        },
+    )
 
 
 class IngestRequest(BaseModel):
@@ -838,6 +911,8 @@ def rag_chat(payload: RagChatRequest) -> dict[str, Any]:
         "message_id": result.message_id,
         "answer": result.answer,
         "confidence": result.confidence,
+        "confidence_score": result.confidence_score,
+        "requires_human": result.requires_human,
         "citations": result.citations,
         "follow_up_question": result.follow_up_question,
         "insufficient_context": result.insufficient_context,
@@ -966,6 +1041,21 @@ async def freshdesk_webhook(request: Request) -> dict[str, Any]:
                 pass
 
     # ── 8. Confidence gate ──────────────────────────────────────────────────────
+    if result.requires_human:
+        LOGGER.info(
+            "freshdesk_webhook: requires_human=True — skipping auto-reply ticket=%s client=%s confidence=%s",
+            ticket_id,
+            client,
+            result.confidence,
+        )
+        return {
+            "status": "skipped",
+            "reason": "requires_human_review",
+            "ticket_id": ticket_id,
+            "confidence": result.confidence,
+            "confidence_score": result.confidence_score,
+        }
+
     if not meets_confidence_threshold(result.confidence, app_settings.freshdesk_webhook_min_confidence):
         LOGGER.info(
             "freshdesk_webhook: below threshold confidence=%s min=%s ticket=%s client=%s",

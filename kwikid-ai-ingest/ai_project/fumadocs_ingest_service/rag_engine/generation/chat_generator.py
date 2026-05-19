@@ -2,6 +2,15 @@
 rag_engine/generation/chat_generator.py
 
 Phase B2 orchestrator: TicketRetriever → context assembly → LLM → GenerationResult.
+
+GenerationResult carries the full structured response:
+  answer            — grounded draft text for the support agent
+  confidence        — categorical: "high" | "medium" | "low"
+  confidence_score  — numeric [0.0, 1.0], derived deterministically from categorical + context signals
+  citations         — list of chunk attributions (chunk_num, chunk_type, source_id)
+  requires_human    — True when the LLM or Python-side safety rules mandate human review
+  follow_up_question — optional clarifying question for the agent
+  insufficient_context — True when no chunks were retrieved
 """
 from __future__ import annotations
 
@@ -13,7 +22,7 @@ from typing import Any, Optional
 
 from rag_engine.generation.context_assembler import assemble_context
 from rag_engine.generation.llm_client import B1LLMClient
-from rag_engine.generation.prompt_builder import B1_SYSTEM_PROMPT, build_user_prompt
+from rag_engine.generation.prompt_builder import B2_SYSTEM_PROMPT, build_user_prompt
 from rag_engine.retrieval.ticket_retriever import (
     RetrievalRequest,
     RetrievedChunk,
@@ -23,6 +32,15 @@ from rag_engine.retrieval.ticket_retriever import (
 LOGGER = logging.getLogger(__name__)
 
 _VALID_CONFIDENCE = {"high", "medium", "low"}
+
+# Deterministic base scores for each categorical confidence level.
+# These are calibrated so that: high > medium > low, and no single level
+# occupies more than 0.45 of the [0,1] range, preserving separation.
+_CONFIDENCE_BASE: dict[str, float] = {
+    "high": 0.82,
+    "medium": 0.50,
+    "low": 0.18,
+}
 
 
 @dataclass
@@ -40,8 +58,10 @@ class GenerationRequest:
 @dataclass
 class GenerationResult:
     answer: str
-    confidence: str
+    confidence: str                         # "high" | "medium" | "low"
+    confidence_score: float                 # numeric [0.0, 1.0] — deterministic, not LLM-derived
     citations: list[dict[str, Any]]
+    requires_human: bool                    # True → agent must review before any customer action
     follow_up_question: Optional[str]
     chunks: list[dict[str, Any]]
     diagnostics: dict[str, Any]
@@ -158,6 +178,8 @@ class ChatGenerator:
 
         # ── Context assembly ──────────────────────────────────────────────────
         assembled = assemble_context(chunks, per_chunk_max_chars=self._per_chunk_max_chars)
+        diagnostics["context_tokens"] = assembled.total_tokens
+        diagnostics["context_skipped_chunks"] = assembled.skipped_chunks
 
         # ── History ───────────────────────────────────────────────────────────
         history: list[dict[str, str]] = []
@@ -171,11 +193,26 @@ class ChatGenerator:
             diagnostics=diagnostics,
             client=request.client,
         )
-        parsed = self._llm.complete_json(
-            system_prompt=B1_SYSTEM_PROMPT,
-            user_prompt=user_prompt,
-            history=history or None,
-        )
+        try:
+            parsed = self._llm.complete_json(
+                system_prompt=B2_SYSTEM_PROMPT,
+                user_prompt=user_prompt,
+                history=history or None,
+            )
+        except Exception as exc:  # noqa: BLE001
+            LOGGER.error(
+                "B2 LLM call failed — returning degraded result: client=%s error=%s",
+                request.client,
+                type(exc).__name__,
+            )
+            return _degraded_result(
+                request=request,
+                session_id=effective_session_id,
+                message_id=assistant_msg_id,
+                chunks=chunks,
+                diagnostics=diagnostics,
+                reason=str(exc),
+            )
 
         # ── Normalize output ──────────────────────────────────────────────────
         answer = str(parsed.get("answer") or "").strip()
@@ -190,9 +227,28 @@ class ChatGenerator:
             follow_up_raw.strip() if isinstance(follow_up_raw, str) else None
         ) or None
 
-        # Never claim "high" confidence when no context was retrieved
+        # Never claim "high" when no context was retrieved
         if insufficient_context and confidence == "high":
             confidence = "medium"
+
+        # Derive requires_human: LLM signal + Python-side safety overrides
+        llm_requires_human = parsed.get("requires_human")
+        requires_human = _derive_requires_human(
+            llm_flag=llm_requires_human,
+            insufficient_context=insufficient_context,
+            confidence=confidence,
+            has_sop_context=retrieval.has_sop_context,
+        )
+
+        # Derive numeric confidence score deterministically from categorical + context signals
+        confidence_score = _derive_confidence_score(
+            confidence,
+            insufficient_context=insufficient_context,
+            has_sop=retrieval.has_sop_context,
+            has_rca=retrieval.has_rca_context,
+            chunk_count=len(chunks),
+            requires_human=requires_human,
+        )
 
         # ── Persist history ───────────────────────────────────────────────────
         if request.persist_history and self._history_store:
@@ -210,27 +266,34 @@ class ChatGenerator:
                 message_id=assistant_msg_id,
                 metadata={
                     "confidence": confidence,
+                    "confidence_score": confidence_score,
+                    "requires_human": requires_human,
                     "citations": citations,
                     "follow_up_question": follow_up,
                     "insufficient_context": insufficient_context,
                     "diagnostics": diagnostics,
-                    "source": "b1_rag",
+                    "source": "b2_rag",
                 },
             )
 
         LOGGER.info(
-            "B2 generate: client=%s, chunks=%d, sop=%d, has_rca=%s, confidence=%s",
+            "B2 generate: client=%s chunks=%d sop=%d rca=%s confidence=%s "
+            "confidence_score=%.3f requires_human=%s",
             request.client,
             len(chunks),
             assembled.sop_count,
             retrieval.has_rca_context,
             confidence,
+            confidence_score,
+            requires_human,
         )
 
         return GenerationResult(
             answer=answer,
             confidence=confidence,
+            confidence_score=confidence_score,
             citations=citations,
+            requires_human=requires_human,
             follow_up_question=follow_up,
             chunks=[_chunk_to_dict(c) for c in chunks],
             diagnostics=diagnostics,
@@ -238,6 +301,103 @@ class ChatGenerator:
             message_id=assistant_msg_id,
             insufficient_context=insufficient_context,
         )
+
+
+# ── Private helpers ────────────────────────────────────────────────────────────
+
+
+def _derive_requires_human(
+    *,
+    llm_flag: Any,
+    insufficient_context: bool,
+    confidence: str,
+    has_sop_context: bool,
+) -> bool:
+    """Determine whether human review is mandatory.
+
+    The LLM's requires_human signal is respected (trust escalation intent),
+    then overridden by Python-side safety conditions that the LLM cannot judge:
+    e.g. zero retrieval, or low confidence with no SOP anchor.
+    """
+    if llm_flag is True:
+        return True
+    if insufficient_context:
+        return True
+    if confidence == "low" and not has_sop_context:
+        return True
+    return False
+
+
+def _derive_confidence_score(
+    confidence: str,
+    *,
+    insufficient_context: bool,
+    has_sop: bool,
+    has_rca: bool,
+    chunk_count: int,
+    requires_human: bool,
+) -> float:
+    """Derive a numeric [0.0, 1.0] confidence score from categorical + context signals.
+
+    Deterministic derivation is more reliable than asking the LLM to produce a float.
+    Adjustments are additive and small so the categorical bucket is always dominant.
+    """
+    if insufficient_context:
+        return 0.10
+
+    base = _CONFIDENCE_BASE.get(confidence, 0.18)
+    adj = 0.0
+    if has_sop:
+        adj += 0.05   # SOP is authoritative evidence
+    if has_rca:
+        adj += 0.03   # proven resolution pattern exists
+    if chunk_count >= 5:
+        adj += 0.02   # rich context pool
+
+    score = base + adj
+    if requires_human:
+        score = min(score, 0.75)   # human gate → cap at 0.75
+
+    return round(min(0.95, max(0.05, score)), 3)
+
+
+def _degraded_result(
+    *,
+    request: GenerationRequest,
+    session_id: str,
+    message_id: str,
+    chunks: list[RetrievedChunk],
+    diagnostics: dict[str, Any],
+    reason: str,
+) -> GenerationResult:
+    """Return a safe requires_human=True result when the LLM call fails entirely.
+
+    The retrieved chunks are preserved so the agent can still see what the retrieval
+    layer found. The answer explicitly states the service is unavailable rather than
+    silently returning an empty or fabricated response.
+    """
+    degraded_diagnostics = {**diagnostics, "llm_failure": True, "llm_failure_reason": reason}
+    LOGGER.warning(
+        "Returning degraded GenerationResult: client=%s reason=%s",
+        request.client,
+        reason,
+    )
+    return GenerationResult(
+        answer=(
+            "The AI generation service is temporarily unavailable. "
+            "Please handle this support ticket manually."
+        ),
+        confidence="low",
+        confidence_score=0.05,
+        citations=[],
+        requires_human=True,
+        follow_up_question=None,
+        chunks=[_chunk_to_dict(c) for c in chunks],
+        diagnostics=degraded_diagnostics,
+        session_id=session_id,
+        message_id=message_id,
+        insufficient_context=len(chunks) == 0,
+    )
 
 
 def _chunk_to_dict(chunk: RetrievedChunk) -> dict[str, Any]:
