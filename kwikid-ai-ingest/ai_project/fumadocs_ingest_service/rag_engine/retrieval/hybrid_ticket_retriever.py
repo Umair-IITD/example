@@ -148,7 +148,7 @@ class HybridTicketRetriever(TicketRetriever):
 
         # ── Step 4: RRF Fusion ─────────────────────────────────────────────────
         t_fusion = time.perf_counter()
-        fused_raw, retrieval_mode = self._rrf_fuse(
+        fused_raw, retrieval_mode, rrf_diagnostics = self._rrf_fuse(
             semantic_raw, keyword_raw, request
         )
         fusion_latency_ms = (time.perf_counter() - t_fusion) * 1000
@@ -198,6 +198,11 @@ class HybridTicketRetriever(TicketRetriever):
                 "semantic_candidates": len(semantic_raw),
                 "keyword_candidates": len(keyword_raw),
                 "fused_candidates": len(fused_raw),
+                # Adaptive RRF diagnostics (always present, even in semantic-only mode)
+                "selected_rrf_k": rrf_diagnostics["selected_rrf_k"],
+                "overlap_count": rrf_diagnostics["overlap_count"],
+                "overlap_ratio": rrf_diagnostics["overlap_ratio"],
+                "retrieval_confidence": rrf_diagnostics["retrieval_confidence"],
             },
         )
 
@@ -268,21 +273,28 @@ class HybridTicketRetriever(TicketRetriever):
         semantic_raw: list[dict],
         keyword_raw: list[dict],
         request: RetrievalRequest,
-    ) -> tuple[list[dict], str]:
+    ) -> tuple[list[dict], str, dict]:
         """
         Fuse semantic and keyword results using RRF.
 
         Returns:
-            (fused_list, retrieval_mode_string)
+            (fused_list, retrieval_mode_string, rrf_diagnostics)
+            rrf_diagnostics keys: selected_rrf_k, overlap_count, overlap_ratio,
+                                  retrieval_confidence
         """
+        _empty_diag: dict = {"selected_rrf_k": _RRF_K_BASE, "overlap_count": 0,
+                             "overlap_ratio": 0.0, "retrieval_confidence": "low"}
+
         if not semantic_raw and not keyword_raw:
-            return [], "none"
+            return [], "none", _empty_diag
 
         if not keyword_raw:
-            return semantic_raw, "semantic_only"
+            diag = {**_empty_diag, "retrieval_confidence": "medium" if len(semantic_raw) >= 3 else "low"}
+            return semantic_raw, "semantic_only", diag
 
         if not semantic_raw:
-            return keyword_raw, "keyword_only"
+            diag = {**_empty_diag, "retrieval_confidence": "low"}
+            return keyword_raw, "keyword_only", diag
 
         # Build lookup by chunk ID
         sem_map: dict[str, dict] = {}
@@ -301,6 +313,9 @@ class HybridTicketRetriever(TicketRetriever):
 
         # Adaptive k
         overlap = len(set(sem_map.keys()) & set(kw_map.keys()))
+        union = max(1, len(sem_map) + len(kw_map) - overlap)
+        overlap_ratio = round(overlap / union, 4)
+
         if _ADAPTIVE_RRF:
             k = _compute_adaptive_k_b1(
                 request.query_text,
@@ -334,7 +349,21 @@ class HybridTicketRetriever(TicketRetriever):
         self._bm25_rerank_inplace(request.query_text, fused)
         fused.sort(key=lambda r: (r.get("_bm25_score", 0.0), r["_rrf_score"]), reverse=True)
 
-        return fused, "hybrid"
+        # Retrieval confidence: both legs agree on ≥30% of candidates → high
+        if overlap_ratio >= 0.30 and len(fused) >= 3:
+            retrieval_confidence = "high"
+        elif overlap_ratio >= 0.10 or len(fused) >= 5:
+            retrieval_confidence = "medium"
+        else:
+            retrieval_confidence = "low"
+
+        rrf_diagnostics: dict = {
+            "selected_rrf_k": k,
+            "overlap_count": overlap,
+            "overlap_ratio": overlap_ratio,
+            "retrieval_confidence": retrieval_confidence,
+        }
+        return fused, "hybrid", rrf_diagnostics
 
     @staticmethod
     def _bm25_rerank_inplace(query: str, rows: list[dict]) -> None:

@@ -38,6 +38,9 @@ Usage:
   # All tenants (all rows in rag_ticket_documents)
   python scripts/reingest_v2.py --all-clients
 
+  # Validate v2 rows without ingesting (null embeddings, orphans, counts)
+  python scripts/reingest_v2.py --client unity_bank --validate
+
 Environment:
   SUPABASE_URL           — required
   SUPABASE_KEY           — required (service role key)
@@ -537,6 +540,140 @@ def _rollback_v2(supabase: Any, client: str, tables: list[str], dry_run: bool) -
             LOGGER.error("[%s] Rollback failed: %s", table, exc)
 
 
+# ── Validation helper ─────────────────────────────────────────────────────────
+
+def _validate_v2(supabase: Any, client: str, tables: list[str]) -> dict:
+    """
+    Validate v2 rows for a client without writing anything.
+
+    Checks:
+      - v2 row count per table
+      - Null embeddings (rows missing embedding vector)
+      - Orphan chunks (parent doc no longer exists in source table)
+      - Content hash presence (sanity check)
+
+    Returns a structured report dict suitable for JSON output.
+    """
+    import json as _json  # noqa: PLC0415
+
+    report: dict = {
+        "client": client,
+        "index_version": "v2",
+        "tables": {},
+        "overall_ok": True,
+        "issues": [],
+    }
+
+    _PARENT_TABLES = {
+        "rag_ticket_chunks":    ("rag_ticket_documents", "document_id", "id"),
+        "rag_sop_chunks":       ("rag_sop_library",      "sop_id",      "sop_id"),
+        "rag_knowledge_chunks": ("rag_knowledge_articles", "article_id", "article_id"),
+    }
+
+    for table in tables:
+        table_report: dict = {"table": table, "ok": True, "issues": []}
+
+        # ── Row count ───────────────────────────────────────────────────────
+        try:
+            q = supabase.table(table).select("id", count="exact").eq("index_version", "v2")
+            if table == "rag_ticket_chunks":
+                q = q.eq("client", client)
+            resp = q.execute()
+            row_count = resp.count or len(resp.data or [])
+            table_report["v2_row_count"] = row_count
+        except Exception as exc:
+            table_report["row_count_error"] = str(exc)
+            table_report["ok"] = False
+            report["tables"][table] = table_report
+            continue
+
+        if row_count == 0:
+            msg = f"{table}: no v2 rows found for client={client}"
+            table_report["issues"].append(msg)
+            table_report["ok"] = False
+            report["issues"].append(msg)
+            report["tables"][table] = table_report
+            continue
+
+        # ── Null embeddings ─────────────────────────────────────────────────
+        try:
+            q_null = (
+                supabase.table(table)
+                .select("id", count="exact")
+                .eq("index_version", "v2")
+                .is_("embedding", "null")
+            )
+            if table == "rag_ticket_chunks":
+                q_null = q_null.eq("client", client)
+            null_resp = q_null.execute()
+            null_count = null_resp.count or len(null_resp.data or [])
+            table_report["null_embeddings"] = null_count
+            if null_count > 0:
+                msg = f"{table}: {null_count} rows have null embedding"
+                table_report["issues"].append(msg)
+                table_report["ok"] = False
+                report["issues"].append(msg)
+        except Exception as exc:
+            table_report["null_embedding_check_error"] = str(exc)
+
+        # ── Orphan detection ─────────────────────────────────────────────────
+        parent_info = _PARENT_TABLES.get(table)
+        if parent_info:
+            parent_table, chunk_fk, parent_pk = parent_info
+            try:
+                # Fetch the FK values from chunk table
+                q_chunks = (
+                    supabase.table(table)
+                    .select(chunk_fk)
+                    .eq("index_version", "v2")
+                )
+                if table == "rag_ticket_chunks":
+                    q_chunks = q_chunks.eq("client", client)
+                chunk_resp = q_chunks.execute()
+                chunk_fk_values = {str(r[chunk_fk]) for r in (chunk_resp.data or []) if r.get(chunk_fk)}
+
+                # Fetch parent IDs
+                parent_resp = supabase.table(parent_table).select(parent_pk).execute()
+                parent_ids = {str(r[parent_pk]) for r in (parent_resp.data or []) if r.get(parent_pk)}
+
+                orphans = chunk_fk_values - parent_ids
+                table_report["orphan_chunk_count"] = len(orphans)
+                if orphans:
+                    msg = f"{table}: {len(orphans)} orphan FK values (parent rows missing)"
+                    table_report["issues"].append(msg)
+                    table_report["ok"] = False
+                    report["issues"].append(msg)
+                    table_report["orphan_sample"] = list(orphans)[:5]
+            except Exception as exc:
+                table_report["orphan_check_error"] = str(exc)
+
+        # ── Content hash presence ────────────────────────────────────────────
+        try:
+            q_hash = (
+                supabase.table(table)
+                .select("id", count="exact")
+                .eq("index_version", "v2")
+                .is_("content_hash", "null")
+            )
+            if table == "rag_ticket_chunks":
+                q_hash = q_hash.eq("client", client)
+            hash_resp = q_hash.execute()
+            missing_hash = hash_resp.count or len(hash_resp.data or [])
+            table_report["missing_content_hash"] = missing_hash
+            if missing_hash > 0:
+                msg = f"{table}: {missing_hash} rows missing content_hash"
+                table_report["issues"].append(msg)
+        except Exception as exc:
+            table_report["hash_check_error"] = str(exc)
+
+        if table_report["issues"]:
+            table_report["ok"] = False
+        report["tables"][table] = table_report
+
+    report["overall_ok"] = not report["issues"]
+    return report
+
+
 # ── CLI entrypoint ────────────────────────────────────────────────────────────
 
 def _parse_args() -> argparse.Namespace:
@@ -557,6 +694,12 @@ def _parse_args() -> argparse.Namespace:
     client_group.add_argument(
         "--rollback", action="store_true",
         help="Delete all v2 rows for the specified --client",
+    )
+
+    parser.add_argument(
+        "--validate", action="store_true",
+        help="Validate v2 rows for the client (null embeddings, orphans, counts). "
+             "Use together with --client. Reads only, no writes.",
     )
 
     parser.add_argument(
@@ -631,6 +774,22 @@ def main() -> int:
             return 1
         _rollback_v2(supabase, args.client, active_tables, args.dry_run)
         return 0
+
+    # Validate path — read-only, outputs structured report
+    # Usage: python reingest_v2.py --client unity_bank --validate
+    if getattr(args, "validate", False) and args.client:
+        LOGGER.info("=== Validating v2 rows for client=%s ===", args.client)
+        report = _validate_v2(supabase, args.client, active_tables)
+        import json as _json  # noqa: PLC0415
+        print(_json.dumps(report, indent=2))
+        if report["overall_ok"]:
+            LOGGER.info("Validation PASSED — no issues found")
+            return 0
+        else:
+            LOGGER.error("Validation FAILED — %d issues found:", len(report["issues"]))
+            for issue in report["issues"]:
+                LOGGER.error("  - %s", issue)
+            return 1
 
     # Determine tenants
     if args.all_clients:

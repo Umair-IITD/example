@@ -70,6 +70,7 @@ from rag_engine.retrieval.ticket_retriever import TicketRetriever
 from rag_engine.feedback.feedback_loop import FeedbackIngester
 from rag_engine.feedback.review_queue import ReviewQueueManager
 from app.feedback import FeedbackRequest, FeedbackResponse, handle_feedback
+from app.query_router import QueryRouter
 
 
 _LOGGER_PRE = logging.getLogger(__name__)
@@ -80,6 +81,8 @@ _PROMETHEUS_ENABLED = os.getenv("PROMETHEUS_ENABLED", "false").strip().lower() i
 _B1_HYBRID_ENABLED = os.getenv("B1_HYBRID_RETRIEVAL_ENABLED", "false").strip().lower() in {
     "1", "true", "yes", "on"
 }
+
+_QUERY_ROUTER = QueryRouter()
 
 
 @asynccontextmanager
@@ -1021,6 +1024,9 @@ async def rag_chat(payload: RagChatRequest, request: Request) -> dict[str, Any]:
             detail={"error": "rate_limited", "message": "Too many requests. Please slow down."},
         )
 
+    # ── Query routing (gated by ENABLE_QUERY_ROUTER) ──────────────────────────
+    route_result = _QUERY_ROUTER.classify(payload.query_text)
+
     app_settings = get_settings()
     rag_settings = get_rag_settings()
     openai_api_key = os.getenv("OPENAI_API_KEY", app_settings.chat_api_key).strip()
@@ -1061,11 +1067,21 @@ async def rag_chat(payload: RagChatRequest, request: Request) -> dict[str, Any]:
                 pass
 
     LOGGER.info(
-        "rag_chat client=%s session=%s confidence=%s chunks=%d insufficient=%s hybrid=%s",
+        "rag_chat client=%s session=%s confidence=%s chunks=%d insufficient=%s hybrid=%s route=%s",
         payload.client, result.session_id, result.confidence,
         len(result.chunks), result.insufficient_context, _B1_HYBRID_ENABLED,
+        route_result.route if route_result.router_enabled else "router_disabled",
     )
     record_retrieval_candidates("rag_chat_chunks", len(result.chunks))
+
+    diagnostics = result.diagnostics
+    if route_result.router_enabled:
+        diagnostics = {
+            **diagnostics,
+            "query_route": route_result.route,
+            "routing_confidence": route_result.confidence,
+            "retrieval_strategy": route_result.retrieval_strategy,
+        }
 
     return {
         "session_id": result.session_id,
@@ -1078,7 +1094,7 @@ async def rag_chat(payload: RagChatRequest, request: Request) -> dict[str, Any]:
         "follow_up_question": result.follow_up_question,
         "insufficient_context": result.insufficient_context,
         "chunks": result.chunks,
-        "diagnostics": result.diagnostics,
+        "diagnostics": diagnostics,
     }
 
 
