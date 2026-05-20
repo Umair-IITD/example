@@ -104,6 +104,20 @@ class Settings:
     freshdesk_webhook_reply_as_note: bool
     freshdesk_webhook_min_confidence: str
     freshdesk_webhook_tenant_tag_prefix: str
+    # When true: startup FAILS if webhook is enabled but no HMAC secret is set.
+    # When false (default): startup emits a warning and allows unauthenticated webhooks.
+    freshdesk_webhook_enforce_hmac: bool
+
+    # ── Phase B2: Redis rate limiting ─────────────────────────────────────────
+    redis_rate_limit_enabled: bool     # disabled by default — in-process fallback used
+    redis_url: str                     # redis://localhost:6379
+    rag_chat_rate_limit: int           # max requests per 60s for /rag/chat
+
+    # ── Phase B2: Prometheus metrics ─────────────────────────────────────────
+    prometheus_enabled: bool           # disabled by default
+
+    # ── Phase B1/B3: Hybrid retrieval ────────────────────────────────────────
+    b1_hybrid_retrieval_enabled: bool  # enables HybridTicketRetriever (FTS + semantic)
 
 
 def _validate_embedding_settings(settings: Settings) -> None:
@@ -282,6 +296,15 @@ def get_settings() -> Settings:
         freshdesk_webhook_reply_as_note=_env_bool("FRESHDESK_WEBHOOK_REPLY_AS_NOTE", default=True),
         freshdesk_webhook_min_confidence=os.getenv("FRESHDESK_WEBHOOK_MIN_CONFIDENCE", "low").strip().lower(),
         freshdesk_webhook_tenant_tag_prefix=os.getenv("FRESHDESK_WEBHOOK_TENANT_TAG_PREFIX", "client:").strip(),
+        freshdesk_webhook_enforce_hmac=_env_bool("FRESHDESK_WEBHOOK_ENFORCE_HMAC", default=False),
+        # Redis
+        redis_rate_limit_enabled=_env_bool("REDIS_RATE_LIMIT_ENABLED", default=False),
+        redis_url=os.getenv("REDIS_URL", "redis://localhost:6379").strip(),
+        rag_chat_rate_limit=int(os.getenv("RAG_CHAT_RATE_LIMIT", "20")),
+        # Prometheus
+        prometheus_enabled=_env_bool("PROMETHEUS_ENABLED", default=False),
+        # Hybrid retrieval
+        b1_hybrid_retrieval_enabled=_env_bool("B1_HYBRID_RETRIEVAL_ENABLED", default=False),
     )
     _validate_embedding_settings(settings)
     _validate_freshdesk_settings(settings)

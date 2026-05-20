@@ -1,17 +1,19 @@
 from __future__ import annotations
 
-import logging
+import asyncio
 import hashlib
+import json
+import logging
 import os
-import uuid
 import time
+import uuid
 from contextlib import asynccontextmanager
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field, field_validator
 
 from app.security import (
@@ -20,10 +22,17 @@ from app.security import (
     load_api_keys,
     validate_startup_security,
 )
+from app.rate_limiter import get_limiters, pick_limiter
 
 from observability import logger, tracer, ChunkMetadata, LLMResponseMetadata
-
-import json
+from observability.metrics import (
+    ActiveRequestContext,
+    get_metrics_response,
+    record_rate_limit_rejection,
+    record_request,
+    record_retrieval_candidates,
+    record_retrieval_latency,
+)
 
 from app.chat import run_chat
 from app.config import get_settings
@@ -65,10 +74,18 @@ from app.feedback import FeedbackRequest, FeedbackResponse, handle_feedback
 
 _LOGGER_PRE = logging.getLogger(__name__)
 
+_PROMETHEUS_ENABLED = os.getenv("PROMETHEUS_ENABLED", "false").strip().lower() in {
+    "1", "true", "yes", "on"
+}
+_B1_HYBRID_ENABLED = os.getenv("B1_HYBRID_RETRIEVAL_ENABLED", "false").strip().lower() in {
+    "1", "true", "yes", "on"
+}
+
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    """Startup: validate security config and cache API keys. Shutdown: log."""
+    """Startup: validate security config, init rate limiters, warn on misconfig."""
+    # ── Security validation ────────────────────────────────────────────────────
     api_keys = load_api_keys()
     openai_key = os.getenv("OPENAI_API_KEY", "").strip()
     errors = validate_startup_security(api_keys, openai_key)
@@ -81,24 +98,57 @@ async def lifespan(_app: FastAPI):
     security_initialize(api_keys)
     _LOGGER_PRE.info("security_initialized api_keys_count=%d", len(api_keys))
 
-    # Warn if Freshdesk webhook is enabled without a secret — any caller can trigger it.
+    # ── Webhook HMAC enforcement ───────────────────────────────────────────────
     webhook_enabled = os.getenv("FRESHDESK_WEBHOOK_ENABLED", "false").strip().lower() in {
         "1", "true", "yes", "on"
     }
     webhook_secret = os.getenv("FRESHDESK_WEBHOOK_SECRET", "").strip()
+    enforce_hmac = os.getenv("FRESHDESK_WEBHOOK_ENFORCE_HMAC", "false").strip().lower() in {
+        "1", "true", "yes", "on"
+    }
+
     if webhook_enabled and not webhook_secret:
+        if enforce_hmac:
+            _LOGGER_PRE.critical(
+                "STARTUP_SECURITY_ERROR: FRESHDESK_WEBHOOK_ENFORCE_HMAC=true but "
+                "FRESHDESK_WEBHOOK_SECRET is not set. Service refuses to start. "
+                "Set FRESHDESK_WEBHOOK_SECRET or set FRESHDESK_WEBHOOK_ENFORCE_HMAC=false."
+            )
+            raise RuntimeError(
+                "FRESHDESK_WEBHOOK_ENFORCE_HMAC=true requires FRESHDESK_WEBHOOK_SECRET."
+            )
         _LOGGER_PRE.warning(
             "SECURITY_WARNING: FRESHDESK_WEBHOOK_ENABLED=true but FRESHDESK_WEBHOOK_SECRET "
-            "is not set. The webhook endpoint accepts requests from any caller without "
-            "authentication. Set FRESHDESK_WEBHOOK_SECRET to enable HMAC-SHA256 validation."
+            "is not set. The webhook endpoint accepts requests from any caller. "
+            "Set FRESHDESK_WEBHOOK_SECRET to enable HMAC-SHA256 validation, or set "
+            "FRESHDESK_WEBHOOK_ENFORCE_HMAC=true to make this a startup error."
         )
 
-    # Warn about dev-only CORS if non-localhost origins are absent
+    # ── CORS ──────────────────────────────────────────────────────────────────
     cors_origins = [o.strip() for o in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",") if o.strip()]
     if not cors_origins:
         _LOGGER_PRE.info("cors_origins: using default localhost-only origins (dev mode)")
 
+    # ── Rate limiters ─────────────────────────────────────────────────────────
+    try:
+        limiters = get_limiters()
+        _LOGGER_PRE.info(
+            "rate_limiters_initialized backends=%s",
+            {name: lim.backend_type for name, lim in limiters.items()},
+        )
+    except Exception as exc:
+        _LOGGER_PRE.warning(
+            "rate_limiter_init_failed %s — in-process fallback will be used", exc
+        )
+
+    # ── Hybrid retrieval mode ─────────────────────────────────────────────────
+    _LOGGER_PRE.info(
+        "retrieval_mode=%s",
+        "hybrid (HybridTicketRetriever)" if _B1_HYBRID_ENABLED else "semantic_only (TicketRetriever)",
+    )
+
     yield
+
     _LOGGER_PRE.info("service_shutdown")
 
 
@@ -116,9 +166,6 @@ app = FastAPI(
 )
 LOGGER = logging.getLogger(__name__)
 
-# CORS origins are configurable via CORS_ALLOWED_ORIGINS (comma-separated).
-# Default: localhost:3000 only — suitable for local dev.
-# Production: set CORS_ALLOWED_ORIGINS to your actual frontend domain(s).
 _cors_origins_raw = os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000")
 _cors_origins = [o.strip() for o in _cors_origins_raw.split(",") if o.strip()]
 
@@ -134,34 +181,37 @@ app.add_middleware(
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     start_time = time.time()
+    path = request.url.path
     try:
         response = await call_next(request)
         duration = time.time() - start_time
+        record_request(request.method, path, response.status_code, duration)
         logger.info(
-            f"Handled {request.method} {request.url.path}",
+            f"Handled {request.method} {path}",
             extra={
                 "extra_data": {
                     "method": request.method,
-                    "path": request.url.path,
+                    "path": path,
                     "status_code": response.status_code,
                     "duration_s": round(duration, 4),
-                    "client_ip": request.client.host if request.client else None
+                    "client_ip": request.client.host if request.client else None,
                 }
-            }
+            },
         )
         return response
     except Exception as e:
         duration = time.time() - start_time
+        record_request(request.method, path, 500, duration)
         logger.error(
-            f"Failed {request.method} {request.url.path}: {e}",
+            f"Failed {request.method} {path}: {e}",
             extra={
                 "extra_data": {
                     "method": request.method,
-                    "path": request.url.path,
+                    "path": path,
                     "duration_s": round(duration, 4),
-                    "error": str(e)
+                    "error": str(e),
                 }
-            }
+            },
         )
         raise
 
@@ -196,6 +246,8 @@ async def validation_exception_handler(
         },
     )
 
+
+# ── Request / response models ─────────────────────────────────────────────────
 
 class IngestRequest(BaseModel):
     full_reindex: bool = False
@@ -301,13 +353,15 @@ class CommitCardRequest(BaseModel):
 
 class RagChatRequest(BaseModel):
     query_text: str = Field(min_length=1)
-    client: str = Field(min_length=1)        # REQUIRED: tenant slug (unity_bank, rbl_bank, …)
+    client: str = Field(min_length=1)
     session_id: str | None = None
     top_k: int = Field(default=8, ge=1, le=20)
     similarity_threshold: float = Field(default=0.27, ge=0.0, le=1.0)
     history_turns: int = Field(default=6, ge=0, le=20)
     persist_history: bool = True
 
+
+# ── Trivial read-only endpoints — no blocking I/O ─────────────────────────────
 
 @app.get("/health")
 def health() -> dict[str, str]:
@@ -325,33 +379,44 @@ def freshdesk_filter_options() -> dict[str, Any]:
     }
 
 
+@app.get("/metrics")
+async def metrics_endpoint():
+    if not _PROMETHEUS_ENABLED:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "metrics_disabled", "message": "Set PROMETHEUS_ENABLED=true to enable."},
+        )
+    result = get_metrics_response()
+    if result is None:
+        raise HTTPException(
+            status_code=503,
+            detail={"error": "metrics_unavailable", "message": "prometheus_client not installed."},
+        )
+    data, content_type = result
+    return Response(content=data, media_type=content_type)
+
+
+# ── Readiness — async because it makes real network calls ─────────────────────
+
 @app.get(
     "/ready",
-    responses={
-        503: {
-            "description": "Dependencies are not ready",
-            "content": {"application/json": {"example": {"status": "not_ready", "checks": {}}}},
-        }
-    },
+    responses={503: {"description": "Dependencies not ready"}},
 )
-def ready() -> dict[str, Any]:
+async def ready() -> dict[str, Any]:
     settings = get_settings()
     checks: dict[str, Any] = {}
     ok = True
 
-    try:
+    def _check_supabase() -> bool:
         store = VectorStore(
             supabase_url=settings.supabase_url,
             supabase_key=settings.supabase_key,
             table_name=settings.supabase_table,
             local_fallback_max_rows=settings.local_match_fallback_max_rows,
         )
-        checks["supabase"] = {"ok": store.healthcheck()}
-    except Exception as exc:  # noqa: BLE001
-        checks["supabase"] = {"ok": False, "error": str(exc)}
-        ok = False
+        return store.healthcheck()
 
-    try:
+    def _check_embeddings() -> bool:
         embeddings = EmbeddingClient(
             provider=settings.embedding_provider,
             api_key=settings.embedding_api_key,
@@ -361,18 +426,29 @@ def ready() -> dict[str, Any]:
             max_retries=settings.embedding_max_retries,
             retry_base_delay_s=settings.embedding_retry_base_delay_s,
         )
-        checks["embeddings"] = {"ok": embeddings.healthcheck()}
+        return embeddings.healthcheck()
+
+    try:
+        checks["supabase"] = {"ok": await asyncio.to_thread(_check_supabase)}
+    except Exception as exc:  # noqa: BLE001
+        checks["supabase"] = {"ok": False, "error": str(exc)}
+        ok = False
+
+    try:
+        checks["embeddings"] = {"ok": await asyncio.to_thread(_check_embeddings)}
     except Exception as exc:  # noqa: BLE001
         checks["embeddings"] = {"ok": False, "error": str(exc)}
         ok = False
 
-    if not checks.get("supabase", {}).get("ok", False) or not checks.get("embeddings", {}).get("ok", False):
+    if not all(v.get("ok", False) for v in checks.values()):
         ok = False
 
     if not ok:
         raise HTTPException(status_code=503, detail={"status": "not_ready", "checks": checks})
     return {"status": "ready", "checks": checks}
 
+
+# ── Ingest ────────────────────────────────────────────────────────────────────
 
 @app.post(
     "/ingest",
@@ -381,12 +457,13 @@ def ready() -> dict[str, Any]:
         207: {"description": "Ingestion completed with partial success"},
     },
 )
-def ingest_docs(payload: IngestRequest) -> dict[str, Any]:
+async def ingest_docs(payload: IngestRequest) -> dict[str, Any]:
     request_id = str(uuid.uuid4())
     LOGGER.info("ingest_request request_id=%s file_path=%s", request_id, payload.file_path or "")
     settings = get_settings()
     try:
-        result = run_ingest(
+        result = await asyncio.to_thread(
+            run_ingest,
             settings,
             repo_url=payload.repo_url,
             ref=payload.ref,
@@ -415,6 +492,7 @@ def ingest_docs(payload: IngestRequest) -> dict[str, Any]:
                 "errors": [str(exc)],
             },
         ) from exc
+
     out: dict[str, Any] = {
         "status": result.status,
         "files_scanned": result.files_scanned,
@@ -434,24 +512,28 @@ def ingest_docs(payload: IngestRequest) -> dict[str, Any]:
     if result.excel is not None:
         out["excel"] = result.excel
     if result.status == "failed":
-        LOGGER.error("ingest_failed request_id=%s errors=%s", request_id, len(result.errors))
+        LOGGER.error("ingest_failed request_id=%s errors=%d", request_id, len(result.errors))
         raise HTTPException(status_code=500, detail=out)
     if result.status == "partial_success":
-        LOGGER.warning("ingest_partial request_id=%s errors=%s", request_id, len(result.errors))
+        LOGGER.warning("ingest_partial request_id=%s errors=%d", request_id, len(result.errors))
         raise HTTPException(status_code=207, detail=out)
     LOGGER.info("ingest_success request_id=%s files_scanned=%s", request_id, result.files_scanned)
     return out
 
 
+# ── Query ─────────────────────────────────────────────────────────────────────
+
 @app.post("/query")
-def query_docs(payload: QueryRequest) -> dict[str, Any]:
+async def query_docs(payload: QueryRequest) -> dict[str, Any]:
     trace = tracer.start_trace(
         query=payload.query_text,
         tenant=payload.tenant,
-        access_scope=payload.access_scope
+        access_scope=payload.access_scope,
     )
     settings = get_settings()
-    result = run_query(
+
+    result = await asyncio.to_thread(
+        run_query,
         settings,
         payload.query_text,
         match_count=payload.match_count,
@@ -464,9 +546,11 @@ def query_docs(payload: QueryRequest) -> dict[str, Any]:
         updated_at_to=payload.updated_at_to,
         strict_latest_within_top_n=payload.strict_latest_within_top_n,
     )
+
     query_hash = hashlib.sha256(payload.query_text.encode("utf-8")).hexdigest()[:16]
     LOGGER.info(
-        "query_trace query_hash=%s filters=%s returned=%s insufficient=%s best_similarity=%s best_rerank=%s",
+        "query_trace query_hash=%s filters=%s returned=%d insufficient=%s "
+        "best_similarity=%s best_rerank=%s",
         query_hash,
         {
             "source_types": payload.source_types,
@@ -481,22 +565,38 @@ def query_docs(payload: QueryRequest) -> dict[str, Any]:
         result.diagnostics.get("best_similarity"),
         result.diagnostics.get("best_rerank_score"),
     )
-    
-    # Update and save trace
+
+    record_retrieval_candidates("query_returned", len(result.matches))
+
     trace.query_hash = query_hash
     trace.retrieval_candidates_count = len(result.matches)
     trace.top_matches = [
         ChunkMetadata(
             id=str(m.get("id") if isinstance(m, dict) else getattr(m, "id", "unknown")),
-            source_type=str((m.get("metadata") or {}).get("source_type", "unknown") if isinstance(m, dict) else (getattr(m, "metadata", {}) or {}).get("source_type", "unknown")),
-            similarity=float(m.get("similarity", 0.0) if isinstance(m, dict) else getattr(m, "similarity", 0.0)),
-            rerank_score=(m.get("metadata") or {}).get("rerank_score") if isinstance(m, dict) else (getattr(m, "metadata", {}) or {}).get("rerank_score"),
-            title=(m.get("metadata") or {}).get("title") if isinstance(m, dict) else (getattr(m, "metadata", {}) or {}).get("title")
-        ) for m in result.matches
+            source_type=str(
+                (m.get("metadata") or {}).get("source_type", "unknown")
+                if isinstance(m, dict)
+                else (getattr(m, "metadata", {}) or {}).get("source_type", "unknown")
+            ),
+            similarity=float(
+                m.get("similarity", 0.0) if isinstance(m, dict) else getattr(m, "similarity", 0.0)
+            ),
+            rerank_score=(
+                (m.get("metadata") or {}).get("rerank_score")
+                if isinstance(m, dict)
+                else (getattr(m, "metadata", {}) or {}).get("rerank_score")
+            ),
+            title=(
+                (m.get("metadata") or {}).get("title")
+                if isinstance(m, dict)
+                else (getattr(m, "metadata", {}) or {}).get("title")
+            ),
+        )
+        for m in result.matches
     ]
     trace.retrieval_latency_ms = float(result.diagnostics.get("duration_ms", 0.0))
     tracer.save_trace(trace)
-    
+
     return {
         "matches": result.matches,
         "matches_by_source_type": result.matches_by_source_type,
@@ -506,17 +606,20 @@ def query_docs(payload: QueryRequest) -> dict[str, Any]:
     }
 
 
+# ── Chat ──────────────────────────────────────────────────────────────────────
+
 @app.post("/chat")
-def chat_endpoint(payload: ChatRequest) -> dict[str, Any]:
+async def chat_endpoint(payload: ChatRequest) -> dict[str, Any]:
     trace = tracer.start_trace(
         query=payload.query_text,
         session_id=payload.session_id,
         tenant=payload.tenant,
-        access_scope=payload.access_scope
+        access_scope=payload.access_scope,
     )
     settings = get_settings()
     try:
-        result = run_chat(
+        result = await asyncio.to_thread(
+            run_chat,
             settings,
             payload.query_text,
             session_id=payload.session_id,
@@ -533,21 +636,23 @@ def chat_endpoint(payload: ChatRequest) -> dict[str, Any]:
             persist_history=payload.persist_history,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail={"status": "bad_request", "error": str(exc)}) from exc
+        raise HTTPException(
+            status_code=400,
+            detail={"status": "bad_request", "error": str(exc)},
+        ) from exc
     except RuntimeError as exc:
-        raise HTTPException(status_code=502, detail={"status": "upstream_error", "error": str(exc)}) from exc
+        raise HTTPException(
+            status_code=502,
+            detail={"status": "upstream_error", "error": str(exc)},
+        ) from exc
 
     query_hash = hashlib.sha256(payload.query_text.encode("utf-8")).hexdigest()[:16]
     LOGGER.info(
-        "chat_trace query_hash=%s session_id=%s confidence=%s insufficient=%s citations=%s",
-        query_hash,
-        result.session_id,
-        result.confidence,
-        result.insufficient_context,
-        len(result.citations),
+        "chat_trace query_hash=%s session_id=%s confidence=%s insufficient=%s citations=%d",
+        query_hash, result.session_id, result.confidence,
+        result.insufficient_context, len(result.citations),
     )
-    
-    # Update and save trace
+
     trace.query_hash = query_hash
     trace.llm_response = result.answer
     trace.confidence_score = result.confidence if isinstance(result.confidence, (int, float)) else None
@@ -555,13 +660,20 @@ def chat_endpoint(payload: ChatRequest) -> dict[str, Any]:
     trace.top_matches = [
         ChunkMetadata(
             id=str(m.get("id") if isinstance(m, dict) else getattr(m, "id", "unknown")),
-            source_type=str((m.get("metadata") or {}).get("source_type", "unknown") if isinstance(m, dict) else (getattr(m, "metadata", {}) or {}).get("source_type", "unknown")),
-            similarity=float(m.get("similarity", 0.0) if isinstance(m, dict) else getattr(m, "similarity", 0.0))
-        ) for m in result.matches
+            source_type=str(
+                (m.get("metadata") or {}).get("source_type", "unknown")
+                if isinstance(m, dict)
+                else (getattr(m, "metadata", {}) or {}).get("source_type", "unknown")
+            ),
+            similarity=float(
+                m.get("similarity", 0.0) if isinstance(m, dict) else getattr(m, "similarity", 0.0)
+            ),
+        )
+        for m in result.matches
     ]
     trace.metadata = result.diagnostics
     tracer.save_trace(trace)
-    
+
     return {
         "session_id": result.session_id,
         "message_id": result.message_id,
@@ -576,7 +688,7 @@ def chat_endpoint(payload: ChatRequest) -> dict[str, Any]:
 
 
 @app.get("/chat/suggestions")
-def chat_suggestions(
+async def chat_suggestions(
     limit: int = 6,
     tenant: str | None = None,
     access_scope: str | None = None,
@@ -588,7 +700,8 @@ def chat_suggestions(
         )
     settings = get_settings()
     try:
-        suggestions = get_suggestions(
+        suggestions = await asyncio.to_thread(
+            get_suggestions,
             settings,
             tenant=tenant,
             access_scope=access_scope,
@@ -602,6 +715,8 @@ def chat_suggestions(
         ) from exc
     return {"suggestions": suggestions}
 
+
+# ── Train ─────────────────────────────────────────────────────────────────────
 
 def _draft_model_to_dataclass(model: DraftCardModel | None) -> DraftKnowledgeCard:
     if model is None:
@@ -618,11 +733,12 @@ def _draft_model_to_dataclass(model: DraftCardModel | None) -> DraftKnowledgeCar
 
 
 @app.post("/train/chat")
-def train_chat(payload: TrainChatRequest) -> dict[str, Any]:
+async def train_chat(payload: TrainChatRequest) -> dict[str, Any]:
     settings = get_settings()
     previous_draft = _draft_model_to_dataclass(payload.draft)
     try:
-        result = run_train_chat(
+        result = await asyncio.to_thread(
+            run_train_chat,
             settings,
             query_text=payload.query_text,
             session_id=payload.session_id,
@@ -645,9 +761,7 @@ def train_chat(payload: TrainChatRequest) -> dict[str, Any]:
 
     LOGGER.info(
         "train_trace session_id=%s confidence=%s word_count=%s",
-        result.session_id,
-        result.confidence,
-        result.diagnostics.get("word_count"),
+        result.session_id, result.confidence, result.diagnostics.get("word_count"),
     )
     return {
         "session_id": result.session_id,
@@ -661,11 +775,12 @@ def train_chat(payload: TrainChatRequest) -> dict[str, Any]:
 
 
 @app.post("/train/commit")
-def train_commit(payload: CommitCardRequest) -> dict[str, Any]:
+async def train_commit(payload: CommitCardRequest) -> dict[str, Any]:
     settings = get_settings()
     draft = _draft_model_to_dataclass(payload.draft)
     try:
-        result = commit_knowledge_card(
+        result = await asyncio.to_thread(
+            commit_knowledge_card,
             settings,
             session_id=payload.session_id,
             draft=draft,
@@ -697,7 +812,7 @@ def train_commit(payload: CommitCardRequest) -> dict[str, Any]:
 
 
 @app.get("/train/cards")
-def train_cards_list(
+async def train_cards_list(
     limit: int = 20,
     offset: int = 0,
     tenant: str | None = None,
@@ -723,7 +838,8 @@ def train_cards_list(
 
     settings = get_settings()
     try:
-        cards, total = list_knowledge_cards(
+        cards, total = await asyncio.to_thread(
+            list_knowledge_cards,
             settings,
             limit=limit,
             offset=offset,
@@ -765,10 +881,10 @@ def train_cards_list(
 
 
 @app.get("/train/cards/{card_id}")
-def train_cards_get(card_id: str) -> dict[str, Any]:
+async def train_cards_get(card_id: str) -> dict[str, Any]:
     settings = get_settings()
     try:
-        card = get_knowledge_card(settings, card_id)
+        card = await asyncio.to_thread(get_knowledge_card, settings, card_id)
     except Exception as exc:  # noqa: BLE001
         LOGGER.exception("train_cards_get failed")
         raise HTTPException(
@@ -798,10 +914,10 @@ def train_cards_get(card_id: str) -> dict[str, Any]:
 
 
 @app.delete("/train/cards/{card_id}")
-def train_cards_delete(card_id: str) -> dict[str, Any]:
+async def train_cards_delete(card_id: str) -> dict[str, Any]:
     settings = get_settings()
     try:
-        result = delete_knowledge_card(settings, card_id)
+        result = await asyncio.to_thread(delete_knowledge_card, settings, card_id)
     except Exception as exc:  # noqa: BLE001
         LOGGER.exception("train_cards_delete failed")
         raise HTTPException(
@@ -816,12 +932,20 @@ def train_cards_delete(card_id: str) -> dict[str, Any]:
     return result
 
 
+# ── B1 RAG chat ───────────────────────────────────────────────────────────────
+
 def _build_chat_generator(
     app_settings: Any,
     rag_settings: Any,
     openai_api_key: str,
 ) -> tuple[Any, Any, Any]:
-    """Return (embedder, generator, supabase) — caller must call embedder.close()."""
+    """
+    Build (embedder, generator, supabase) for B1 RAG pipeline.
+    Caller MUST call embedder.close() in a finally block.
+
+    Selects HybridTicketRetriever when B1_HYBRID_RETRIEVAL_ENABLED=true,
+    otherwise uses the pure-semantic TicketRetriever.
+    """
     supabase = create_client(app_settings.supabase_url, app_settings.supabase_key)
 
     embedder = OpenAIEmbeddingProvider(
@@ -838,12 +962,21 @@ def _build_chat_generator(
         pool_timeout_s=rag_settings.embedding_pool_timeout_s,
     )
 
-    retriever = TicketRetriever(
-        supabase_client=supabase,
-        embedding_provider=embedder,
-        ticket_chunks_table=rag_settings.ticket_chunks_table,
-        sop_chunks_table=rag_settings.sop_chunks_table,
-    )
+    if _B1_HYBRID_ENABLED:
+        from rag_engine.retrieval.hybrid_ticket_retriever import HybridTicketRetriever  # noqa: PLC0415
+        retriever = HybridTicketRetriever(
+            supabase_client=supabase,
+            embedding_provider=embedder,
+            ticket_chunks_table=rag_settings.ticket_chunks_table,
+            sop_chunks_table=rag_settings.sop_chunks_table,
+        )
+    else:
+        retriever = TicketRetriever(
+            supabase_client=supabase,
+            embedding_provider=embedder,
+            ticket_chunks_table=rag_settings.ticket_chunks_table,
+            sop_chunks_table=rag_settings.sop_chunks_table,
+        )
 
     llm_client = B1LLMClient(
         api_key=app_settings.chat_api_key,
@@ -869,19 +1002,27 @@ def _build_chat_generator(
 
 
 @app.post("/rag/chat")
-def rag_chat(payload: RagChatRequest) -> dict[str, Any]:
+async def rag_chat(payload: RagChatRequest, request: Request) -> dict[str, Any]:
     """
-    B1 RAG chat endpoint.
+    B1 RAG chat endpoint with tenant isolation and rate limiting.
 
-    Uses the Phase B1 vector tables (rag_ticket_chunks, rag_sop_chunks) for
-    tenant-isolated retrieval, then generates a structured response via LLM.
+    Uses HybridTicketRetriever (semantic + FTS) when B1_HYBRID_RETRIEVAL_ENABLED=true,
+    otherwise pure-semantic TicketRetriever.
 
-    The `client` field is mandatory — it determines which tenant's data is searched.
-    Requires B1 SQL migrations and data ingestion to have been run.
+    Rate limited per IP: RAG_CHAT_RATE_LIMIT requests per 60 seconds.
     """
+    # ── Rate limiting ─────────────────────────────────────────────────────────
+    client_ip = request.client.host if request.client else "unknown"
+    limiter = pick_limiter(get_limiters(), "/rag/chat")
+    if not limiter.is_allowed(client_ip):
+        record_rate_limit_rejection("/rag/chat")
+        raise HTTPException(
+            status_code=429,
+            detail={"error": "rate_limited", "message": "Too many requests. Please slow down."},
+        )
+
     app_settings = get_settings()
     rag_settings = get_rag_settings()
-
     openai_api_key = os.getenv("OPENAI_API_KEY", app_settings.chat_api_key).strip()
     embedder = None
 
@@ -890,18 +1031,17 @@ def rag_chat(payload: RagChatRequest) -> dict[str, Any]:
             app_settings, rag_settings, openai_api_key
         )
 
-        result = generator.generate(
-            GenerationRequest(
-                query_text=payload.query_text,
-                client=payload.client,
-                session_id=payload.session_id,
-                top_k=payload.top_k,
-                similarity_threshold=payload.similarity_threshold,
-                persist_history=payload.persist_history,
-                history_turns=payload.history_turns,
-                index_version=rag_settings.index_version,
-            )
+        gen_request = GenerationRequest(
+            query_text=payload.query_text,
+            client=payload.client,
+            session_id=payload.session_id,
+            top_k=payload.top_k,
+            similarity_threshold=payload.similarity_threshold,
+            persist_history=payload.persist_history,
+            history_turns=payload.history_turns,
+            index_version=rag_settings.index_version,
         )
+        result = await asyncio.to_thread(generator.generate, gen_request)
 
     except ValueError as exc:
         raise HTTPException(
@@ -913,22 +1053,19 @@ def rag_chat(payload: RagChatRequest) -> dict[str, Any]:
             status_code=502,
             detail={"status": "upstream_error", "error": str(exc)},
         ) from exc
-
     finally:
         if embedder is not None:
             try:
-                embedder.close()
+                await asyncio.to_thread(embedder.close)
             except Exception:  # noqa: BLE001
                 pass
 
     LOGGER.info(
-        "rag_chat client=%s session=%s confidence=%s chunks=%d insufficient=%s",
-        payload.client,
-        result.session_id,
-        result.confidence,
-        len(result.chunks),
-        result.insufficient_context,
+        "rag_chat client=%s session=%s confidence=%s chunks=%d insufficient=%s hybrid=%s",
+        payload.client, result.session_id, result.confidence,
+        len(result.chunks), result.insufficient_context, _B1_HYBRID_ENABLED,
     )
+    record_retrieval_candidates("rag_chat_chunks", len(result.chunks))
 
     return {
         "session_id": result.session_id,
@@ -945,28 +1082,23 @@ def rag_chat(payload: RagChatRequest) -> dict[str, Any]:
     }
 
 
+# ── Freshdesk webhook ─────────────────────────────────────────────────────────
+
 @app.post("/freshdesk/webhook")
 async def freshdesk_webhook(request: Request) -> dict[str, Any]:
     """
-    Phase B3: Freshdesk webhook receiver.
+    Freshdesk webhook receiver.
 
-    When a new/updated ticket triggers a Freshdesk automation rule, this endpoint:
-      1. Validates the optional X-Webhook-Token header
-      2. Extracts ticket info from the payload
-      3. Resolves the tenant (client slug) from tags / custom fields / default
-      4. Runs the B1 RAG pipeline to generate an AI draft reply
-      5. Posts the draft back to Freshdesk as a private note (default) or public reply
-
-    Environment variables:
-      FRESHDESK_WEBHOOK_SECRET           — HMAC-SHA256 secret for token validation (optional)
-      FRESHDESK_WEBHOOK_DEFAULT_CLIENT   — fallback tenant slug when none can be resolved
-      FRESHDESK_WEBHOOK_REPLY_AS_NOTE    — true (default) = private note, false = public reply
-      FRESHDESK_WEBHOOK_MIN_CONFIDENCE   — low|medium|high (default: low)
-      FRESHDESK_WEBHOOK_TENANT_TAG_PREFIX — tag prefix for tenant detection (default: "client:")
-
-    The endpoint always returns 200 so Freshdesk does not retry on business-logic skips.
-    5xx is returned only on unexpected upstream failures.
+    Rate limited: 60 requests per 60 seconds per IP.
+    HMAC validation is enforced when FRESHDESK_WEBHOOK_SECRET is set.
     """
+    # ── Rate limiting ─────────────────────────────────────────────────────────
+    client_ip = request.client.host if request.client else "unknown"
+    limiter = pick_limiter(get_limiters(), "/freshdesk/webhook")
+    if not limiter.is_allowed(client_ip):
+        record_rate_limit_rejection("/freshdesk/webhook")
+        raise HTTPException(status_code=429, detail={"error": "rate_limited"})
+
     app_settings = get_settings()
 
     if not app_settings.freshdesk_webhook_enabled:
@@ -974,14 +1106,14 @@ async def freshdesk_webhook(request: Request) -> dict[str, Any]:
             status_code=503,
             detail={
                 "error": "webhook_disabled",
-                "message": "Freshdesk webhook is disabled. Set FRESHDESK_WEBHOOK_ENABLED=true to enable.",
+                "message": "Set FRESHDESK_WEBHOOK_ENABLED=true to enable.",
             },
         )
 
-    # ── 1. Read raw body (needed before JSON parse for signature check) ─────────
+    # ── Read raw body (needed for HMAC before JSON parse) ─────────────────────
     raw_body = await request.body()
 
-    # ── 2. Optional token verification ─────────────────────────────────────────
+    # ── HMAC validation ───────────────────────────────────────────────────────
     if app_settings.freshdesk_webhook_secret:
         token = request.headers.get("X-Webhook-Token", "")
         if not verify_webhook_token(
@@ -991,7 +1123,7 @@ async def freshdesk_webhook(request: Request) -> dict[str, Any]:
         ):
             raise HTTPException(status_code=401, detail={"error": "invalid_webhook_token"})
 
-    # ── 3. Parse JSON ───────────────────────────────────────────────────────────
+    # ── Parse JSON ────────────────────────────────────────────────────────────
     try:
         raw = json.loads(raw_body)
     except Exception:
@@ -1000,15 +1132,15 @@ async def freshdesk_webhook(request: Request) -> dict[str, Any]:
     if not isinstance(raw, dict):
         raise HTTPException(status_code=400, detail={"error": "payload_must_be_object"})
 
-    # ── 4. Extract ticket info ──────────────────────────────────────────────────
+    # ── Extract ticket info ───────────────────────────────────────────────────
     ticket = extract_ticket_info(raw)
     ticket_id = ticket.get("ticket_id", "")
 
     if not ticket_id:
-        LOGGER.warning("freshdesk_webhook: missing ticket_id in payload keys=%s", list(raw.keys()))
+        LOGGER.warning("freshdesk_webhook: missing ticket_id payload_keys=%s", list(raw.keys()))
         return {"status": "skipped", "reason": "missing_ticket_id"}
 
-    # ── 5. Resolve tenant ───────────────────────────────────────────────────────
+    # ── Resolve tenant ────────────────────────────────────────────────────────
     client = resolve_tenant(
         ticket,
         tag_prefix=app_settings.freshdesk_webhook_tenant_tag_prefix,
@@ -1016,16 +1148,18 @@ async def freshdesk_webhook(request: Request) -> dict[str, Any]:
     )
 
     if not client:
-        LOGGER.warning("freshdesk_webhook: no tenant resolved ticket=%s tags=%s", ticket_id, ticket.get("tags"))
+        LOGGER.warning(
+            "freshdesk_webhook: no_tenant ticket=%s tags=%s", ticket_id, ticket.get("tags")
+        )
         return {"status": "skipped", "reason": "no_tenant", "ticket_id": ticket_id}
 
-    # ── 6. Build query text ─────────────────────────────────────────────────────
+    # ── Build query text ──────────────────────────────────────────────────────
     query_text = build_query_text(ticket)
     if not query_text.strip():
-        LOGGER.warning("freshdesk_webhook: empty query ticket=%s", ticket_id)
+        LOGGER.warning("freshdesk_webhook: empty_query ticket=%s", ticket_id)
         return {"status": "skipped", "reason": "empty_query", "ticket_id": ticket_id}
 
-    # ── 7. Run RAG pipeline ─────────────────────────────────────────────────────
+    # ── Run RAG pipeline ──────────────────────────────────────────────────────
     rag_settings = get_rag_settings()
     openai_api_key = os.getenv("OPENAI_API_KEY", app_settings.chat_api_key).strip()
     embedder = None
@@ -1034,25 +1168,24 @@ async def freshdesk_webhook(request: Request) -> dict[str, Any]:
         embedder, generator, _supabase = _build_chat_generator(
             app_settings, rag_settings, openai_api_key
         )
-        result = generator.generate(
-            GenerationRequest(
-                query_text=query_text,
-                client=client,
-                session_id=f"fd-{ticket_id}",
-                top_k=8,
-                similarity_threshold=0.27,
-                persist_history=False,
-                history_turns=0,
-                index_version=rag_settings.index_version,
-            )
+        gen_request = GenerationRequest(
+            query_text=query_text,
+            client=client,
+            session_id=f"fd-{ticket_id}",
+            top_k=8,
+            similarity_threshold=0.27,
+            persist_history=False,
+            history_turns=0,
+            index_version=rag_settings.index_version,
         )
+        result = await asyncio.to_thread(generator.generate, gen_request)
     except ValueError as exc:
         raise HTTPException(
             status_code=400,
             detail={"status": "bad_request", "error": str(exc), "ticket_id": ticket_id},
         ) from exc
     except RuntimeError as exc:
-        LOGGER.exception("freshdesk_webhook: RAG pipeline failed ticket=%s", ticket_id)
+        LOGGER.exception("freshdesk_webhook: rag_pipeline_failed ticket=%s", ticket_id)
         raise HTTPException(
             status_code=502,
             detail={"status": "rag_error", "error": str(exc), "ticket_id": ticket_id},
@@ -1060,17 +1193,15 @@ async def freshdesk_webhook(request: Request) -> dict[str, Any]:
     finally:
         if embedder is not None:
             try:
-                embedder.close()
+                await asyncio.to_thread(embedder.close)
             except Exception:  # noqa: BLE001
                 pass
 
-    # ── 8. Confidence gate ──────────────────────────────────────────────────────
+    # ── Confidence gate ───────────────────────────────────────────────────────
     if result.requires_human:
         LOGGER.info(
-            "freshdesk_webhook: requires_human=True — skipping auto-reply ticket=%s client=%s confidence=%s",
-            ticket_id,
-            client,
-            result.confidence,
+            "freshdesk_webhook: requires_human ticket=%s client=%s confidence=%s",
+            ticket_id, client, result.confidence,
         )
         return {
             "status": "skipped",
@@ -1082,11 +1213,8 @@ async def freshdesk_webhook(request: Request) -> dict[str, Any]:
 
     if not meets_confidence_threshold(result.confidence, app_settings.freshdesk_webhook_min_confidence):
         LOGGER.info(
-            "freshdesk_webhook: below threshold confidence=%s min=%s ticket=%s client=%s",
-            result.confidence,
-            app_settings.freshdesk_webhook_min_confidence,
-            ticket_id,
-            client,
+            "freshdesk_webhook: below_threshold confidence=%s min=%s ticket=%s client=%s",
+            result.confidence, app_settings.freshdesk_webhook_min_confidence, ticket_id, client,
         )
         return {
             "status": "skipped",
@@ -1095,9 +1223,9 @@ async def freshdesk_webhook(request: Request) -> dict[str, Any]:
             "confidence": result.confidence,
         }
 
-    # ── 9. Post to Freshdesk ────────────────────────────────────────────────────
+    # ── Post to Freshdesk ─────────────────────────────────────────────────────
     if not app_settings.freshdesk_domain or not app_settings.freshdesk_api_key:
-        LOGGER.error("freshdesk_webhook: FRESHDESK_DOMAIN / FRESHDESK_API_KEY not configured")
+        LOGGER.error("freshdesk_webhook: credentials_not_configured ticket=%s", ticket_id)
         raise HTTPException(
             status_code=500,
             detail={"status": "config_error", "error": "Freshdesk credentials not configured"},
@@ -1117,14 +1245,14 @@ async def freshdesk_webhook(request: Request) -> dict[str, Any]:
                 ticket_id=ticket_id,
                 client=client,
             )
-            reply_client.post_note(ticket_id, body_html, private=True)
+            await asyncio.to_thread(reply_client.post_note, ticket_id, body_html, private=True)
             action = "private_note_posted"
         else:
             body_html = format_reply_html(result.answer)
-            reply_client.post_reply(ticket_id, body_html)
+            await asyncio.to_thread(reply_client.post_reply, ticket_id, body_html)
             action = "public_reply_posted"
     except Exception as exc:  # noqa: BLE001
-        LOGGER.exception("freshdesk_webhook: Freshdesk API call failed ticket=%s", ticket_id)
+        LOGGER.exception("freshdesk_webhook: api_call_failed ticket=%s", ticket_id)
         raise HTTPException(
             status_code=502,
             detail={"status": "freshdesk_api_error", "error": str(exc), "ticket_id": ticket_id},
@@ -1132,11 +1260,7 @@ async def freshdesk_webhook(request: Request) -> dict[str, Any]:
 
     LOGGER.info(
         "freshdesk_webhook: action=%s ticket=%s client=%s confidence=%s chunks=%d",
-        action,
-        ticket_id,
-        client,
-        result.confidence,
-        len(result.chunks),
+        action, ticket_id, client, result.confidence, len(result.chunks),
     )
 
     return {
@@ -1150,9 +1274,7 @@ async def freshdesk_webhook(request: Request) -> dict[str, Any]:
     }
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Phase B3: Feedback endpoint
-# ─────────────────────────────────────────────────────────────────────────────
+# ── Feedback ──────────────────────────────────────────────────────────────────
 
 @app.post("/feedback", response_model=FeedbackResponse)
 async def post_feedback(request: FeedbackRequest) -> FeedbackResponse:
@@ -1160,36 +1282,36 @@ async def post_feedback(request: FeedbackRequest) -> FeedbackResponse:
     Record human agent feedback on an AI draft.
 
     Actions:
-      APPROVED  — agent accepted the draft as-is; may be ingested as VERIFIED_REPLY
-      EDITED    — agent modified the draft; edited version may be ingested
-      REJECTED  — agent rejected the draft entirely; NOT ingested
-      ESCALATED — ticket requires human escalation; excluded from future auto-retrieval
-
-    Auth: X-API-Key header required (same as all other protected endpoints).
+      APPROVED  — accepted as-is; may be ingested as VERIFIED_REPLY
+      EDITED    — modified draft; edited version may be ingested
+      REJECTED  — rejected entirely; NOT ingested
+      ESCALATED — requires human escalation; excluded from future auto-retrieval
     """
-    app_settings = get_settings()   # validated — raises if SUPABASE_URL/KEY missing
+    app_settings = get_settings()
     rag_settings = get_rag_settings()
-    supabase     = create_client(app_settings.supabase_url, app_settings.supabase_key)
-    openai_key   = app_settings.chat_api_key or os.getenv("OPENAI_API_KEY", "")
-    openai_base  = app_settings.chat_base_url
+    supabase = create_client(app_settings.supabase_url, app_settings.supabase_key)
+    openai_key = app_settings.chat_api_key or os.getenv("OPENAI_API_KEY", "")
+    openai_base = app_settings.chat_base_url
 
     embedder = OpenAIEmbeddingProvider(api_key=openai_key, base_url=openai_base)
     try:
-        ingester = FeedbackIngester(supabase, feedback_logs_table=rag_settings.feedback_logs_table)
+        ingester = FeedbackIngester(
+            supabase,
+            feedback_logs_table=rag_settings.feedback_logs_table,
+        )
 
-        # Build ReviewQueueManager with optional KnowledgePipeline
-        from rag_engine.ingestion.knowledge_pipeline import KnowledgePipeline
+        from rag_engine.ingestion.knowledge_pipeline import KnowledgePipeline  # noqa: PLC0415
         knowledge_pipeline = KnowledgePipeline(rag_settings, supabase, embedder)
         review_queue = ReviewQueueManager(
             supabase,
-            review_queue_table = rag_settings.review_queue_table,
-            knowledge_pipeline = knowledge_pipeline,
+            review_queue_table=rag_settings.review_queue_table,
+            knowledge_pipeline=knowledge_pipeline,
         )
 
         return await handle_feedback(
             request,
-            feedback_ingester = ingester,
-            review_queue      = review_queue,
+            feedback_ingester=ingester,
+            review_queue=review_queue,
         )
     finally:
         try:

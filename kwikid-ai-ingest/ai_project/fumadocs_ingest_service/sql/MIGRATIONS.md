@@ -28,8 +28,10 @@ Last audited: 2026-05-20
 | 13 | `b3_migrations/B3_002_extend_match_all_sources.sql` | Replaces B1_005 RPC with B3 version adding `rag_knowledge_chunks` UNION branch | Yes — `CREATE OR REPLACE FUNCTION` |
 | 14 | `b3_migrations/B3_003_feedback_enhancements.sql` | Extends `rag_feedback_logs` + creates `rag_review_queue` | Yes — uses `ADD COLUMN IF NOT EXISTS` and `CREATE TABLE IF NOT EXISTS` |
 | 15 | `b3_migrations/B3_004_raise_quality_gate.sql` | Adjusts quality gate thresholds for knowledge retrieval | Yes |
+| 16 | `b1_migrations/B1_007_fts_setup.sql` | Adds `fts` tsvector column + GIN indexes to `rag_ticket_chunks`, `rag_sop_chunks`, `rag_knowledge_chunks` — required for B1 hybrid retrieval | Yes — `ADD COLUMN IF NOT EXISTS`, `CREATE INDEX IF NOT EXISTS` |
+| 17 | `b1_migrations/B1_008_fts_rpc.sql` | Creates `search_b1_sources_fts()` RPC — unified FTS across all three B1 RAG tables | Yes — `CREATE OR REPLACE FUNCTION` |
 
-**Run order matters**: B1_001–B1_004 must precede B1_005. B3_001 must precede B3_002 and B3_003.
+**Run order matters**: B1_001–B1_004 must precede B1_005. B3_001 must precede B3_002 and B3_003. B1_007 and B1_008 must run after all B1 and B3 table migrations.
 
 ---
 
@@ -103,19 +105,56 @@ Last audited: 2026-05-20
 13. b3_migrations/B3_002_extend_match_all_sources.sql  # Replaces B1_005 RPC
 14. b3_migrations/B3_003_feedback_enhancements.sql
 15. b3_migrations/B3_004_raise_quality_gate.sql
+
+# Phase 6: B1/B3 hybrid retrieval FTS (run after all B1+B3 tables exist and are populated)
+16. b1_migrations/B1_007_fts_setup.sql        # FTS columns + GIN indexes on all 3 RAG chunk tables
+17. b1_migrations/B1_008_fts_rpc.sql          # search_b1_sources_fts() RPC for hybrid retrieval
+# After running B1_007 + B1_008: set B1_HYBRID_RETRIEVAL_ENABLED=true in .env
 ```
 
 ---
 
 ## Hybrid Retrieval Dependencies
 
-For `HYBRID_RETRIEVAL_ENABLED=true` to work correctly, these must all be applied:
+### Legacy `documents` table hybrid retrieval (`HYBRID_RETRIEVAL_ENABLED=true`):
+1. `fts_setup.sql` — FTS column + GIN index on `documents`
+2. `fts_rpc.sql` — `search_documents_fts()` RPC for real ts_rank scores
+3. `fix_match_documents_final.sql` — canonical `match_documents` RPC (already applied)
 
-1. `fts_setup.sql` — adds the `fts` tsvector column and GIN index to `documents`
-2. `fts_rpc.sql` — adds `search_documents_fts()` for real ts_rank scores (optional but recommended)
-3. `fix_match_documents_final.sql` — ensures `match_documents` RPC works (already applied)
+### B1/B3 RAG tables hybrid retrieval (`B1_HYBRID_RETRIEVAL_ENABLED=true`):
+1. All B1 migrations (B1_001–B1_006) — core tables and indexes
+2. All B3 migrations (B3_001–B3_004) — knowledge tables
+3. `b1_migrations/B1_007_fts_setup.sql` — FTS on all three RAG chunk tables
+4. `b1_migrations/B1_008_fts_rpc.sql` — `search_b1_sources_fts()` unified RPC
 
-Without `fts_setup.sql`, keyword search silently falls back to ILIKE which is less accurate.
+Both hybrid modes degrade gracefully — if the FTS RPC is unavailable, the retriever
+falls back silently to semantic-only mode.
+
+---
+
+## v1 → v2 Reingestion (token-aware chunking)
+
+To migrate B1 data from word-based (v1) to token-aware (v2) chunking:
+
+```bash
+# 1. Validate current state
+python scripts/reingest_v2.py --client unity_bank --dry-run
+
+# 2. Reingest a single tenant (writes index_version=v2 rows, leaves v1 intact)
+python scripts/reingest_v2.py --client unity_bank
+
+# 3. After validation, activate v2 serving:
+#    Set ACTIVE_INDEX_VERSION=v2 (or B1_INDEX_VERSION=v2) and restart
+
+# 4. Reingest all tenants:
+python scripts/reingest_v2.py --all-clients
+
+# 5. Rollback v2 if issues found:
+python scripts/reingest_v2.py --client unity_bank --rollback
+```
+
+v1 and v2 rows coexist in the same tables. The application reads from whichever
+index_version matches `B1_INDEX_VERSION` (default: v1). Flip to v2 after validation.
 
 ---
 
@@ -125,7 +164,8 @@ Without `fts_setup.sql`, keyword search silently falls back to ILIKE which is le
 |----------|---------|-------|--------|
 | `match_documents(vector, int, float)` | `documents` | canonical | **ACTIVE** (applied via fix_match_documents_final.sql) |
 | `match_all_b1_sources(vector, text, int, float, text)` | `rag_ticket_chunks` + `rag_sop_chunks` + `rag_knowledge_chunks` | B3 version | **ACTIVE** (applied via B3_002) |
-| `search_documents_fts(text, int)` | `documents` | hybrid retrieval | **REQUIRED** — apply `fts_rpc.sql` if not yet done |
+| `search_documents_fts(text, int)` | `documents` | legacy hybrid | **REQUIRED** — apply `fts_rpc.sql` if not yet done |
+| `search_b1_sources_fts(text, text, int, text)` | `rag_ticket_chunks` + `rag_sop_chunks` + `rag_knowledge_chunks` | B1/B3 hybrid | **PENDING** — apply `b1_migrations/B1_008_fts_rpc.sql` |
 
 ---
 

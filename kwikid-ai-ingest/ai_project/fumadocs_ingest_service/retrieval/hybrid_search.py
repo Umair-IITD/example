@@ -200,6 +200,7 @@ def run_hybrid_search(
         semantic_candidates=semantic_candidates,
         keyword_candidates=keyword_candidates,
         config=config,
+        query_text=query_text,
     )
     trace.fusion_latency_ms = fusion_latency
     trace.fused_candidates_count = len(fused_candidates)
