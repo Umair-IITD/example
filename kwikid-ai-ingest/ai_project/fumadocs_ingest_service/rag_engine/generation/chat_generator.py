@@ -165,6 +165,9 @@ class ChatGenerator:
         chunks = retrieval.chunks
         insufficient_context = len(chunks) == 0
 
+        # Phase B3: expose has_knowledge_context in diagnostics
+        has_knowledge_context = getattr(retrieval, "has_knowledge_context", False)
+
         diagnostics: dict[str, Any] = {
             "returned_count": len(chunks),
             "total_candidates": retrieval.total_candidates,
@@ -172,7 +175,10 @@ class ChatGenerator:
             "total_latency_ms": round(retrieval.total_latency_ms, 1),
             "has_sop_context": retrieval.has_sop_context,
             "has_rca_context": retrieval.has_rca_context,
+            "has_knowledge_context": has_knowledge_context,
             "best_similarity": round(max((c.similarity for c in chunks), default=0.0), 4),
+            "retrieval_mode": retrieval.retrieval_metadata.get("retrieval_mode", "semantic_rpc"),
+            "used_fallback": retrieval.retrieval_metadata.get("used_fallback", False),
             **retrieval.retrieval_metadata,
         }
 
@@ -246,6 +252,7 @@ class ChatGenerator:
             insufficient_context=insufficient_context,
             has_sop=retrieval.has_sop_context,
             has_rca=retrieval.has_rca_context,
+            has_knowledge=has_knowledge_context,
             chunk_count=len(chunks),
             requires_human=requires_human,
         )
@@ -277,15 +284,24 @@ class ChatGenerator:
             )
 
         LOGGER.info(
-            "B2 generate: client=%s chunks=%d sop=%d rca=%s confidence=%s "
-            "confidence_score=%.3f requires_human=%s",
+            "B2 generate: client=%s chunks=%d sop=%d rca=%s knowledge=%s "
+            "confidence=%s confidence_score=%.3f requires_human=%s "
+            "context_tokens=%d skipped_chunks=%d retrieval_mode=%s used_fallback=%s "
+            "embedding_ms=%.0f total_ms=%.0f",
             request.client,
             len(chunks),
             assembled.sop_count,
             retrieval.has_rca_context,
+            has_knowledge_context,
             confidence,
             confidence_score,
             requires_human,
+            assembled.total_tokens,
+            assembled.skipped_chunks,
+            retrieval.retrieval_metadata.get("retrieval_mode", "semantic_rpc"),
+            retrieval.retrieval_metadata.get("used_fallback", False),
+            retrieval.retrieval_metadata.get("embedding_latency_ms", 0),
+            retrieval.total_latency_ms,
         )
 
         return GenerationResult(
@@ -334,6 +350,7 @@ def _derive_confidence_score(
     insufficient_context: bool,
     has_sop: bool,
     has_rca: bool,
+    has_knowledge: bool = False,
     chunk_count: int,
     requires_human: bool,
 ) -> float:
@@ -341,6 +358,8 @@ def _derive_confidence_score(
 
     Deterministic derivation is more reliable than asking the LLM to produce a float.
     Adjustments are additive and small so the categorical bucket is always dominant.
+
+    Phase B3: has_knowledge adds +0.02 when knowledge chunks are present.
     """
     if insufficient_context:
         return 0.10
@@ -351,6 +370,8 @@ def _derive_confidence_score(
         adj += 0.05   # SOP is authoritative evidence
     if has_rca:
         adj += 0.03   # proven resolution pattern exists
+    if has_knowledge:
+        adj += 0.02   # Phase B3: institutional knowledge present
     if chunk_count >= 5:
         adj += 0.02   # rich context pool
 
@@ -401,7 +422,7 @@ def _degraded_result(
 
 
 def _chunk_to_dict(chunk: RetrievedChunk) -> dict[str, Any]:
-    return {
+    d: dict[str, Any] = {
         "chunk_id": chunk.chunk_id,
         "ticket_id": chunk.ticket_id,
         "sop_id": chunk.sop_id,
@@ -412,3 +433,9 @@ def _chunk_to_dict(chunk: RetrievedChunk) -> dict[str, Any]:
         "has_rca": chunk.has_rca,
         "has_sop": chunk.has_sop,
     }
+    # Phase B3: include knowledge metadata when present
+    if chunk.knowledge_class is not None:
+        d["knowledge_class"] = chunk.knowledge_class
+    if chunk.quality_score is not None:
+        d["quality_score"] = round(chunk.quality_score, 3)
+    return d

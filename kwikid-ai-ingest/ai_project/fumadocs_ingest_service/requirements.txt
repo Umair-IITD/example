@@ -5,10 +5,10 @@ httpx==0.28.1
 pydantic==2.11.9
 supabase==2.18.1
 openpyxl==3.1.5
-pandas
-pyarrow              # Parquet support for unified_cleaned_dataset.parquet
-xlrd
+pandas==2.2.3
+pyarrow==18.1.0
+xlrd==2.0.1
 pytest==8.4.2
 
 # Phase B1 additions
-tiktoken             # Token counting for OpenAI embedding models (cl100k_base)
+tiktoken==0.8.0

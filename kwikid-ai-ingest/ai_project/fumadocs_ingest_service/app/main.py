@@ -58,6 +58,9 @@ from rag_engine.embedding.openai_provider import OpenAIEmbeddingProvider
 from rag_engine.generation.chat_generator import B1HistoryStore, ChatGenerator, GenerationRequest
 from rag_engine.generation.llm_client import B1LLMClient
 from rag_engine.retrieval.ticket_retriever import TicketRetriever
+from rag_engine.feedback.feedback_loop import FeedbackIngester
+from rag_engine.feedback.review_queue import ReviewQueueManager
+from app.feedback import FeedbackRequest, FeedbackResponse, handle_feedback
 
 
 _LOGGER_PRE = logging.getLogger(__name__)
@@ -77,6 +80,24 @@ async def lifespan(_app: FastAPI):
         )
     security_initialize(api_keys)
     _LOGGER_PRE.info("security_initialized api_keys_count=%d", len(api_keys))
+
+    # Warn if Freshdesk webhook is enabled without a secret — any caller can trigger it.
+    webhook_enabled = os.getenv("FRESHDESK_WEBHOOK_ENABLED", "false").strip().lower() in {
+        "1", "true", "yes", "on"
+    }
+    webhook_secret = os.getenv("FRESHDESK_WEBHOOK_SECRET", "").strip()
+    if webhook_enabled and not webhook_secret:
+        _LOGGER_PRE.warning(
+            "SECURITY_WARNING: FRESHDESK_WEBHOOK_ENABLED=true but FRESHDESK_WEBHOOK_SECRET "
+            "is not set. The webhook endpoint accepts requests from any caller without "
+            "authentication. Set FRESHDESK_WEBHOOK_SECRET to enable HMAC-SHA256 validation."
+        )
+
+    # Warn about dev-only CORS if non-localhost origins are absent
+    cors_origins = [o.strip() for o in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",") if o.strip()]
+    if not cors_origins:
+        _LOGGER_PRE.info("cors_origins: using default localhost-only origins (dev mode)")
+
     yield
     _LOGGER_PRE.info("service_shutdown")
 
@@ -95,15 +116,18 @@ app = FastAPI(
 )
 LOGGER = logging.getLogger(__name__)
 
+# CORS origins are configurable via CORS_ALLOWED_ORIGINS (comma-separated).
+# Default: localhost:3000 only — suitable for local dev.
+# Production: set CORS_ALLOWED_ORIGINS to your actual frontend domain(s).
+_cors_origins_raw = os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000")
+_cors_origins = [o.strip() for o in _cors_origins_raw.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-    ],
+    allow_origins=_cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "X-API-Key", "X-Webhook-Token", "Authorization"],
 )
 
 
@@ -1125,3 +1149,50 @@ async def freshdesk_webhook(request: Request) -> dict[str, Any]:
         "message_id": result.message_id,
     }
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Phase B3: Feedback endpoint
+# ─────────────────────────────────────────────────────────────────────────────
+
+@app.post("/feedback", response_model=FeedbackResponse)
+async def post_feedback(request: FeedbackRequest) -> FeedbackResponse:
+    """
+    Record human agent feedback on an AI draft.
+
+    Actions:
+      APPROVED  — agent accepted the draft as-is; may be ingested as VERIFIED_REPLY
+      EDITED    — agent modified the draft; edited version may be ingested
+      REJECTED  — agent rejected the draft entirely; NOT ingested
+      ESCALATED — ticket requires human escalation; excluded from future auto-retrieval
+
+    Auth: X-API-Key header required (same as all other protected endpoints).
+    """
+    app_settings = get_settings()   # validated — raises if SUPABASE_URL/KEY missing
+    rag_settings = get_rag_settings()
+    supabase     = create_client(app_settings.supabase_url, app_settings.supabase_key)
+    openai_key   = app_settings.chat_api_key or os.getenv("OPENAI_API_KEY", "")
+    openai_base  = app_settings.chat_base_url
+
+    embedder = OpenAIEmbeddingProvider(api_key=openai_key, base_url=openai_base)
+    try:
+        ingester = FeedbackIngester(supabase, feedback_logs_table=rag_settings.feedback_logs_table)
+
+        # Build ReviewQueueManager with optional KnowledgePipeline
+        from rag_engine.ingestion.knowledge_pipeline import KnowledgePipeline
+        knowledge_pipeline = KnowledgePipeline(rag_settings, supabase, embedder)
+        review_queue = ReviewQueueManager(
+            supabase,
+            review_queue_table = rag_settings.review_queue_table,
+            knowledge_pipeline = knowledge_pipeline,
+        )
+
+        return await handle_feedback(
+            request,
+            feedback_ingester = ingester,
+            review_queue      = review_queue,
+        )
+    finally:
+        try:
+            embedder.close()
+        except Exception:  # noqa: BLE001
+            pass

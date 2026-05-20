@@ -187,8 +187,13 @@ def _validate_freshdesk_settings(settings: Settings) -> None:
 
 
 def get_settings() -> Settings:
-    provider = os.getenv("EMBEDDING_PROVIDER", "ollama").strip().lower()
-    model = os.getenv("EMBEDDING_MODEL", "nomic-embed-text")
+    provider = os.getenv("EMBEDDING_PROVIDER", "openai").strip().lower()
+    if not provider:
+        raise ValueError(
+            "EMBEDDING_PROVIDER is required. Set it to 'openai' or 'ollama'. "
+            "There is no safe default — the provider must match the model used to index your documents."
+        )
+    model = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
     if provider == "openai":
         base_url = os.getenv("EMBEDDING_BASE_URL", os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1"))
         api_key = os.getenv("EMBEDDING_API_KEY", os.getenv("OPENAI_API_KEY", ""))
@@ -244,7 +249,7 @@ def get_settings() -> Settings:
         confidence_min_rerank=float(os.getenv("CONFIDENCE_MIN_RERANK", "0.05")),
         hybrid_retrieval_enabled=_env_bool("HYBRID_RETRIEVAL_ENABLED", default=False),
         query_source_thresholds={
-            "freshdesk": float(os.getenv("QUERY_SOURCE_THRESHOLD_FRESHDESK", "0.30")),
+            "freshdesk": float(os.getenv("QUERY_SOURCE_THRESHOLD_FRESHDESK", "0.20")),
             "md": float(os.getenv("QUERY_SOURCE_THRESHOLD_MD", "0.20")),
             "json": float(os.getenv("QUERY_SOURCE_THRESHOLD_JSON", "0.20")),
             "excel": float(os.getenv("QUERY_SOURCE_THRESHOLD_EXCEL", "0.20")),

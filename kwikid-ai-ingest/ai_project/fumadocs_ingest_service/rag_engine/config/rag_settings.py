@@ -65,6 +65,11 @@ class RagEngineSettings:
     ingestion_errors_table: str
     feedback_logs_table:    str
 
+    # ── Phase B3: Knowledge Base tables ───────────────────────────────────────
+    knowledge_articles_table: str
+    knowledge_chunks_table:   str
+    review_queue_table:       str
+
     # ── Data paths ─────────────────────────────────────────────────────────────
     processed_data_dir: Path
     reports_dir:        Path
@@ -114,6 +119,16 @@ class RagEngineSettings:
     log_to_file:             bool
     metrics_flush_interval_s: int
 
+    # ── Phase B3: Knowledge retrieval thresholds ───────────────────────────────
+    knowledge_min_quality_score:  float   # chunks below this never enter retrieval
+    knowledge_similarity_boost:   float   # base boost applied to knowledge chunks
+    knowledge_quality_bonus_max:  float   # max extra boost from quality*factor
+    knowledge_min_chunk_chars:    int     # minimum chars for a knowledge chunk to be embedded
+
+    # ── Phase B3: Ingestion paths ──────────────────────────────────────────────
+    knowledge_source_dir:         str     # default relative path to More_data/
+    tenant_map_path:              str     # optional JSON override for tag→client mapping
+
 
 def get_rag_settings() -> RagEngineSettings:
     _service_root    = Path(__file__).parent.parent.parent
@@ -129,6 +144,11 @@ def get_rag_settings() -> RagEngineSettings:
         ingestion_logs_table  =_env_str("B1_INGESTION_LOGS_TABLE",   "rag_ingestion_logs"),
         ingestion_errors_table=_env_str("B1_INGESTION_ERRORS_TABLE", "rag_ingestion_errors"),
         feedback_logs_table   =_env_str("B1_FEEDBACK_LOGS_TABLE",    "rag_feedback_logs"),
+
+        # Phase B3 table names
+        knowledge_articles_table=_env_str("B3_KNOWLEDGE_ARTICLES_TABLE", "rag_knowledge_articles"),
+        knowledge_chunks_table  =_env_str("B3_KNOWLEDGE_CHUNKS_TABLE",   "rag_knowledge_chunks"),
+        review_queue_table      =_env_str("B3_REVIEW_QUEUE_TABLE",       "rag_review_queue"),
 
         # Data paths
         processed_data_dir=Path(os.getenv("B1_PROCESSED_DATA_DIR", str(_default_data))),
@@ -178,4 +198,14 @@ def get_rag_settings() -> RagEngineSettings:
         log_level               =_env_str ("B1_LOG_LEVEL",               os.getenv("LOG_LEVEL", "INFO")),
         log_to_file             =_env_bool("B1_LOG_TO_FILE",             True),
         metrics_flush_interval_s=_env_int ("B1_METRICS_FLUSH_INTERVAL_S", 60),
+
+        # Phase B3: knowledge retrieval thresholds
+        knowledge_min_quality_score =_env_float("B3_KNOWLEDGE_MIN_QUALITY_SCORE",  0.40),
+        knowledge_similarity_boost  =_env_float("B3_KNOWLEDGE_SIMILARITY_BOOST",   0.08),
+        knowledge_quality_bonus_max =_env_float("B3_KNOWLEDGE_QUALITY_BONUS_MAX",  0.05),
+        knowledge_min_chunk_chars   =_env_int  ("B3_KNOWLEDGE_MIN_CHUNK_CHARS",   100),
+
+        # Phase B3: ingestion paths
+        knowledge_source_dir=_env_str("B3_KNOWLEDGE_SOURCE_DIR", ""),
+        tenant_map_path     =_env_str("B3_TENANT_MAP_PATH",       ""),
     )
