@@ -111,7 +111,7 @@ CREATE OR REPLACE FUNCTION match_all_b1_sources(
     WHERE
         (rkc.clients = '{}' OR p_client = ANY(rkc.clients))
         AND rkc.index_version = p_index_version
-        AND rkc.quality_score >= 0.40
+        AND rkc.quality_score >= 0.55
         AND rkc.embedding IS NOT NULL
         AND 1 - (rkc.embedding <=> p_query_embedding) >= (p_match_threshold - 0.05)
 

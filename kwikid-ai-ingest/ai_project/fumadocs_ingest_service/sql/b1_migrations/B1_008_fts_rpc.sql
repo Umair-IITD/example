@@ -126,9 +126,10 @@ AS $$
             1
         )::DOUBLE PRECISION AS ts_rank
     FROM public.rag_knowledge_chunks kc
+    JOIN public.rag_knowledge_articles ka ON ka.article_id = kc.article_id
     WHERE
         kc.index_version  = p_index_version
-        AND kc.is_active  = TRUE
+        AND ka.is_active  = TRUE        -- is_active lives on the parent article, not the chunk
         AND kc.quality_score >= 0.40    -- minimum quality gate (mirrors B3_004)
         AND kc.fts IS NOT NULL
         AND (kc.clients = '{}' OR p_client = ANY(kc.clients))

@@ -268,7 +268,7 @@ def _reingest_sop_chunks(
     LOGGER.info("[sop] Fetching rag_sop_library for client=%s ...", client)
     # SOP library uses clients[] — fetch global (empty) + client-specific
     resp = supabase.table("rag_sop_library").select(
-        "sop_id, sop_title, content, query_type, clients, sop_version, is_active"
+        "sop_id, title, content, query_type, issue_area, clients, version, is_active"
     ).execute()
     all_sops = resp.data or []
     # Filter: global or contains client
@@ -291,23 +291,25 @@ def _reingest_sop_chunks(
             text,
             source_type="sop",
             source_id=sop["sop_id"],
-            title=sop.get("sop_title", ""),
+            title=sop.get("title", ""),
             target_tokens=target_tokens,
             max_input_tokens=max_input_tokens,
             overlap_tokens=overlap_tokens,
         )
         for c in chunks:
             chunk_rows.append({
-                "id_str":       c["chunk_id"],
-                "sop_id":       sop["sop_id"],
-                "chunk_heading": sop.get("sop_title", ""),
-                "chunk_index":  c["chunk_index"],
-                "content":      c["content"],
-                "word_count":   len(c["content"].split()),
-                "content_hash": c["content_hash"],
-                "clients":      sop.get("clients", []),
-                "query_type":   sop.get("query_type"),
-                "sop_version":  sop.get("sop_version", 1),
+                "id_str":        c["chunk_id"],
+                "sop_id":        sop["sop_id"],
+                "chunk_heading": sop.get("title", ""),
+                "chunk_index":   c["chunk_index"],
+                "chunk_type":    "SOP_STEPS",
+                "content":       c["content"],
+                "word_count":    len(c["content"].split()),
+                "content_hash":  c["content_hash"],
+                "clients":       sop.get("clients", []),
+                "query_type":    sop.get("query_type"),
+                "issue_area":    sop.get("issue_area"),
+                "sop_version":   sop.get("version", 1),
                 "index_version": "v2",
             })
 
@@ -385,13 +387,13 @@ def _reingest_knowledge_chunks(
                 "id_str":          c["chunk_id"],
                 "article_id":      article["article_id"],
                 "chunk_index":     c["chunk_index"],
+                "chunk_type":      "KNOWLEDGE",
                 "content":         c["content"],
                 "word_count":      len(c["content"].split()),
                 "content_hash":    c["content_hash"],
                 "knowledge_class": article.get("knowledge_class", "FAQ"),
                 "quality_score":   float(article.get("quality_score", 0.0)),
                 "clients":         article.get("clients", []),
-                "is_active":       True,
                 "index_version":   "v2",
             })
 
@@ -501,23 +503,36 @@ def _embed_and_upsert(
 # ── Rollback helper ───────────────────────────────────────────────────────────
 
 def _rollback_v2(supabase: Any, client: str, tables: list[str], dry_run: bool) -> None:
-    """Delete all index_version=v2 rows for the given client from the specified tables."""
+    """Delete index_version=v2 rows for the given client from the specified tables.
+
+    rag_ticket_chunks uses a single-value `client` column — rollback is scoped to
+    the specified client only. rag_sop_chunks and rag_knowledge_chunks are globally
+    shared (clients[]) — all v2 rows are removed for those tables.
+    """
     LOGGER.info("ROLLBACK: Removing v2 rows for client=%s tables=%s", client, tables)
     for table in tables:
         try:
+            # Ticket chunks are per-tenant; scope the delete to the given client.
+            per_client = table == "rag_ticket_chunks"
+            q = supabase.table(table).select("id", count="exact").eq("index_version", "v2")
+            if per_client:
+                q = q.eq("client", client)
+
             if dry_run:
-                count_resp = (
-                    supabase.table(table)
-                    .select("id", count="exact")
-                    .eq("index_version", "v2")
-                    .execute()
-                )
+                count_resp = q.execute()
                 count = getattr(count_resp, "count", "?")
-                LOGGER.info("[%s] DRY RUN: would delete ~%s rows with index_version=v2", table, count)
+                scope = f"client={client}" if per_client else "all clients"
+                LOGGER.info(
+                    "[%s] DRY RUN: would delete ~%s v2 rows (%s)", table, count, scope
+                )
                 continue
 
-            supabase.table(table).delete().eq("index_version", "v2").execute()
-            LOGGER.info("[%s] Deleted all v2 rows", table)
+            dq = supabase.table(table).delete().eq("index_version", "v2")
+            if per_client:
+                dq = dq.eq("client", client)
+            dq.execute()
+            scope = f"client={client}" if per_client else "all clients"
+            LOGGER.info("[%s] Deleted v2 rows (%s)", table, scope)
         except Exception as exc:
             LOGGER.error("[%s] Rollback failed: %s", table, exc)
 
