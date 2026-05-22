@@ -11,9 +11,11 @@
 --   rag_knowledge_chunks:boosted_score = similarity + 0.08 + quality*0.05
 --                        (quality contribution capped at 0.05 when quality=1.0)
 --
--- Quality gate: chunks with quality_score < 0.40 are excluded BEFORE the HNSW
+-- Quality gate: chunks with quality_score < 0.55 are excluded BEFORE the HNSW
 -- scan via the B-tree index on quality_score. This is the primary safeguard
 -- against low-quality Q&A polluting retrieval results.
+-- NOTE: This file's WHERE clause was updated to 0.55 after initial deployment.
+-- B3_004 is the authoritative migration that raised the gate 0.40→0.55.
 --
 -- Tenant isolation: knowledge chunks use clients[] array instead of a scalar
 -- client column. The ANY() operator safely handles both global (clients='{}')
@@ -85,8 +87,9 @@ CREATE OR REPLACE FUNCTION match_all_b1_sources(
     UNION ALL
 
     -- ── Branch 3: Knowledge chunks (+0.08 base + quality*0.05 bonus) ─────────
-    -- quality_score >= 0.40 is the primary retrieval quality gate.
-    -- The B-tree index on quality_score applies this filter before the HNSW scan.
+    -- quality_score >= 0.55 is the primary retrieval quality gate (raised from
+    -- 0.40 by B3_004). The B-tree index on quality_score applies this filter
+    -- before the HNSW scan.
     SELECT
         rkc.id,
         'rag_knowledge_chunks'::TEXT                             AS source_table,
@@ -125,4 +128,4 @@ GRANT EXECUTE ON FUNCTION match_all_b1_sources(VECTOR, TEXT, INTEGER, FLOAT, TEX
     TO service_role;
 
 COMMENT ON FUNCTION match_all_b1_sources IS
-'Phase B3 update: adds rag_knowledge_chunks UNION branch with +0.08 base boost and quality*0.05 bonus. Quality gate quality_score>=0.40 applied before HNSW scan. Same signature as B1 version — all callers are backward-compatible.';
+'Phase B3 update (B3_002): adds rag_knowledge_chunks UNION branch with +0.08 base boost and quality*0.05 bonus. Quality gate subsequently raised 0.40→0.55 by B3_004. Same signature as B1 version — all callers are backward-compatible.';

@@ -1,39 +1,32 @@
 -- =============================================================================
--- B1_008_fts_rpc.sql
--- Phase B1/B3: Unified FTS RPC across all B1 RAG tables
+-- B3_005_fts_quality_gate.sql
+-- Raise knowledge-chunk quality gate in search_b1_sources_fts from 0.40 → 0.55.
 --
--- Prerequisites:
---   - B1_007_fts_setup.sql applied (fts columns + GIN indexes exist)
---   - B1_001, B1_002, B3_001 tables must exist
+-- WHY:
+--   B3_004 raised the gate in match_all_b1_sources (semantic search RPC) to 0.55,
+--   and the Python ingestion pipeline (B3_KNOWLEDGE_MIN_QUALITY_SCORE=0.55) now
+--   refuses to ingest chunks below 0.55. However B1_008 (the FTS / keyword search
+--   RPC) still carries the old hardcoded 0.40 threshold:
 --
--- Function: search_b1_sources_fts
---   Returns keyword-matched rows from rag_ticket_chunks, rag_sop_chunks,
---   and rag_knowledge_chunks in a single ranked result set.
+--     AND kc.quality_score >= 0.40    -- ← stale after B3_004
 --
--- Called by: HybridTicketRetriever._search_keyword() in Python
---   The HybridTicketRetriever uses this RPC alongside the semantic
---   match_all_b1_sources RPC, then fuses results via Reciprocal Rank Fusion.
+--   This means the FTS path returns knowledge chunks that the semantic path
+--   excludes, creating retrieval drift between the two legs of the hybrid RRF
+--   pipeline. Both paths must enforce the same gate.
 --
--- Tenant isolation:
---   - ticket_chunks:    client = p_client (strict per-tenant)
---   - sop_chunks:       clients = '{}' OR p_client = ANY(clients) (global or tenant)
---   - knowledge_chunks: clients = '{}' OR p_client = ANY(clients) (global or tenant)
+-- EFFECT:
+--   Recreates search_b1_sources_fts with quality_score >= 0.55.
+--   No data is deleted — the gate change only affects query-time filtering.
+--   Chunks with quality_score ∈ [0.40, 0.55) were already removed by B3_004.
 --
--- Dictionary: 'simple' (matches B1_007 — must use same dictionary as the column)
+-- SAFE TO RE-RUN: CREATE OR REPLACE is idempotent.
 --
--- Output columns match the row format expected by HybridTicketRetriever:
---   id, content, metadata (as jsonb), chunk_type, ts_rank
---
--- Performance notes:
---   - UNION ALL (not UNION) to avoid deduplication overhead
---   - GIN indexes on all three fts columns make WHERE fts @@ ... fast
---   - p_match_count limits each leg before the outer ORDER BY + LIMIT
---     to keep the result set manageable for fusion
+-- Prerequisites: B1_007, B1_008, B3_001, B3_004 must already be applied.
 -- =============================================================================
 
 CREATE OR REPLACE FUNCTION public.search_b1_sources_fts(
     p_query_text    TEXT,
-    p_client        TEXT,           -- REQUIRED: tenant slug (e.g. 'unity_bank')
+    p_client        TEXT,
     p_match_count   INTEGER DEFAULT 20,
     p_index_version TEXT    DEFAULT 'v1'
 )
@@ -66,7 +59,7 @@ AS $$
         ts_rank(
             rtc.fts,
             websearch_to_tsquery('simple', p_query_text),
-            1   -- normalization: divide by 1 + log(doc_length) to prevent long-doc bias
+            1
         )::DOUBLE PRECISION AS ts_rank
     FROM public.rag_ticket_chunks rtc
     WHERE
@@ -108,6 +101,8 @@ AS $$
     UNION ALL
 
     -- ── Knowledge chunks (global or per-tenant) ─────────────────────────────────
+    -- RAISED from 0.40 → 0.55 to match match_all_b1_sources (B3_004) and the
+    -- B3_KNOWLEDGE_MIN_QUALITY_SCORE=0.55 environment variable.
     SELECT
         kc.id,
         kc.content,
@@ -129,8 +124,8 @@ AS $$
     JOIN public.rag_knowledge_articles ka ON ka.article_id = kc.article_id
     WHERE
         kc.index_version  = p_index_version
-        AND ka.is_active  = TRUE        -- is_active lives on the parent article, not the chunk
-        AND kc.quality_score >= 0.55    -- quality gate matches match_all_b1_sources (B3_004/B3_005)
+        AND ka.is_active  = TRUE
+        AND kc.quality_score >= 0.55
         AND kc.fts IS NOT NULL
         AND (kc.clients = '{}' OR p_client = ANY(kc.clients))
         AND kc.fts @@ websearch_to_tsquery('simple', p_query_text)
@@ -139,37 +134,24 @@ AS $$
     LIMIT p_match_count;
 $$;
 
--- Grant access to all roles used by the application
 GRANT EXECUTE ON FUNCTION public.search_b1_sources_fts(TEXT, TEXT, INTEGER, TEXT)
     TO authenticated, service_role, anon;
 
--- =============================================================================
--- Verification Queries
--- =============================================================================
+COMMENT ON FUNCTION public.search_b1_sources_fts IS
+'B3_005: knowledge_chunk quality gate raised 0.40→0.55 to match match_all_b1_sources (B3_004) and B3_KNOWLEDGE_MIN_QUALITY_SCORE=0.55 in .env. FTS and semantic paths now enforce the same quality gate.';
 
--- Confirm function exists with correct signature:
--- SELECT proname, pg_get_function_arguments(oid)
--- FROM pg_proc
--- WHERE proname = 'search_b1_sources_fts'
---   AND pronamespace = 'public'::regnamespace;
-
--- Smoke test (use a term present in your data):
+-- =============================================================================
+-- Verification
+-- =============================================================================
+-- Confirm function body contains 0.55 (not 0.40):
+--
+-- SELECT pg_get_functiondef(oid)
+-- FROM   pg_proc
+-- WHERE  proname = 'search_b1_sources_fts'
+--   AND  pronamespace = 'public'::regnamespace;
+--
+-- Smoke test (FTS should respect quality gate):
 -- SELECT id, chunk_type, ts_rank, left(content, 80) AS snippet
 -- FROM search_b1_sources_fts('OTP verification failed', 'unity_bank', 10, 'v1')
 -- ORDER BY ts_rank DESC;
-
--- Confirm tenant isolation (should return 0 rows for wrong tenant):
--- SELECT count(*) FROM search_b1_sources_fts('KYC', 'nonexistent_tenant', 5, 'v1');
-
--- =============================================================================
--- Notes
--- =============================================================================
--- The quality_score >= 0.55 filter on knowledge chunks matches the threshold set
--- by B3_004_raise_quality_gate.sql (match_all_b1_sources) and the env variable
--- B3_KNOWLEDGE_MIN_QUALITY_SCORE=0.55. B3_005_fts_quality_gate.sql applies this
--- same value to already-deployed databases. If the threshold is changed again,
--- update it in all three places: here, B3_004, and B3_005.
---
--- The ESCALATION filter on ticket chunks mirrors match_all_b1_sources —
--- escalated tickets are excluded from the auto-reply path by design.
 -- =============================================================================

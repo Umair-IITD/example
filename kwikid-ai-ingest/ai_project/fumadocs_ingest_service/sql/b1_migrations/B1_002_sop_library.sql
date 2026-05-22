@@ -87,8 +87,11 @@ CREATE TABLE IF NOT EXISTS public.rag_sop_chunks (
     ingested_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     index_version   TEXT NOT NULL DEFAULT 'v1',
 
+    -- index_version is included so v1 and v2 rows can coexist during zero-downtime
+    -- migration. See B1_009_sop_unique_constraint.sql for the ALTER applied to
+    -- existing databases.
     CONSTRAINT rag_sop_chunks_unique_position
-        UNIQUE (sop_id, chunk_index, sop_version)
+        UNIQUE (sop_id, chunk_index, sop_version, index_version)
 );
 
 COMMENT ON TABLE public.rag_sop_library IS

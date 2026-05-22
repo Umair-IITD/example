@@ -29,6 +29,8 @@ from typing import TYPE_CHECKING
 
 import tiktoken
 
+from rag_engine.sop.sop_parser import parse_sop_content
+
 if TYPE_CHECKING:
     from rag_engine.retrieval.ticket_retriever import RetrievedChunk
 
@@ -117,9 +119,22 @@ def assemble_context(
         content = _truncate(chunk.content, per_chunk_max_chars)
 
         if chunk.source_table == "rag_sop_chunks":
+            flags = parse_sop_content(chunk.content)
+            branch_tags: list[str] = []
+            if flags.has_escalation_branches:
+                branch_tags.append("escalation:YES")
+            if flags.has_denial_branches:
+                branch_tags.append("denial:YES")
+            if flags.has_security_freeze:
+                branch_tags.append("freeze:YES")
+            if flags.has_post_resolution:
+                branch_tags.append("post-res:YES")
+            if flags.has_mandatory_warnings:
+                branch_tags.append("mandatory:YES")
+            branch_str = (" | " + " | ".join(branch_tags)) if branch_tags else ""
             header = (
                 f"##{idx} [SOP | sop_id={chunk.sop_id or 'unknown'} | "
-                f"score={chunk.boosted_score:.3f} | AUTHORITATIVE]"
+                f"score={chunk.boosted_score:.3f} | AUTHORITATIVE{branch_str}]"
             )
         elif chunk.source_table == "rag_knowledge_chunks":
             klass = chunk.knowledge_class or chunk.chunk_type

@@ -13,6 +13,15 @@ Checks performed per table:
   6. Null FTS tsvector column (when B1_007 migration is applied)
   7. Client distribution (ticket chunks only)
 
+PAGINATION:
+  Supabase's PostgREST REST API returns HTTP 206 Partial Content when results
+  exceed the server's max-rows limit (default: 1000). All queries that fetch
+  actual row data (not just counts) use _fetch_all_paginated() to ensure
+  complete results regardless of table size.
+
+  Count-only queries (using count="exact") are NOT affected by pagination —
+  Supabase returns the total count in resp.count even for large tables.
+
 Usage:
   python scripts/verify_index_integrity.py
   python scripts/verify_index_integrity.py --client unity_bank
@@ -38,7 +47,7 @@ import logging
 import os
 import sys
 import time
-from typing import Any
+from typing import Any, Optional
 
 logging.basicConfig(
     level=logging.INFO,
@@ -87,23 +96,120 @@ _TABLE_CONFIG = {
     },
 }
 
+# ── Supabase PostgREST page size ──────────────────────────────────────────────
+# Default PostgREST max-rows is 1000. All paginated fetches use this as the
+# page size. If your Supabase project uses a lower limit, reduce this value.
+_PAGE_SIZE = 1000
+
+
+# ── Pagination helper ─────────────────────────────────────────────────────────
+
+def _fetch_all_paginated(
+    supabase: Any,
+    table: str,
+    select_cols: str,
+    *,
+    eq_filters: Optional[dict[str, Any]] = None,
+    page_size: int = _PAGE_SIZE,
+    description: str = "",
+) -> list[dict]:
+    """
+    Fetch ALL rows from a Supabase table using Range-based pagination.
+
+    Supabase's PostgREST returns HTTP 206 Partial Content and silently
+    truncates results at the server's max-rows limit (default: 1000).
+    Callers MUST paginate to get the complete result set.
+
+    This function rebuilds a fresh query builder on each page iteration
+    because the supabase-py builder is stateful — calling .range() on
+    an existing builder mutates it.
+
+    Args:
+        supabase:    Supabase client instance
+        table:       Table name (e.g. "rag_ticket_chunks")
+        select_cols: Columns to select ("col1,col2" or "col1" or "*")
+        eq_filters:  Optional {column: value} equality filters.
+                     None values are skipped.
+        page_size:   Rows per page (max 1000 for standard PostgREST)
+        description: Label for log messages (defaults to table name)
+
+    Returns:
+        Complete list of all matching rows across all pages.
+
+    Raises:
+        Exception: Re-raises Supabase client errors. Never returns partial
+                   data silently — callers must handle or propagate errors.
+    """
+    label = description or table
+    all_rows: list[dict] = []
+    offset = 0
+    page_num = 0
+
+    while True:
+        page_num += 1
+
+        # Rebuild fresh query builder each iteration — builder is stateful,
+        # calling .range() on the same instance does not reset to a new offset.
+        q = supabase.table(table).select(select_cols)
+        if eq_filters:
+            for col, val in eq_filters.items():
+                if val is not None:
+                    q = q.eq(col, val)
+        q = q.range(offset, offset + page_size - 1)
+
+        resp = q.execute()
+        batch = resp.data or []
+        fetched = len(batch)
+        all_rows.extend(batch)
+
+        LOGGER.debug(
+            "_fetch_all_paginated [%s] page=%d offset=%d fetched=%d total=%d",
+            label, page_num, offset, fetched, len(all_rows),
+        )
+
+        # Fewer rows than page_size means we have reached the last page.
+        if fetched < page_size:
+            break
+
+        offset += page_size
+
+    if page_num > 1:
+        LOGGER.info(
+            "Paginated fetch [%s]: %d rows retrieved in %d pages (page_size=%d)",
+            label, len(all_rows), page_num, page_size,
+        )
+
+    return all_rows
+
+
+# ── Count helper ──────────────────────────────────────────────────────────────
 
 def _safe_count(resp: Any) -> int:
-    """Extract row count from Supabase response (handles both .count and .data)."""
+    """Extract row count from a Supabase count="exact" response."""
     if hasattr(resp, "count") and resp.count is not None:
         return int(resp.count)
     return len(resp.data or [])
 
+
+# ── Per-table check ───────────────────────────────────────────────────────────
 
 def _check_table(
     supabase: Any,
     table: str,
     config: dict,
     *,
-    client: str | None,
-    index_version: str | None,
+    client: Optional[str],
+    index_version: Optional[str],
 ) -> dict:
-    """Run all checks for one chunk table. Returns a structured result dict."""
+    """
+    Run all integrity checks for one chunk table.
+
+    All checks that fetch row data use _fetch_all_paginated() to ensure
+    correctness even when tables exceed 1000 rows. Count-only checks use
+    count="exact" which is unaffected by pagination.
+
+    Returns a structured result dict.
+    """
     result: dict[str, Any] = {
         "table": table,
         "ok": True,
@@ -111,57 +217,56 @@ def _check_table(
         "checks": {},
     }
 
-    def _base_q(extra_selects: str = "id"):
-        q = supabase.table(table).select(extra_selects, count="exact")
+    # ── Shared count query builder ─────────────────────────────────────────
+    def _count_q(extra_is_null: Optional[str] = None):
+        """Build a count="exact" query with standard filters."""
+        q = supabase.table(table).select("id", count="exact")
         if index_version:
             q = q.eq("index_version", index_version)
         if client and config["per_client"]:
             q = q.eq("client", client)
+        if extra_is_null:
+            q = q.is_(extra_is_null, "null")
         return q
 
     # ── 1. Row count by index_version ──────────────────────────────────────
+    # Uses count="exact" — not affected by pagination.
     try:
         if index_version:
-            resp = _base_q().execute()
-            result["checks"]["row_count"] = {"index_version": index_version, "count": _safe_count(resp)}
+            resp = _count_q().execute()
+            result["checks"]["row_count"] = {
+                "index_version": index_version,
+                "count": _safe_count(resp),
+            }
         else:
-            # Show distribution across all index versions
             dist: dict[str, int] = {}
             for ver in ("v1", "v2"):
                 q = supabase.table(table).select("id", count="exact").eq("index_version", ver)
                 if client and config["per_client"]:
                     q = q.eq("client", client)
-                r = q.execute()
-                dist[ver] = _safe_count(r)
+                dist[ver] = _safe_count(q.execute())
             result["checks"]["row_count_by_version"] = dist
     except Exception as exc:
         result["checks"]["row_count_error"] = str(exc)
 
-    # Determine total count for context
-    total_q = supabase.table(table).select("id", count="exact")
-    if client and config["per_client"]:
-        total_q = total_q.eq("client", client)
-    if index_version:
-        total_q = total_q.eq("index_version", index_version)
+    # ── Determine in-scope total row count ─────────────────────────────────
     try:
-        total_count = _safe_count(total_q.execute())
+        total_count = _safe_count(_count_q().execute())
         result["checks"]["total_rows_in_scope"] = total_count
     except Exception:
         total_count = 0
 
     if total_count == 0:
-        result["issues"].append(f"No rows found in scope (client={client}, index_version={index_version})")
+        result["issues"].append(
+            f"No rows found in scope (client={client}, index_version={index_version})"
+        )
         result["ok"] = False
         return result
 
-    # ── 2. Null embeddings ──────────────────────────────────────────────────
+    # ── 2. Null embeddings ─────────────────────────────────────────────────
+    # Uses count="exact" — not affected by pagination.
     try:
-        null_q = supabase.table(table).select("id", count="exact").is_("embedding", "null")
-        if index_version:
-            null_q = null_q.eq("index_version", index_version)
-        if client and config["per_client"]:
-            null_q = null_q.eq("client", client)
-        null_count = _safe_count(null_q.execute())
+        null_count = _safe_count(_count_q("embedding").execute())
         result["checks"]["null_embeddings"] = null_count
         if null_count > 0:
             pct = round(100.0 * null_count / max(1, total_count), 1)
@@ -171,58 +276,93 @@ def _check_table(
     except Exception as exc:
         result["checks"]["null_embedding_error"] = str(exc)
 
-    # ── 3. Orphan chunks ────────────────────────────────────────────────────
+    # ── 3. Orphan chunk detection ──────────────────────────────────────────
+    # CRITICAL: Both the child FK fetch AND the parent PK fetch must be fully
+    # paginated. A partial read of either set produces false orphan detections.
+    # The original bug was an HTTP 206 truncation of both result sets.
     parent_table = config["parent_table"]
     chunk_fk = config["chunk_fk"]
     parent_pk = config["parent_pk"]
 
     try:
-        # Fetch unique FK values from chunk table (limit for performance)
-        fk_q = supabase.table(table).select(chunk_fk)
+        # Build eq_filters for child chunk fetch
+        child_filters: dict[str, Any] = {}
         if index_version:
-            fk_q = fk_q.eq("index_version", index_version)
+            child_filters["index_version"] = index_version
         if client and config["per_client"]:
-            fk_q = fk_q.eq("client", client)
-        fk_resp = fk_q.limit(5000).execute()
-        chunk_fk_values = {str(r[chunk_fk]) for r in (fk_resp.data or []) if r.get(chunk_fk)}
+            child_filters["client"] = client
 
-        parent_resp = supabase.table(parent_table).select(parent_pk).execute()
-        parent_ids = {str(r[parent_pk]) for r in (parent_resp.data or []) if r.get(parent_pk)}
+        # Fetch ALL chunk FK values — paginated to handle large tables
+        fk_rows = _fetch_all_paginated(
+            supabase, table, chunk_fk,
+            eq_filters=child_filters or None,
+            description=f"{table}.{chunk_fk} (child FKs)",
+        )
+        chunk_fk_values = {str(r[chunk_fk]) for r in fk_rows if r.get(chunk_fk)}
+
+        # Fetch ALL parent primary keys — paginated to handle large tables.
+        # No client filter here: parent tables are not scoped per-tenant.
+        parent_rows = _fetch_all_paginated(
+            supabase, parent_table, parent_pk,
+            description=f"{parent_table}.{parent_pk} (parent PKs)",
+        )
+        parent_ids = {str(r[parent_pk]) for r in parent_rows if r.get(parent_pk)}
 
         orphans = chunk_fk_values - parent_ids
+
         result["checks"]["orphan_chunks"] = {
             "count": len(orphans),
-            "sample": list(orphans)[:5],
+            "chunk_fk_total": len(chunk_fk_values),
+            "parent_pk_total": len(parent_ids),
+            "sample": sorted(list(orphans))[:5],  # sorted for deterministic output
         }
+        LOGGER.info(
+            "  [%s] orphan check: %d chunk FKs vs %d parent PKs → %d orphan(s)",
+            table, len(chunk_fk_values), len(parent_ids), len(orphans),
+        )
+
         if orphans:
-            issue = f"{len(orphans)} orphan FK values (parent rows deleted from {parent_table})"
+            issue = (
+                f"{len(orphans)} orphan FK value(s) in {chunk_fk} "
+                f"not found in {parent_table}.{parent_pk}"
+            )
             result["issues"].append(issue)
             result["ok"] = False
+
     except Exception as exc:
         result["checks"]["orphan_check_error"] = str(exc)
+        LOGGER.warning("  [%s] orphan check failed: %s", table, exc)
 
-    # ── 4. Missing content_hash ─────────────────────────────────────────────
+    # ── 4. Missing content_hash ────────────────────────────────────────────
+    # Uses count="exact" — not affected by pagination.
     try:
-        hash_q = supabase.table(table).select("id", count="exact").is_("content_hash", "null")
-        if index_version:
-            hash_q = hash_q.eq("index_version", index_version)
-        if client and config["per_client"]:
-            hash_q = hash_q.eq("client", client)
-        missing_hash = _safe_count(hash_q.execute())
+        missing_hash = _safe_count(_count_q("content_hash").execute())
         result["checks"]["missing_content_hash"] = missing_hash
         if missing_hash > 0:
             result["issues"].append(f"{missing_hash} rows missing content_hash")
     except Exception as exc:
         result["checks"]["content_hash_error"] = str(exc)
 
-    # ── 5. Quality score distribution (knowledge chunks only) ───────────────
+    # ── 5. Quality score distribution (knowledge chunks only) ──────────────
+    # Fetches actual values — must be paginated for complete distribution.
     if config["has_quality_score"]:
         try:
-            all_q = supabase.table(table).select("quality_score")
+            qs_filters: dict[str, Any] = {}
             if index_version:
-                all_q = all_q.eq("index_version", index_version)
-            qs_resp = all_q.execute()
-            scores = [float(r["quality_score"]) for r in (qs_resp.data or []) if r.get("quality_score") is not None]
+                qs_filters["index_version"] = index_version
+            if client and config["per_client"]:
+                qs_filters["client"] = client
+
+            qs_rows = _fetch_all_paginated(
+                supabase, table, "quality_score",
+                eq_filters=qs_filters or None,
+                description=f"{table}.quality_score",
+            )
+            scores = [
+                float(r["quality_score"])
+                for r in qs_rows
+                if r.get("quality_score") is not None
+            ]
             if scores:
                 result["checks"]["quality_score"] = {
                     "count": len(scores),
@@ -235,32 +375,33 @@ def _check_table(
         except Exception as exc:
             result["checks"]["quality_score_error"] = str(exc)
 
-    # ── 6. Null FTS column (B1_007) ─────────────────────────────────────────
+    # ── 6. Null FTS column (post-B1_007) ──────────────────────────────────
+    # Uses count="exact" — not affected by pagination. Warns, does not fail.
     if config["has_fts"]:
         try:
-            fts_q = supabase.table(table).select("id", count="exact").is_("fts", "null")
-            if index_version:
-                fts_q = fts_q.eq("index_version", index_version)
-            if client and config["per_client"]:
-                fts_q = fts_q.eq("client", client)
-            null_fts = _safe_count(fts_q.execute())
+            null_fts = _safe_count(_count_q("fts").execute())
             result["checks"]["null_fts"] = null_fts
-            # null fts is expected if B1_007 not yet applied — warn but don't fail
             if null_fts > 0:
                 pct = round(100.0 * null_fts / max(1, total_count), 1)
                 result["checks"]["fts_note"] = (
-                    f"{null_fts} ({pct}%) rows have null fts — apply B1_007_fts_setup.sql if not done"
+                    f"{null_fts} ({pct}%) rows have null fts — "
+                    "apply sql/b1_migrations/B1_007_fts_setup.sql if not yet done"
                 )
         except Exception as exc:
             result["checks"]["fts_error"] = str(exc)
 
-    # ── 7. Client distribution (ticket only) ───────────────────────────────
+    # ── 7. Client distribution (ticket chunks, all-tenants mode only) ──────
+    # Fetches actual values — must be paginated for complete distribution.
     if config["per_client"] and not client:
         try:
-            dist_resp = supabase.table(table).select("client").execute()
+            dist_rows = _fetch_all_paginated(
+                supabase, table, "client",
+                eq_filters={"index_version": index_version} if index_version else None,
+                description=f"{table}.client (distribution)",
+            )
             client_dist: dict[str, int] = {}
-            for row in (dist_resp.data or []):
-                c = row.get("client", "unknown")
+            for row in dist_rows:
+                c = row.get("client") or "unknown"
                 client_dist[c] = client_dist.get(c, 0) + 1
             result["checks"]["client_distribution"] = dict(
                 sorted(client_dist.items(), key=lambda kv: kv[1], reverse=True)
@@ -271,18 +412,21 @@ def _check_table(
     return result
 
 
+# ── Run all table checks ──────────────────────────────────────────────────────
+
 def _run_checks(
     supabase: Any,
     *,
     tables: list[str],
-    client: str | None,
-    index_version: str | None,
+    client: Optional[str],
+    index_version: Optional[str],
 ) -> dict:
     """Run all checks across selected tables and return full report."""
     report: dict[str, Any] = {
         "run_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "client_filter": client,
         "index_version_filter": index_version,
+        "pagination_page_size": _PAGE_SIZE,
         "tables": {},
         "summary": {"total_issues": 0, "tables_with_issues": 0, "overall_ok": True},
     }
@@ -291,7 +435,10 @@ def _run_checks(
         cfg = _TABLE_CONFIG[table]
         LOGGER.info("Checking %s ...", table)
         t0 = time.perf_counter()
-        result = _check_table(supabase, table, cfg, client=client, index_version=index_version)
+        result = _check_table(
+            supabase, table, cfg,
+            client=client, index_version=index_version,
+        )
         result["duration_s"] = round(time.perf_counter() - t0, 2)
 
         report["tables"][table] = result
@@ -306,6 +453,8 @@ def _run_checks(
 
     return report
 
+
+# ── CLI ───────────────────────────────────────────────────────────────────────
 
 def _parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(
@@ -335,11 +484,18 @@ def _parse_args() -> argparse.Namespace:
         "--fail-on-issues", action="store_true",
         help="Exit with code 1 if any issues are found (useful in CI).",
     )
+    p.add_argument(
+        "--verbose", action="store_true",
+        help="Enable DEBUG-level logging (pagination details, per-page counts).",
+    )
     return p.parse_args()
 
 
 def main() -> int:
     args = _parse_args()
+
+    if args.verbose:
+        logging.getLogger().setLevel(logging.DEBUG)
 
     supabase_url = os.getenv("SUPABASE_URL", "").strip()
     supabase_key = os.getenv("SUPABASE_KEY", "").strip()
@@ -364,8 +520,8 @@ def main() -> int:
         tables = [short_to_full[s] for s in selected if s in short_to_full]
 
     LOGGER.info(
-        "Starting integrity check: tables=%s client=%s index_version=%s",
-        tables, args.client, args.index_version,
+        "Starting integrity check: tables=%s client=%s index_version=%s page_size=%d",
+        tables, args.client, args.index_version, _PAGE_SIZE,
     )
 
     report = _run_checks(
@@ -388,10 +544,7 @@ def main() -> int:
 
     summary = report["summary"]
     if summary["overall_ok"]:
-        LOGGER.info(
-            "Integrity check PASSED — all %d tables clean",
-            len(tables),
-        )
+        LOGGER.info("Integrity check PASSED — all %d tables clean", len(tables))
     else:
         LOGGER.error(
             "Integrity check FAILED — %d issue(s) across %d table(s)",

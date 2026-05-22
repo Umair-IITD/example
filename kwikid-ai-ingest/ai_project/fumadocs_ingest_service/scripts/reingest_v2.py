@@ -94,6 +94,64 @@ class ReingestStats:
     errors: list[str] = field(default_factory=list)
 
 
+# ── Supabase pagination helper ────────────────────────────────────────────────
+# PostgREST returns HTTP 206 Partial Content when results exceed the server's
+# max-rows limit (default: 1000). All bulk data fetches must paginate.
+# Count-only queries (count="exact") are NOT affected and remain unchanged.
+
+_PAGE_SIZE = 1000
+
+
+def _fetch_all_paginated(
+    supabase: Any,
+    table: str,
+    select_cols: str,
+    *,
+    eq_filters: dict | None = None,
+    page_size: int = _PAGE_SIZE,
+    description: str = "",
+) -> list[dict]:
+    """
+    Fetch ALL rows from a Supabase table using Range-based pagination.
+
+    Rebuilds the query builder on each page because supabase-py's builder is
+    stateful — calling .range() mutates the current instance, so the builder
+    must be recreated from scratch on every iteration.
+
+    Raises on Supabase errors — never silently returns partial data.
+    """
+    label = description or table
+    all_rows: list[dict] = []
+    offset = 0
+    page_num = 0
+
+    while True:
+        page_num += 1
+        q = supabase.table(table).select(select_cols)
+        if eq_filters:
+            for col, val in eq_filters.items():
+                if val is not None:
+                    q = q.eq(col, val)
+        q = q.range(offset, offset + page_size - 1)
+        resp = q.execute()
+        batch = resp.data or []
+        all_rows.extend(batch)
+        LOGGER.debug(
+            "_fetch_all_paginated [%s] page=%d offset=%d fetched=%d total=%d",
+            label, page_num, offset, len(batch), len(all_rows),
+        )
+        if len(batch) < page_size:
+            break
+        offset += page_size
+
+    if page_num > 1:
+        LOGGER.info(
+            "Paginated fetch [%s]: %d rows in %d pages",
+            label, len(all_rows), page_num,
+        )
+    return all_rows
+
+
 # ── Embedding client (minimal — no retry for script simplicity) ───────────────
 
 def _embed_batch(texts: list[str], api_key: str, model: str) -> list[list[float]]:
@@ -172,16 +230,18 @@ def _reingest_ticket_chunks(
     stats = ReingestStats(table="rag_ticket_chunks", client=client)
     t0 = time.perf_counter()
 
-    LOGGER.info("[ticket] Fetching rag_ticket_documents for client=%s ...", client)
-    resp = (
-        supabase.table("rag_ticket_documents")
-        .select("id, ticket_id, source_type, subject, document_text, automation_label, "
-                "has_rca, has_sop, query_type, issue_area, environment, "
-                "escalation_flag, ingestion_run_id, ticket_created_at")
-        .eq("client", client)
-        .execute()
+    LOGGER.info("[ticket] Fetching rag_ticket_documents for client=%s (paginated) ...", client)
+    # Paginated: rag_ticket_documents can exceed 1000 rows for large tenants.
+    # A single .execute() without pagination would silently truncate the result.
+    docs = _fetch_all_paginated(
+        supabase,
+        "rag_ticket_documents",
+        "id,ticket_id,source_type,subject,document_text,automation_label,"
+        "has_rca,has_sop,query_type,issue_area,environment,"
+        "escalation_flag,ingestion_run_id,ticket_created_at",
+        eq_filters={"client": client},
+        description=f"rag_ticket_documents client={client}",
     )
-    docs = resp.data or []
     stats.source_docs_fetched = len(docs)
     LOGGER.info("[ticket] Fetched %d source documents", len(docs))
 
@@ -268,13 +328,16 @@ def _reingest_sop_chunks(
     stats = ReingestStats(table="rag_sop_chunks", client=client)
     t0 = time.perf_counter()
 
-    LOGGER.info("[sop] Fetching rag_sop_library for client=%s ...", client)
-    # SOP library uses clients[] — fetch global (empty) + client-specific
-    resp = supabase.table("rag_sop_library").select(
-        "sop_id, title, content, query_type, issue_area, clients, version, is_active"
-    ).execute()
-    all_sops = resp.data or []
-    # Filter: global or contains client
+    LOGGER.info("[sop] Fetching rag_sop_library (paginated) ...")
+    # Paginated: fetch all SOP rows, then filter in Python.
+    # SOP library uses clients[] — cannot filter in PostgREST, must filter after fetch.
+    all_sops = _fetch_all_paginated(
+        supabase,
+        "rag_sop_library",
+        "sop_id,title,content,query_type,issue_area,clients,version,is_active",
+        description="rag_sop_library",
+    )
+    # Filter: active SOPs that are global (empty clients[]) or include this client
     sops = [
         s for s in all_sops
         if s.get("is_active", True) and (
@@ -282,7 +345,7 @@ def _reingest_sop_chunks(
         )
     ]
     stats.source_docs_fetched = len(sops)
-    LOGGER.info("[sop] Found %d applicable SOPs", len(sops))
+    LOGGER.info("[sop] Found %d applicable SOPs (from %d total)", len(sops), len(all_sops))
 
     chunk_rows: list[dict[str, Any]] = []
 
@@ -353,24 +416,43 @@ def _reingest_knowledge_chunks(
     stats = ReingestStats(table="rag_knowledge_chunks", client=client)
     t0 = time.perf_counter()
 
-    LOGGER.info("[knowledge] Fetching rag_knowledge_articles for client=%s ...", client)
-    resp = supabase.table("rag_knowledge_articles").select(
-        "id, article_id, title, question_body, answer_body, "
-        "knowledge_class, quality_score, clients, is_active"
-    ).execute()
-    all_articles = resp.data or []
+    LOGGER.info("[knowledge] Fetching rag_knowledge_articles (paginated) ...")
+    # Paginated: fetch all articles, then filter in Python.
+    # Knowledge articles use clients[] — cannot filter array membership in PostgREST
+    # without RPC; filter in Python after complete fetch.
+    all_articles = _fetch_all_paginated(
+        supabase,
+        "rag_knowledge_articles",
+        "id,article_id,source_post_id,title,question_body,answer_body,"
+        "knowledge_class,quality_score,question_score,answer_score,tags_raw,clients,is_active",
+        description="rag_knowledge_articles",
+    )
     articles = [
         a for a in all_articles
-        if a.get("is_active", True) and (
-            not a.get("clients") or client in a.get("clients", [])
-        ) and float(a.get("quality_score", 0)) >= 0.40
+        if a.get("is_active", True)
+        and (not a.get("clients") or client in a.get("clients", []))
+        and float(a.get("quality_score") or 0) >= 0.55
     ]
     stats.source_docs_fetched = len(articles)
-    LOGGER.info("[knowledge] Found %d applicable articles (quality_score>=0.40)", len(articles))
+    LOGGER.info(
+        "[knowledge] Found %d applicable articles (quality_score>=0.55) from %d total",
+        len(articles), len(all_articles),
+    )
 
     chunk_rows: list[dict[str, Any]] = []
 
     for article in articles:
+        # source_post_id is NOT NULL in rag_knowledge_chunks — reject articles
+        # where the parent row is missing this value rather than propagating NULL.
+        source_post_id = article.get("source_post_id")
+        if source_post_id is None:
+            LOGGER.warning(
+                "[knowledge] Skipping article %s — source_post_id is NULL on parent row",
+                article.get("article_id"),
+            )
+            stats.chunks_skipped += 1
+            continue
+
         q_body = (article.get("question_body") or "").strip()
         a_body = (article.get("answer_body") or "").strip()
         text = "\n\n".join(filter(None, [q_body, a_body]))
@@ -389,6 +471,7 @@ def _reingest_knowledge_chunks(
             chunk_rows.append({
                 "id_str":          c["chunk_id"],
                 "article_id":      article["article_id"],
+                "source_post_id":  source_post_id,
                 "chunk_index":     c["chunk_index"],
                 "chunk_type":      "KNOWLEDGE",
                 "content":         c["content"],
@@ -396,6 +479,9 @@ def _reingest_knowledge_chunks(
                 "content_hash":    c["content_hash"],
                 "knowledge_class": article.get("knowledge_class", "FAQ"),
                 "quality_score":   float(article.get("quality_score", 0.0)),
+                "question_score":  int(article.get("question_score") or 0),
+                "answer_score":    int(article.get("answer_score") or 0),
+                "tags_raw":        article.get("tags_raw") or [],
                 "clients":         article.get("clients", []),
                 "index_version":   "v2",
             })
@@ -617,35 +703,51 @@ def _validate_v2(supabase: Any, client: str, tables: list[str]) -> dict:
             table_report["null_embedding_check_error"] = str(exc)
 
         # ── Orphan detection ─────────────────────────────────────────────────
+        # MUST paginate both the child FK fetch and the parent PK fetch.
+        # A partial read of either set produces false positives (the original bug).
         parent_info = _PARENT_TABLES.get(table)
         if parent_info:
             parent_table, chunk_fk, parent_pk = parent_info
             try:
-                # Fetch the FK values from chunk table
-                q_chunks = (
-                    supabase.table(table)
-                    .select(chunk_fk)
-                    .eq("index_version", "v2")
-                )
+                # Build child filters
+                child_eq: dict = {"index_version": "v2"}
                 if table == "rag_ticket_chunks":
-                    q_chunks = q_chunks.eq("client", client)
-                chunk_resp = q_chunks.execute()
-                chunk_fk_values = {str(r[chunk_fk]) for r in (chunk_resp.data or []) if r.get(chunk_fk)}
+                    child_eq["client"] = client
 
-                # Fetch parent IDs
-                parent_resp = supabase.table(parent_table).select(parent_pk).execute()
-                parent_ids = {str(r[parent_pk]) for r in (parent_resp.data or []) if r.get(parent_pk)}
+                # Paginated fetch of ALL child FK values
+                fk_rows = _fetch_all_paginated(
+                    supabase, table, chunk_fk,
+                    eq_filters=child_eq,
+                    description=f"{table}.{chunk_fk}",
+                )
+                chunk_fk_values = {str(r[chunk_fk]) for r in fk_rows if r.get(chunk_fk)}
+
+                # Paginated fetch of ALL parent PKs (no client filter — parent tables
+                # are not scoped per-tenant; ticket_documents uses client column but
+                # we want ALL parents to correctly identify orphans)
+                parent_rows = _fetch_all_paginated(
+                    supabase, parent_table, parent_pk,
+                    description=f"{parent_table}.{parent_pk}",
+                )
+                parent_ids = {str(r[parent_pk]) for r in parent_rows if r.get(parent_pk)}
 
                 orphans = chunk_fk_values - parent_ids
                 table_report["orphan_chunk_count"] = len(orphans)
+                table_report["chunk_fk_total"] = len(chunk_fk_values)
+                table_report["parent_pk_total"] = len(parent_ids)
+                LOGGER.info(
+                    "[%s] orphan check: %d chunk FKs vs %d parent PKs → %d orphan(s)",
+                    table, len(chunk_fk_values), len(parent_ids), len(orphans),
+                )
                 if orphans:
-                    msg = f"{table}: {len(orphans)} orphan FK values (parent rows missing)"
+                    msg = f"{table}: {len(orphans)} orphan FK value(s) (parent rows missing in {parent_table})"
                     table_report["issues"].append(msg)
                     table_report["ok"] = False
                     report["issues"].append(msg)
-                    table_report["orphan_sample"] = list(orphans)[:5]
+                    table_report["orphan_sample"] = sorted(list(orphans))[:5]
             except Exception as exc:
                 table_report["orphan_check_error"] = str(exc)
+                LOGGER.warning("[%s] orphan check failed: %s", table, exc)
 
         # ── Content hash presence ────────────────────────────────────────────
         try:
@@ -793,12 +895,15 @@ def main() -> int:
 
     # Determine tenants
     if args.all_clients:
-        resp = (
-            supabase.table("rag_ticket_documents")
-            .select("client")
-            .execute()
+        # Paginated: rag_ticket_documents can exceed 1000 rows — a plain .execute()
+        # would silently truncate and cause tenants beyond row 1000 to be skipped.
+        all_doc_rows = _fetch_all_paginated(
+            supabase,
+            "rag_ticket_documents",
+            "client",
+            description="rag_ticket_documents (client enumeration)",
         )
-        clients = list({row["client"] for row in (resp.data or []) if row.get("client")})
+        clients = list({row["client"] for row in all_doc_rows if row.get("client")})
         if not clients:
             LOGGER.warning("No tenants found in rag_ticket_documents")
             return 0

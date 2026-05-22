@@ -200,7 +200,7 @@ def get_rag_settings() -> RagEngineSettings:
         metrics_flush_interval_s=_env_int ("B1_METRICS_FLUSH_INTERVAL_S", 60),
 
         # Phase B3: knowledge retrieval thresholds
-        knowledge_min_quality_score =_env_float("B3_KNOWLEDGE_MIN_QUALITY_SCORE",  0.40),
+        knowledge_min_quality_score =_env_float("B3_KNOWLEDGE_MIN_QUALITY_SCORE",  0.55),
         knowledge_similarity_boost  =_env_float("B3_KNOWLEDGE_SIMILARITY_BOOST",   0.08),
         knowledge_quality_bonus_max =_env_float("B3_KNOWLEDGE_QUALITY_BONUS_MAX",  0.05),
         knowledge_min_chunk_chars   =_env_int  ("B3_KNOWLEDGE_MIN_CHUNK_CHARS",   100),

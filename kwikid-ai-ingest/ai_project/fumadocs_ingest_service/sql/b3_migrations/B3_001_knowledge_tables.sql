@@ -152,7 +152,7 @@ CREATE TABLE IF NOT EXISTS rag_knowledge_chunks (
 
 COMMENT ON TABLE  rag_knowledge_chunks IS 'Phase B3: Embedded chunks from rag_knowledge_articles. Retrieved by match_all_b1_sources UNION branch.';
 COMMENT ON COLUMN rag_knowledge_chunks.embedding IS 'NULL rows are excluded from retrieval. Populated by KnowledgePipeline.';
-COMMENT ON COLUMN rag_knowledge_chunks.quality_score IS 'Retrieval gate: rows with quality_score < 0.40 are excluded by the RPC WHERE clause.';
+COMMENT ON COLUMN rag_knowledge_chunks.quality_score IS 'Retrieval gate: rows with quality_score < 0.55 are excluded by the RPC WHERE clause (raised 0.40→0.55 by B3_004/B3_005).';
 
 -- Indexes for retrieval-time filtering (evaluated before HNSW scan)
 CREATE INDEX IF NOT EXISTS idx_rkc_clients

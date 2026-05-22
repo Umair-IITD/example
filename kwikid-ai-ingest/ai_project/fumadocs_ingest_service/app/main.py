@@ -150,6 +150,18 @@ async def lifespan(_app: FastAPI):
         "hybrid (HybridTicketRetriever)" if _B1_HYBRID_ENABLED else "semantic_only (TicketRetriever)",
     )
 
+    # ── Active index version (single source of truth for retrieval) ───────────
+    # ACTIVE_INDEX_VERSION controls which chunk version is served at query time.
+    # B1_INDEX_VERSION controls which version new data is written as (ingestion).
+    # These should match after migration is validated; they can differ during rollout.
+    _LOGGER_PRE.info(
+        "[CONFIG] ACTIVE_INDEX_VERSION=%s B1_INDEX_VERSION=%s DEBUG_RAG=%s hybrid=%s",
+        os.getenv("ACTIVE_INDEX_VERSION", "v1"),
+        os.getenv("B1_INDEX_VERSION", "v1"),
+        os.getenv("DEBUG_RAG", "false"),
+        os.getenv("B1_HYBRID_RETRIEVAL_ENABLED", "false"),
+    )
+
     yield
 
     _LOGGER_PRE.info("service_shutdown")
@@ -1045,7 +1057,10 @@ async def rag_chat(payload: RagChatRequest, request: Request) -> dict[str, Any]:
             similarity_threshold=payload.similarity_threshold,
             persist_history=payload.persist_history,
             history_turns=payload.history_turns,
-            index_version=rag_settings.index_version,
+            # ACTIVE_INDEX_VERSION is the single source of truth for retrieval.
+            # B1_INDEX_VERSION (rag_settings.index_version) controls ingestion writes
+            # and must NOT be used here — it would silently serve v1 after a v2 flip.
+            index_version=app_settings.active_index_version,
         )
         result = await asyncio.to_thread(generator.generate, gen_request)
 
@@ -1192,7 +1207,7 @@ async def freshdesk_webhook(request: Request) -> dict[str, Any]:
             similarity_threshold=0.27,
             persist_history=False,
             history_turns=0,
-            index_version=rag_settings.index_version,
+            index_version=app_settings.active_index_version,  # ACTIVE_INDEX_VERSION, not B1_INDEX_VERSION
         )
         result = await asyncio.to_thread(generator.generate, gen_request)
     except ValueError as exc:

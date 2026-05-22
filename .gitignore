@@ -5,6 +5,13 @@
 .claude/
 scratch/
 
+# Stack Overflow Teams / Freshdesk export dumps (large, not for VCS)
+More_data/
+
+# Postman collections and environments (contain API keys — use postman.io sync instead)
+.postman/
+postman/
+
 # Large datasets / ticket exports
 *.xlsx
 *.xls

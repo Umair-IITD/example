@@ -42,6 +42,9 @@ AUDIT_LOGGER = logging.getLogger("audit")
 _UNPROTECTED_PATHS: frozenset[str] = frozenset({
     "/health",
     "/ready",
+    "/docs",
+    "/openapi.json",
+    "/redoc",
     "/freshdesk/webhook",
 })
 
