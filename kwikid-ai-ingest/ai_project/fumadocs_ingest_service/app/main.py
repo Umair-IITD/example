@@ -446,13 +446,17 @@ async def ready() -> dict[str, Any]:
     try:
         checks["supabase"] = {"ok": await asyncio.to_thread(_check_supabase)}
     except Exception as exc:  # noqa: BLE001
-        checks["supabase"] = {"ok": False, "error": str(exc)}
+        # Log full detail server-side; never expose internal error strings to callers.
+        # /ready is unauthenticated — str(exc) could leak Supabase URLs / connection info.
+        LOGGER.error("ready_check_failed check=supabase type=%s", type(exc).__name__, exc_info=True)
+        checks["supabase"] = {"ok": False, "error": "dependency_check_failed"}
         ok = False
 
     try:
         checks["embeddings"] = {"ok": await asyncio.to_thread(_check_embeddings)}
     except Exception as exc:  # noqa: BLE001
-        checks["embeddings"] = {"ok": False, "error": str(exc)}
+        LOGGER.error("ready_check_failed check=embeddings type=%s", type(exc).__name__, exc_info=True)
+        checks["embeddings"] = {"ok": False, "error": "dependency_check_failed"}
         ok = False
 
     if not all(v.get("ok", False) for v in checks.values()):

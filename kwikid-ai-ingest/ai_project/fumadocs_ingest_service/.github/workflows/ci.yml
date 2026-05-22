@@ -1,19 +1,23 @@
-name: CI
+name: CI (service-level — NOTE: this file is not read by GitHub)
+# NOTE: GitHub Actions only reads .github/workflows/ from the repository ROOT.
+# This file lives inside a subdirectory and is therefore NOT executed by GitHub Actions.
+# The active CI workflow is at: /.github/workflows/main.yml (repo root).
+# This file is kept for local reference / inner-service documentation only.
 
 on:
   push:
     paths:
-      - "ai_project/fumadocs_ingest_service/**"
+      - "kwikid-ai-ingest/ai_project/fumadocs_ingest_service/**"
   pull_request:
     paths:
-      - "ai_project/fumadocs_ingest_service/**"
+      - "kwikid-ai-ingest/ai_project/fumadocs_ingest_service/**"
 
 jobs:
   test:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ai_project/fumadocs_ingest_service
+        working-directory: kwikid-ai-ingest/ai_project/fumadocs_ingest_service
     steps:
       - name: Checkout
         uses: actions/checkout@v4

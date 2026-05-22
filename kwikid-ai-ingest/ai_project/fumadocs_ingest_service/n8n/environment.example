@@ -1,27 +1,57 @@
-# Copy keys into your n8n instance environment (not the Python ingest .env).
-# Workflow JSON is maintained directly in the exported JSON file.
+# n8n workflow environment variables.
+# Set these in your n8n instance (Settings → Environment Variables), NOT in the Python ingest .env.
+# The workflow JSON is at n8n/kwikid_support_workflow.json — import it directly into n8n.
 
+# ─── Freshdesk ────────────────────────────────────────────────────────────────
 FRESHDESK_BASE_URL=https://YOURSUBDOMAIN.freshdesk.com
-# Full Authorization header value, e.g. Basic base64(api_key:X)
+# Full Authorization header: Basic base64(api_key:X)
 FRESHDESK_BASIC_AUTH=
 
-INGEST_SERVICE_BASE_URL=http://localhost:8000
+# ─── RAG Ingest Service ───────────────────────────────────────────────────────
+# Base URL of the deployed kwikid-ai-ingest FastAPI service.
+INGEST_SERVICE_BASE_URL=https://kd.app.getkwikid.com
+# SECURITY: Required. Generated via: python -c "import secrets; print(secrets.token_urlsafe(32))"
+# Must match RAG_API_KEY in the Python service .env.
+RAG_API_KEY=
+
+# ─── RAG Query Parameters ─────────────────────────────────────────────────────
+# Number of top chunks to retrieve (passed as top_k to /rag/chat).
+RAG_MATCH_COUNT=5
+# Minimum similarity threshold for retrieval (0.0–1.0).
+RAG_MATCH_THRESHOLD=0.20
+# Minimum boosted SOP similarity required to enter the SOP response path.
+SOP_MIN_SIMILARITY=0.20
+# Optional: default tenant/client identifier sent to /rag/chat.
+RAG_DEFAULT_CLIENT=default
+# Optional: max chars for query text sent to the RAG endpoint.
+RAG_QUERY_MAX_CHARS=1200
+# Set to 'true' to include full analysis text in the RAG query (more context, slower).
+RAG_INCLUDE_ANALYSIS_TEXT=false
+
+# ─── OpenAPI Issue Analysis ───────────────────────────────────────────────────
 KWIK_OPENAPI_URL=https://kd.app.getkwikid.com/openapi.json
+# Optional: free-text LLM instructions merged into all LLM prompts (highest priority).
+LLM_USER_INSTRUCTIONS=
+# Optional: max characters of OpenAPI JSON embedded in the issue-extract prompt.
+LLM_OPENAPI_MAX_CHARS=12000
 
-RAG_MATCH_COUNT=8
-RAG_MATCH_THRESHOLD=0.2
-RAG_SOURCE_THRESHOLD_FRESHDESK=0.30
-RAG_SOURCE_THRESHOLD_MD=0.20
-RAG_SOURCE_THRESHOLD_JSON=0.20
-RAG_SOURCE_THRESHOLD_EXCEL=0.20
-SOP_MIN_SIMILARITY=0.2
-
+# ─── Asana (optional) ────────────────────────────────────────────────────────
 ASANA_ACCESS_TOKEN=
 ASANA_PROJECT_GID=
 ASANA_WORKSPACE_GID=
 
+# ─── Supabase (for session state upsert — optional) ──────────────────────────
+# SECURITY: Use the service-role key ONLY for session upsert (support_conversation_state table).
+# NEVER expose this in browser clients or Telegram bots.
 SUPABASE_URL=
 SUPABASE_SERVICE_ROLE_KEY=
 
-# Full URL for troubleshooting POST (optional). If unset, fix-API branch is skipped.
+# ─── Uptime Kuma (optional) ───────────────────────────────────────────────────
+UPTIME_KUMA_BASE_URL=http://status.getkwikid.com:3001
+# JSON map of alert domain → {slug, monitorKeywords}. Example: {"rbl":{"slug":"rbl","monitorKeywords":["rbl"]}}
+UPTIME_KUMA_GROUP_MAP_JSON=
+UPTIME_KUMA_DEFAULT_SLUG=
+
+# ─── Optional Troubleshooting API ─────────────────────────────────────────────
+# Full URL for troubleshooting POST. If unset, fix-API branch is skipped.
 KWIK_FIX_API_URL=

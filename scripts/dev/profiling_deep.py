@@ -14,7 +14,7 @@ from datetime import datetime
 
 warnings.filterwarnings("ignore")
 
-ROOT = r"C:\Users\HP\Desktop\Think360"
+ROOT = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "data", "backups")
 
 # ── Load all datasets ──────────────────────────────────────────────────────────
 

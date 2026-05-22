@@ -1,0 +1,7 @@
+# Use this workspace to collaborate
+workspace:
+  id: ac88fcc4-f76e-4462-8045-c1425eff94b5
+
+localResources:
+  collections:
+    - ..\kwikid-ai-ingest\ai_project\fumadocs_ingest_service\postman\fumadocs_ingest_service_e2e.postman_collection.json

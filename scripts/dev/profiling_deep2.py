@@ -11,7 +11,7 @@ import warnings
 from collections import Counter
 warnings.filterwarnings("ignore")
 
-ROOT = r"C:\Users\HP\Desktop\Think360"
+ROOT = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "data", "backups")
 
 # ── Reload datasets ────────────────────────────────────────────────────────────
 df_csv  = pd.read_csv(os.path.join(ROOT, "84000794166_tickets-May-12-2026-10_29.csv"), encoding="utf-8", low_memory=False)

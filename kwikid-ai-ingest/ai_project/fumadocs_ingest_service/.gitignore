@@ -1,22 +1,17 @@
-# ── Python ───────────────────────────────────────────────────
+# ── Python & Cache ───────────────────────────────────────────
 __pycache__/
 *.py[cod]
-*.pyo
-*.pyd
-.Python
-*.egg-info/
-dist/
-build/
-*.egg
-*.whl
+.pytest_cache/
+.coverage
+htmlcov/
+*.junit.xml
 
 # ── Virtual environments ─────────────────────────────────────
 .venv/
 venv/
 env/
-ENV/
 
-# ── Secrets & credentials ────────────────────────────────────
+# ── Secrets & credentials (local env files) ──────────────────
 .env
 .env.local
 .env.*.local
@@ -26,54 +21,44 @@ secrets.json
 credentials.json
 service_account.json
 
-# ── Data & datasets ──────────────────────────────────────────
-data/excel/
-data/fumadocs_repo/
-data/processed/*.parquet
-data/datasets/
-*.parquet
-*.xlsx
-*.xls
-*.csv
-
-documents_video_realted.csv
-
-# ── Logs & traces ────────────────────────────────────────────
+# ── Local runtime artifacts (traces, logs, temp, cache) ──────
 logs/
 traces/
 *.log
 *.log.*
+tmp/
+*.tmp
+temp/
+evaluation_outputs/
+embeddings_cache/
+.docker-compose.override.yml
+docker-compose.override.yml
 
-# ── Reports ──────────────────────────────────────────────────
-data/reports/*.md
+# ── Generated data artifacts (runtime outputs — not source) ──
+data/processed/*.parquet
+data/processed/*.csv
+data/processed/*.pkl
 data/reports/*.json
-!data/reports/.gitkeep
+data/reports/*.md
+data/fumadocs_repo/
+data/raw/
+
+# ── IDE & editor ─────────────────────────────────────────────
+.idea/
+.vscode/
+.claude/
+.cursor/
 
 # ── OS artifacts ─────────────────────────────────────────────
 .DS_Store
 Thumbs.db
 desktop.ini
 
-# ── IDE & editor ─────────────────────────────────────────────
-.idea/
-.vscode/
-*.swp
-*.swo
-*~
-
-# ── Test artifacts ───────────────────────────────────────────
-.pytest_cache/
-.coverage
-htmlcov/
-*.junit.xml
-
-# ── Type stubs ───────────────────────────────────────────────
-*.pyi
-
-# ── Local AI tooling ─────────────────────────────────────────
-.claude/
-.cursor/
-
-# ── Large temporary/generated artifacts ──────────────────────
-tmp/
-tmp_workflow_node_scripts/*.tmp
+# IMPORTANT:
+# - Do NOT ignore sql/ migrations
+# - Do NOT ignore SOP examples
+# - Do NOT ignore validation datasets
+# - Do NOT ignore important configs
+!sql/
+!data/sop_examples/
+!data/validation_datasets/

@@ -40,7 +40,7 @@ def generate_tree(dir_path, prefix=""):
     return tree_lines
 
 def main():
-    root_dir = os.path.dirname(os.path.abspath(__file__))
+    root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     project_name = os.path.basename(root_dir)
     
     # Header for your text file

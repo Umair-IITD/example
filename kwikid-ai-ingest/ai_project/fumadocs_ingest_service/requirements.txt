@@ -15,11 +15,11 @@ tiktoken==0.8.0
 
 # Phase B2: distributed rate limiting (REDIS_RATE_LIMIT_ENABLED=false by default)
 # Redis is optional — the service falls back to in-process rate limiting without it.
-redis>=5.0.8
+redis==5.0.8
 
 # Phase B2: Prometheus metrics (PROMETHEUS_ENABLED=false by default)
 # prometheus_client is optional — metrics are no-ops when disabled.
-prometheus-client>=0.21.0
+prometheus-client==0.21.0
 
 # Optional: cross-encoder reranking (RERANK_CROSS_ENCODER_ENABLED=false by default)
 # Uncomment to enable dense reranking in the hybrid retrieval pipeline.

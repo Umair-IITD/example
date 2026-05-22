@@ -3,7 +3,7 @@ import os
 import warnings
 warnings.filterwarnings("ignore")
 
-ROOT = r"C:\Users\HP\Desktop\Think360"
+ROOT = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "data", "backups")
 
 files = {
     "xls_tickets": os.path.join(ROOT, "84000794141_tickets-May-12-2026-09_53 (1).xls"),

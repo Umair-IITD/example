@@ -287,7 +287,7 @@ def get_settings() -> Settings:
         chat_retry_base_delay_s=float(os.getenv("CHAT_RETRY_BASE_DELAY_S", "0.8")),
         chat_temperature=float(os.getenv("CHAT_TEMPERATURE", "0.2")),
         chat_max_output_tokens=int(os.getenv("CHAT_MAX_OUTPUT_TOKENS", "800")),
-        chat_context_chunk_max_chars=int(os.getenv("CHAT_CONTEXT_CHUNK_MAX_CHARS", "1400")),
+        chat_context_chunk_max_chars=int(os.getenv("CHAT_CONTEXT_CHUNK_MAX_CHARS", "3500")),
         chat_history_turns=int(os.getenv("CHAT_HISTORY_TURNS", "6")),
         chat_history_table=os.getenv("CHAT_HISTORY_TABLE", "chat_messages"),
         freshdesk_webhook_enabled=_env_bool("FRESHDESK_WEBHOOK_ENABLED", default=False),
