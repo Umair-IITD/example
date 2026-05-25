@@ -200,6 +200,7 @@ def run_hybrid_search(
         semantic_candidates=semantic_candidates,
         keyword_candidates=keyword_candidates,
         config=config,
+        query_text=query_text,
     )
     trace.fusion_latency_ms = fusion_latency
     trace.fused_candidates_count = len(fused_candidates)
@@ -252,6 +253,18 @@ def run_hybrid_search(
         and best_rerank < config.min_rerank_score
     )
 
+    # Determine which retrieval modes actually contributed results
+    has_semantic = len(semantic_candidates) > 0
+    has_keyword = len(keyword_candidates) > 0
+    if has_semantic and has_keyword:
+        retrieval_mode_used = "hybrid"
+    elif has_semantic:
+        retrieval_mode_used = "semantic_only"
+    elif has_keyword:
+        retrieval_mode_used = "keyword_only"
+    else:
+        retrieval_mode_used = "none"
+
     diagnostics = {
         # Existing fields (backward-compat)
         "candidate_count": config.semantic_top_k,
@@ -259,11 +272,14 @@ def run_hybrid_search(
         "returned_count_by_source_type": {st: len(rows) for st, rows in grouped.items()},
         "best_similarity": best_similarity,
         "best_rerank_score": best_rerank,
-        # New hybrid fields
+        # Hybrid retrieval fields
         "hybrid_mode": True,
+        "retrieval_mode_used": retrieval_mode_used,
         "semantic_candidates": len(semantic_candidates),
         "keyword_candidates": len(keyword_candidates),
         "fused_candidates": len(fused_candidates),
+        "reranker_used": "bm25",
+        "reranked_candidate_count": len(reranked) if config.rerank_enabled else 0,
         "latency_ms": {
             "embedding": embedding_latency_ms,
             "semantic": sem_latency,

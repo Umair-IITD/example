@@ -3,25 +3,23 @@ retrieval/keyword_search.py
 ----------------------------
 Full-text keyword search using PostgreSQL ts_vector / ts_rank.
 
-This is ADDITIVE — it runs alongside pgvector semantic search.
-It specifically addresses the weaknesses of pure semantic retrieval:
-  - Exact error code matches ("ERR-4021")
-  - Acronym matches ("VKYC", "PAN", "OCR")
-  - Technical ID matches (ticket IDs, API codes)
-  - Partial lexical overlap
+Implementation strategy (three levels, most accurate to least):
+  1. RPC: calls search_documents_fts() for real ts_rank scores from PostgreSQL
+  2. PostgREST websearch: uses websearch_to_tsquery via .text_search() with raw query text
+  3. ILIKE: last-resort substring match when FTS column is absent
 
-Implementation:
-  Uses PostgreSQL's built-in full-text search via PostgREST text filter.
-  Falls back gracefully if the FTS column / index is unavailable.
+The original FTS implementation passed a manually constructed tsquery string
+to text_search() with type="websearch", which are incompatible formats —
+websearch_to_tsquery() does not recognise the | and :* tsquery operators.
+This is now fixed by passing raw query_text instead of a pre-formatted tsquery.
 
-PostgreSQL setup required (run in Supabase SQL editor):
-  -- Add generated tsvector column
+PostgreSQL setup required (run fts_setup.sql in Supabase SQL editor):
   ALTER TABLE documents
     ADD COLUMN IF NOT EXISTS fts tsvector
-    GENERATED ALWAYS AS (to_tsvector('english', coalesce(content, ''))) STORED;
+    GENERATED ALWAYS AS (to_tsvector('simple', coalesce(content, ''))) STORED;
+  CREATE INDEX IF NOT EXISTS documents_fts_gin_idx ON documents USING gin(fts);
 
-  -- Create GIN index for fast FTS
-  CREATE INDEX IF NOT EXISTS documents_fts_idx ON documents USING gin(fts);
+For actual ts_rank scores, also run fts_rpc.sql to create search_documents_fts().
 """
 from __future__ import annotations
 
@@ -36,36 +34,41 @@ from retrieval.filters import apply_metadata_filters
 
 LOGGER = logging.getLogger(__name__)
 
-# Pattern to extract meaningful technical tokens (preserves acronyms, IDs, codes)
 _TOKEN_RE = re.compile(r"[A-Za-z0-9][\w\-]*[A-Za-z0-9]|[A-Za-z0-9]+")
 
 
-def _build_tsquery(query_text: str) -> str:
-    """
-    Build a PostgreSQL tsquery from the user query.
-
-    Strategy:
-      1. Extract all tokens (preserving technical terms like VKYC, ERR-4021)
-      2. Combine with | (OR) for broad matching
-      3. Use :* prefix matching to catch partial terms
-
-    Example:
-      "PAN mismatch during VKYC" → "PAN:* | mismatch:* | VKYC:*"
-    """
-    tokens = _TOKEN_RE.findall(query_text)
-    if not tokens:
-        return ""
-    # Deduplicate, preserve order
+def _meaningful_tokens(query_text: str) -> list[str]:
+    """Extract meaningful tokens from query text, deduplicated and ordered."""
     seen: set[str] = set()
-    unique_tokens: list[str] = []
-    for t in tokens:
+    result: list[str] = []
+    for t in _TOKEN_RE.findall(query_text):
         tl = t.lower()
         if tl not in seen and len(t) >= 2:
             seen.add(tl)
-            unique_tokens.append(t)
-    if not unique_tokens:
-        return ""
-    return " | ".join(f"{t}:*" for t in unique_tokens)
+            result.append(t)
+    return result
+
+
+def _compute_ts_rank_approx(query_tokens: set[str], content: str) -> float:
+    """
+    BM25-inspired ts_rank approximation — used when actual PostgreSQL ts_rank
+    is unavailable (PostgREST text_search path).
+
+    Significantly more accurate than naive overlap/len(query) Jaccard:
+    - Counts raw token frequency in content
+    - Normalises by query token count
+    - Results are roughly proportional to true ts_rank ordering
+
+    NOT used when the search_documents_fts() RPC is available (which returns
+    actual PostgreSQL ts_rank values).
+    """
+    content_lower = content.lower()
+    score = 0.0
+    for term in query_tokens:
+        tf = content_lower.count(term.lower())
+        if tf:
+            score += min(tf, 5)  # cap at 5 to prevent verbosity dominance
+    return score / max(1, len(query_tokens))
 
 
 def run_keyword_search(
@@ -80,105 +83,192 @@ def run_keyword_search(
     """
     Execute PostgreSQL full-text search on the documents table.
 
-    Uses the 'fts' generated column (tsvector) if available.
-    Falls back to ilike content search if FTS is not set up.
+    Strategy:
+      1. Try search_documents_fts() RPC (real ts_rank scores)
+      2. Fall back to PostgREST .text_search() with raw query text + websearch type
+      3. Fall back to ilike content search
 
     Returns:
         (candidates, latency_ms)
     """
     t_start = time.perf_counter()
     effective_top_k = top_k if top_k is not None else config.keyword_top_k
+    tokens = _meaningful_tokens(query_text)
 
-    candidates: list[KeywordCandidate] = []
-    tsquery = _build_tsquery(query_text)
+    if not tokens:
+        return [], (time.perf_counter() - t_start) * 1000
 
-    if not tsquery:
-        latency_ms = (time.perf_counter() - t_start) * 1000
-        return candidates, latency_ms
+    query_tokens = {t.lower() for t in tokens}
 
+    # ── Level 1: RPC-based FTS with real ts_rank ──────────────────────────────
+    candidates = _try_rpc_fts(
+        supabase_client=supabase_client,
+        query_text=query_text,
+        query_tokens=query_tokens,
+        metadata_filters=metadata_filters,
+        top_k=effective_top_k,
+        min_ts_rank=config.keyword_min_ts_rank,
+    )
+    retrieval_method = "rpc_fts"
+
+    # ── Level 2: PostgREST text_search (websearch_to_tsquery) ─────────────────
+    if candidates is None:
+        candidates = _try_posgtrest_fts(
+            supabase_client=supabase_client,
+            table_name=table_name,
+            query_text=query_text,
+            query_tokens=query_tokens,
+            metadata_filters=metadata_filters,
+            top_k=effective_top_k,
+            min_ts_rank=config.keyword_min_ts_rank,
+        )
+        retrieval_method = "posgtrest_fts"
+
+    # ── Level 3: ILIKE fallback ────────────────────────────────────────────────
+    if candidates is None:
+        candidates = _fallback_ilike_search(
+            supabase_client=supabase_client,
+            table_name=table_name,
+            tokens=tokens,
+            query_tokens=query_tokens,
+            metadata_filters=metadata_filters,
+            top_k=effective_top_k,
+        )
+        retrieval_method = "ilike"
+
+    latency_ms = (time.perf_counter() - t_start) * 1000
+    LOGGER.debug(
+        "keyword_search method=%s returned %d candidates in %.1fms",
+        retrieval_method,
+        len(candidates),
+        latency_ms,
+    )
+    return candidates, latency_ms
+
+
+def _try_rpc_fts(
+    *,
+    supabase_client: Any,
+    query_text: str,
+    query_tokens: set[str],
+    metadata_filters: dict[str, Any] | None,
+    top_k: int,
+    min_ts_rank: float,
+) -> list[KeywordCandidate] | None:
+    """
+    Call search_documents_fts() RPC for real PostgreSQL ts_rank scores.
+    Returns None if the RPC is not available (so caller can fall back).
+    """
     try:
-        # Attempt full-text search using the generated 'fts' column
-        # PostgREST supports textSearch via .text_search()
+        response = supabase_client.rpc(
+            "search_documents_fts",
+            {"p_query_text": query_text, "p_match_count": top_k},
+        ).execute()
+        rows: list[dict] = response.data or []
+
+        if metadata_filters:
+            rows = apply_metadata_filters(rows, metadata_filters)
+
+        candidates: list[KeywordCandidate] = []
+        for rank, row in enumerate(rows, start=1):
+            ts_rank = float(row.get("ts_rank", 0.0))
+            if ts_rank < min_ts_rank:
+                continue
+            content = str(row.get("content", ""))
+            content_lower = content.lower()
+            matched = sorted(t for t in query_tokens if t in content_lower)
+            candidates.append(
+                KeywordCandidate(
+                    doc_id=str(row.get("id", "")),
+                    content=content,
+                    metadata=row.get("metadata") or {},
+                    ts_rank=ts_rank,
+                    keyword_rank=rank,
+                    matched_terms=matched,
+                )
+            )
+        return candidates
+
+    except Exception as exc:  # noqa: BLE001
+        LOGGER.debug("search_documents_fts RPC not available: %s", exc)
+        return None
+
+
+def _try_posgtrest_fts(
+    *,
+    supabase_client: Any,
+    table_name: str,
+    query_text: str,
+    query_tokens: set[str],
+    metadata_filters: dict[str, Any] | None,
+    top_k: int,
+    min_ts_rank: float,
+) -> list[KeywordCandidate] | None:
+    """
+    PostgREST full-text search using websearch_to_tsquery.
+
+    Passes the raw query_text (not a pre-formatted tsquery string) so that
+    websearch_to_tsquery() correctly parses natural language with AND semantics.
+    The 'websearch' type handles: quoted phrases, OR operator, - for exclusion.
+    """
+    try:
         response = (
             supabase_client.table(table_name)
             .select("id,content,metadata")
-            .text_search("fts", tsquery, options={"type": "websearch"})
-            .limit(effective_top_k)
+            .text_search("fts", query_text, options={"type": "websearch"})
+            .limit(top_k)
             .execute()
         )
         rows: list[dict] = response.data or []
 
-        # Apply metadata filters
         if metadata_filters:
             rows = apply_metadata_filters(rows, metadata_filters)
 
-        # Score using simple term frequency as proxy for ts_rank
-        # (PostgREST does not expose ts_rank directly without a custom RPC)
-        query_tokens = {t.lower() for t in _TOKEN_RE.findall(query_text)}
+        candidates: list[KeywordCandidate] = []
         for rank, row in enumerate(rows, start=1):
-            content = str(row.get("content", "")).lower()
-            content_tokens = set(re.findall(r"\b\w+\b", content))
-            overlap_count = len(query_tokens & content_tokens)
-            ts_rank_approx = overlap_count / max(1, len(query_tokens))
-
-            if ts_rank_approx < config.keyword_min_ts_rank:
+            content = str(row.get("content", ""))
+            ts_rank_approx = _compute_ts_rank_approx(query_tokens, content)
+            if ts_rank_approx < min_ts_rank:
                 continue
-
+            content_lower = content.lower()
+            matched = sorted(t for t in query_tokens if t in content_lower)
             candidates.append(
                 KeywordCandidate(
                     doc_id=str(row.get("id", "")),
-                    content=str(row.get("content", "")),
+                    content=content,
                     metadata=row.get("metadata") or {},
                     ts_rank=ts_rank_approx,
                     keyword_rank=rank,
-                    matched_terms=sorted(query_tokens & content_tokens),
+                    matched_terms=matched,
                 )
             )
+        return candidates
 
     except Exception as exc:  # noqa: BLE001
         LOGGER.warning(
-            "keyword_search FTS failed (is the 'fts' column set up?): %s — "
-            "falling back to ilike search",
+            "keyword_search PostgREST FTS failed (is the 'fts' column set up? "
+            "Run sql/fts_setup.sql in Supabase): %s",
             exc,
         )
-        candidates = _fallback_ilike_search(
-            supabase_client=supabase_client,
-            table_name=table_name,
-            query_text=query_text,
-            metadata_filters=metadata_filters,
-            top_k=effective_top_k,
-            config=config,
-        )
-
-    latency_ms = (time.perf_counter() - t_start) * 1000
-    LOGGER.debug(
-        "keyword_search returned %d candidates in %.1fms (query: %r)",
-        len(candidates),
-        latency_ms,
-        tsquery[:80],
-    )
-    return candidates, latency_ms
+        return None
 
 
 def _fallback_ilike_search(
     *,
     supabase_client: Any,
     table_name: str,
-    query_text: str,
+    tokens: list[str],
+    query_tokens: set[str],
     metadata_filters: dict[str, Any] | None,
     top_k: int,
-    config: RetrievalConfig,
 ) -> list[KeywordCandidate]:
     """
-    Graceful fallback when the FTS 'fts' column is not available.
-    Uses PostgreSQL ILIKE for simple case-insensitive substring matching.
-    Less powerful but always works without schema changes.
+    Last-resort fallback: ILIKE substring match on the most distinctive token.
+    Significantly less accurate than FTS — used only when FTS column is unavailable.
     """
-    tokens = _TOKEN_RE.findall(query_text)
     if not tokens:
         return []
 
-    # Use the most distinctive token (longest) for the ilike search
     primary_token = max(tokens, key=len)
     candidates: list[KeywordCandidate] = []
 
@@ -195,21 +285,19 @@ def _fallback_ilike_search(
         if metadata_filters:
             rows = apply_metadata_filters(rows, metadata_filters)
 
-        query_tokens = {t.lower() for t in tokens}
         for rank, row in enumerate(rows, start=1):
-            content = str(row.get("content", "")).lower()
-            content_tokens = set(re.findall(r"\b\w+\b", content))
-            overlap_count = len(query_tokens & content_tokens)
-            ts_rank_approx = overlap_count / max(1, len(query_tokens))
-
+            content = str(row.get("content", ""))
+            ts_rank_approx = _compute_ts_rank_approx(query_tokens, content)
+            content_lower = content.lower()
+            matched = sorted(t for t in query_tokens if t in content_lower)
             candidates.append(
                 KeywordCandidate(
                     doc_id=str(row.get("id", "")),
-                    content=str(row.get("content", "")),
+                    content=content,
                     metadata=row.get("metadata") or {},
                     ts_rank=ts_rank_approx,
                     keyword_rank=rank,
-                    matched_terms=sorted(query_tokens & content_tokens),
+                    matched_terms=matched,
                 )
             )
     except Exception as exc:  # noqa: BLE001

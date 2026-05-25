@@ -49,12 +49,15 @@ class RetrievedChunk:
     content: str
     similarity: float
     boosted_score: float
-    source_table: str                           # rag_ticket_chunks | rag_sop_chunks
+    source_table: str                           # rag_ticket_chunks | rag_sop_chunks | rag_knowledge_chunks
     has_rca: bool = False
     has_sop: bool = False
     automation_label: Optional[str] = None
     query_type: Optional[str] = None
     extra_metadata: dict = field(default_factory=dict)
+    # Phase B3: knowledge chunk fields (None for ticket/SOP chunks)
+    knowledge_class: Optional[str] = None
+    quality_score: Optional[float] = None
 
 
 @dataclass
@@ -75,6 +78,11 @@ class RetrievalResponse:
     @property
     def has_rca_context(self) -> bool:
         return any(c.has_rca for c in self.chunks)
+
+    @property
+    def has_knowledge_context(self) -> bool:
+        """True if any knowledge chunk (Phase B3) is present in results."""
+        return any(c.source_table == "rag_knowledge_chunks" for c in self.chunks)
 
     def top_chunk_ids(self) -> list[str]:
         return [c.chunk_id for c in self.chunks]
@@ -163,9 +171,12 @@ class TicketRetriever:
 
         total_latency_ms = (time.perf_counter() - t_start) * 1000
 
+        # Detect if fallback was used (raw_results carries _fallback=True marker)
+        used_fallback = any(r.get("_fallback") for r in raw_results)
+
         LOGGER.debug(
-            "Retrieval: client=%s, query_hash=%s, candidates=%d, returned=%d, %.1fms",
-            request.client, query_hash[:8], total_candidates, len(chunks), total_latency_ms
+            "Retrieval: client=%s query_hash=%s candidates=%d returned=%d fallback=%s latency=%.1fms",
+            request.client, query_hash[:8], total_candidates, len(chunks), used_fallback, total_latency_ms
         )
 
         return RetrievalResponse(
@@ -180,6 +191,8 @@ class TicketRetriever:
                 "threshold": request.similarity_threshold,
                 "top_k": request.top_k,
                 "index_version": request.index_version,
+                "used_fallback": used_fallback,
+                "retrieval_mode": "fallback_non_semantic" if used_fallback else "semantic_rpc",
             },
         )
 
@@ -254,19 +267,29 @@ class TicketRetriever:
 
     def _fallback_search(self, request: RetrievalRequest, embedding: list[float]) -> list[dict]:
         """
-        Direct table query fallback when the RPC is unavailable.
+        Direct table query fallback when the match_all_b1_sources RPC is unavailable.
 
-        WARNING: This fallback does NOT perform vector similarity filtering — it
-        returns rows ordered by insertion order, not relevance. Results may be
-        completely unrelated to the query. Use only as a last resort when the
-        match_all_b1_sources RPC is broken. The caller should treat these results
-        with low confidence and the response should reflect that.
+        SAFETY CONSTRAINTS:
+          - Returns ONLY RESOLUTION_RCA chunks with has_rca=True (never raw customer queries)
+          - Hard-capped at top_k * 2 rows (never a full-table scan)
+          - Injects similarity=0.01 so downstream confidence logic stays in "low" territory
+          - Sets _fallback=True so callers and response metadata can surface this fact
+          - Results are NOT ranked by semantic relevance — do not treat as authoritative
+
+        This fallback exists as a graceful degradation path only.
+        Restore the match_all_b1_sources RPC to re-enable proper retrieval.
         """
+        # Hard cap: never scan more than this many rows even under fallback
+        _FALLBACK_SCAN_LIMIT = min(request.top_k * 2, 20)
+
         LOGGER.warning(
-            "Using non-semantic fallback search for client=%s. "
-            "Results are NOT ranked by relevance. "
-            "Fix the match_all_b1_sources RPC to restore proper retrieval.",
+            "FALLBACK_RETRIEVAL activated: match_all_b1_sources RPC unavailable. "
+            "client=%s top_k=%d scan_limit=%d. "
+            "Results are NOT ranked by semantic relevance — confidence will be LOW. "
+            "Restore the RPC to return to production-quality retrieval.",
             request.client,
+            request.top_k,
+            _FALLBACK_SCAN_LIMIT,
         )
         try:
             response = (
@@ -278,27 +301,52 @@ class TicketRetriever:
                 .eq("client", request.client)
                 .eq("index_version", request.index_version)
                 .neq("automation_label", "ESCALATION")
-                # Only RESOLUTION_RCA in fallback — avoids returning raw customer queries as answers
                 .eq("chunk_type", "RESOLUTION_RCA")
                 .not_.is_("has_rca", "null")
                 .eq("has_rca", True)
-                .limit(request.top_k * 2)
+                .limit(_FALLBACK_SCAN_LIMIT)
                 .execute()
             )
             rows = response.data or []
-            # Inject a near-zero synthetic similarity so callers can identify fallback rows
             for row in rows:
+                # Near-zero similarity ensures downstream confidence scoring stays "low"
                 row.setdefault("similarity", 0.01)
                 row.setdefault("boosted_score", 0.01)
                 row.setdefault("source_table", self._ticket_table)
                 row["_fallback"] = True
+                row["_fallback_reason"] = "rpc_unavailable"
+            LOGGER.warning(
+                "FALLBACK_RETRIEVAL: returned %d rows for client=%s",
+                len(rows),
+                request.client,
+            )
             return rows
         except Exception as exc:  # noqa: BLE001
-            LOGGER.error("Fallback search also failed: %s", exc)
+            LOGGER.error(
+                "FALLBACK_RETRIEVAL also failed: client=%s error=%s. "
+                "Returning empty result — response will show insufficient_context=True.",
+                request.client,
+                exc,
+            )
             return []
 
     @staticmethod
     def _row_to_chunk(row: dict) -> RetrievedChunk:
+        source_table = str(row.get("source_table", "rag_ticket_chunks"))
+        extra_metadata = row.get("extra_metadata") or {}
+
+        # Phase B3: extract knowledge chunk fields from extra_metadata
+        knowledge_class: Optional[str] = None
+        quality_score: Optional[float] = None
+        if source_table == "rag_knowledge_chunks":
+            knowledge_class = extra_metadata.get("knowledge_class")
+            raw_qs = extra_metadata.get("quality_score")
+            if raw_qs is not None:
+                try:
+                    quality_score = float(raw_qs)
+                except (TypeError, ValueError):
+                    quality_score = None
+
         return RetrievedChunk(
             chunk_id=str(row.get("id", "")),
             ticket_id=row.get("ticket_id"),
@@ -307,12 +355,14 @@ class TicketRetriever:
             content=str(row.get("content", "")),
             similarity=float(row.get("similarity", 0.0)),
             boosted_score=float(row.get("boosted_score", row.get("similarity", 0.0))),
-            source_table=str(row.get("source_table", "rag_ticket_chunks")),
+            source_table=source_table,
             has_rca=bool(row.get("has_rca", False)),
             has_sop=bool(row.get("has_sop", False)),
             automation_label=row.get("automation_label"),
             query_type=row.get("query_type"),
-            extra_metadata=row.get("extra_metadata") or {},
+            extra_metadata=extra_metadata,
+            knowledge_class=knowledge_class,
+            quality_score=quality_score,
         )
 
     @staticmethod

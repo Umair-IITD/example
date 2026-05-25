@@ -1,7 +1,7 @@
 """
 rag_engine/generation/context_assembler.py
 
-Converts RetrievedChunk objects from B1 retrieval into an LLM-ready context block,
+Converts RetrievedChunk objects from B1/B3 retrieval into an LLM-ready context block,
 with tiktoken-based token budgeting to prevent context overflow.
 
 Chunk type semantics:
@@ -9,6 +9,17 @@ Chunk type semantics:
   QUERY_BODY     — customer complaint / query text
   RESOLUTION_RCA — agent resolution (often sparse in dataset: avg 12 words)
   SOP chunks     — authoritative procedures from rag_sop_chunks, boosted +0.15
+
+Phase B3 additions:
+  VERIFIED_REPLY / TROUBLESHOOTING / FAQ_ANSWER / POLICY / RCA — knowledge chunks
+  These are placed AFTER SOPs but BEFORE ticket chunks in the context block.
+
+Evidence tier order (highest → lowest authority):
+  1. SOP chunks              (source_table=rag_sop_chunks)
+  2. VERIFIED_REPLY knowledge (source_table=rag_knowledge_chunks, chunk_type=VERIFIED_REPLY)
+  3. Other knowledge chunks   (source_table=rag_knowledge_chunks, other types)
+  4. RESOLUTION_RCA tickets   (source_table=rag_ticket_chunks, chunk_type=RESOLUTION_RCA)
+  5. Other ticket chunks       (source_table=rag_ticket_chunks, other types)
 """
 from __future__ import annotations
 
@@ -17,6 +28,8 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 import tiktoken
+
+from rag_engine.sop.sop_parser import parse_sop_content
 
 if TYPE_CHECKING:
     from rag_engine.retrieval.ticket_retriever import RetrievedChunk
@@ -71,34 +84,78 @@ def assemble_context(
             skipped_chunks=0,
         )
 
+    # ── Phase B3: separate into four tiers ───────────────────────────────────
     sop_chunks = [c for c in chunks if c.source_table == "rag_sop_chunks"]
-    ticket_chunks = [c for c in chunks if c.source_table != "rag_sop_chunks"]
+
+    knowledge_verified = [
+        c for c in chunks
+        if c.source_table == "rag_knowledge_chunks"
+        and c.chunk_type in {"VERIFIED_REPLY", "TROUBLESHOOTING"}
+    ]
+    knowledge_other = [
+        c for c in chunks
+        if c.source_table == "rag_knowledge_chunks"
+        and c.chunk_type not in {"VERIFIED_REPLY", "TROUBLESHOOTING"}
+    ]
+
+    ticket_rca = [
+        c for c in chunks
+        if c.source_table == "rag_ticket_chunks"
+        and c.chunk_type == "RESOLUTION_RCA"
+    ]
+    ticket_other = [
+        c for c in chunks
+        if c.source_table == "rag_ticket_chunks"
+        and c.chunk_type != "RESOLUTION_RCA"
+    ]
+
+    # Ordered by authority: SOP → VERIFIED knowledge → other knowledge → RCA → other tickets
+    ordered_chunks = sop_chunks + knowledge_verified + knowledge_other + ticket_rca + ticket_other
 
     candidate_blocks: list[str] = []
     idx = 1
 
-    # SOPs first — highest authority, already boosted by +0.15 in retrieval
-    for chunk in sop_chunks:
+    for chunk in ordered_chunks:
         content = _truncate(chunk.content, per_chunk_max_chars)
-        header = (
-            f"##{idx} [SOP | sop_id={chunk.sop_id or 'unknown'} | "
-            f"score={chunk.boosted_score:.3f} | AUTHORITATIVE]"
-        )
+
+        if chunk.source_table == "rag_sop_chunks":
+            flags = parse_sop_content(chunk.content)
+            branch_tags: list[str] = []
+            if flags.has_escalation_branches:
+                branch_tags.append("escalation:YES")
+            if flags.has_denial_branches:
+                branch_tags.append("denial:YES")
+            if flags.has_security_freeze:
+                branch_tags.append("freeze:YES")
+            if flags.has_post_resolution:
+                branch_tags.append("post-res:YES")
+            if flags.has_mandatory_warnings:
+                branch_tags.append("mandatory:YES")
+            branch_str = (" | " + " | ".join(branch_tags)) if branch_tags else ""
+            header = (
+                f"##{idx} [SOP | sop_id={chunk.sop_id or 'unknown'} | "
+                f"score={chunk.boosted_score:.3f} | AUTHORITATIVE{branch_str}]"
+            )
+        elif chunk.source_table == "rag_knowledge_chunks":
+            klass = chunk.knowledge_class or chunk.chunk_type
+            qs = f" | quality={chunk.quality_score:.2f}" if chunk.quality_score is not None else ""
+            header = (
+                f"##{idx} [INSTITUTIONAL KNOWLEDGE | {klass} | "
+                f"score={chunk.boosted_score:.3f}{qs}]"
+            )
+        else:
+            # Ticket chunks (B1 behavior preserved exactly)
+            label = _CHUNK_TYPE_LABEL.get(chunk.chunk_type, chunk.chunk_type)
+            rca_note = " | has_rca=True" if chunk.has_rca else ""
+            header = (
+                f"##{idx} [{label} | ticket_id={chunk.ticket_id or 'unknown'} | "
+                f"chunk_type={chunk.chunk_type} | similarity={chunk.similarity:.3f}{rca_note}]"
+            )
+
         candidate_blocks.append(f"{header}\n{content}")
         idx += 1
 
-    for chunk in ticket_chunks:
-        label = _CHUNK_TYPE_LABEL.get(chunk.chunk_type, chunk.chunk_type)
-        rca_note = " | has_rca=True" if chunk.has_rca else ""
-        content = _truncate(chunk.content, per_chunk_max_chars)
-        header = (
-            f"##{idx} [{label} | ticket_id={chunk.ticket_id or 'unknown'} | "
-            f"chunk_type={chunk.chunk_type} | similarity={chunk.similarity:.3f}{rca_note}]"
-        )
-        candidate_blocks.append(f"{header}\n{content}")
-        idx += 1
-
-    # Token budget enforcement — SOPs are listed first so they are preserved when budget is tight
+    # Token budget enforcement — SOPs (listed first) are always preserved under budget pressure
     budget = max_context_tokens
     final_blocks: list[str] = []
     skipped = 0
@@ -118,8 +175,10 @@ def assemble_context(
             max_context_tokens,
         )
 
+    # Compute metadata (ticket chunks only for has_resolution — preserves B1 semantics)
+    all_ticket_chunks = ticket_rca + ticket_other
     has_resolution = any(
-        c.chunk_type == "RESOLUTION_RCA" and c.has_rca for c in ticket_chunks
+        c.chunk_type == "RESOLUTION_RCA" and c.has_rca for c in all_ticket_chunks
     )
 
     context_text = _SEPARATOR.join(final_blocks)

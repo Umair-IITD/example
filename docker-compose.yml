@@ -1,0 +1,92 @@
+services:
+
+  # ── Application ──────────────────────────────────────────────────────────────
+  fumadocs-api:
+    container_name: fumadocs-api
+    build:
+      context: ./kwikid-ai-ingest/ai_project/fumadocs_ingest_service
+      dockerfile: Dockerfile
+    env_file:
+      - ./kwikid-ai-ingest/ai_project/fumadocs_ingest_service/.env
+    ports:
+      - "8000:8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    # Persistent volumes: survive container restarts; host paths are relative to repo root.
+    # Directories are created by the entrypoint if absent (no pre-creation required).
+    volumes:
+      - ./kwikid-ai-ingest/ai_project/fumadocs_ingest_service/logs:/app/logs
+      - ./kwikid-ai-ingest/ai_project/fumadocs_ingest_service/traces:/app/traces
+      - ./kwikid-ai-ingest/ai_project/fumadocs_ingest_service/data/reports:/app/data/reports
+    healthcheck:
+      test:
+        - "CMD"
+        - "python"
+        - "-c"
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+
+  # ── Redis: distributed rate limiter ──────────────────────────────────────────
+  # Disabled by default in the application (REDIS_RATE_LIMIT_ENABLED=false).
+  # Set REDIS_RATE_LIMIT_ENABLED=true and REDIS_URL=redis://redis:6379 in .env
+  # to activate distributed rate limiting across uvicorn workers.
+  #
+  # Configuration:
+  #   - maxmemory 256mb: bounded memory footprint for rate-limit keys
+  #   - allkeys-lru: evict least-recently-used keys under memory pressure
+  #     (rate limit keys expire naturally, so LRU is safe here)
+  #   - save "": persistence disabled — rate limit state is ephemeral by design
+  redis:
+    image: redis:7-alpine
+    container_name: kwikid-redis
+    command:
+      - redis-server
+      - --maxmemory
+      - 256mb
+      - --maxmemory-policy
+      - allkeys-lru
+      - --save
+      - ""
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          memory: 300m
+
+  # ── Optional: local embeddings via Ollama ─────────────────────────────────────
+  # Enable only when EMBEDDING_PROVIDER=ollama and OLLAMA_BASE_URL=http://ollama:11434
+  # ollama:
+  #   image: ollama/ollama:latest
+  #   container_name: ollama
+  #   ports:
+  #     - "11434:11434"
+  #   volumes:
+  #     - ollama_data:/root/.ollama
+  #   restart: unless-stopped
+  #   deploy:
+  #     resources:
+  #       reservations:
+  #         devices:
+  #           - driver: nvidia
+  #             count: 1
+  #             capabilities: [gpu]
+
+# volumes:
+#   ollama_data:

@@ -1,43 +1,53 @@
-# ─────────────────────────────────────────────────────────────
-# Root-level private datasets and local folders
-# ─────────────────────────────────────────────────────────────
-
-.claude/
-scratch/
-
-# Large datasets / ticket exports
-*.xlsx
-*.xls
-*.csv
-
 # OS artifacts
 .DS_Store
 Thumbs.db
 desktop.ini
 
-# Python
-__pycache__/
-*.py[cod]
+# IDE files
+.idea/
+.vscode/
+.claude/
+scratch/
 
-# Virtual environments
-.venv/
-venv/
-env/
-
-# Secrets
+# Environments
 .env
 *.env
 *.pem
 *.key
+.venv/
+venv/
+env/
 
-# Logs
-*.log
+# Python & Node
+__pycache__/
+*.py[cod]
+.pytest_cache/
+node_modules/
+
+# Local data & artifacts
+artifacts/
 logs/
 traces/
+data/raw/
+data/backups/
+data/exports/
+temporary/
+tmp/
+*.tmp
 
-# IDE
-.idea/
-.vscode/
+# Generated & local runtimes
+data/reports/
+generated/
+*.xlsx
+*.xls
+*.csv
 
-# GitHub
-.github/copilot-instructions.md
+# Secrets / API clients
+# .postman/ — hidden Postman directory (contains env secrets — keep ignored)
+.postman/
+# postman/ — Postman collection JSON files MUST be tracked for team sharing
+# Do NOT add postman/ here
+
+PERSONAL_REPORT.md
+Big_Phase_1_documentations/BIG_PHASE_2_ROADMAP.md
+

@@ -1,0 +1,386 @@
+kwikid_support_system/
+├── .claude
+│   └── settings.local.json
+├── .gitignore
+├── .postman
+│   └── resources.yaml
+├── 84000794141_tickets-May-12-2026-09_53 (1).xls
+├── 84000794166_tickets-May-12-2026-10_29.csv
+├── More_data
+│   ├── accounts.json
+│   ├── badges.json
+│   ├── comments.json
+│   ├── images.json
+│   ├── posts.json
+│   ├── posts2votes.json
+│   ├── scimaccountdetails.json
+│   ├── tags.json
+│   ├── users.json
+│   └── users2badges.json
+├── RBL_RCA 1.xlsx
+├── RBL_RCA.xlsx
+├── Supabase backup
+│   ├── chat_messages_rows.csv
+│   ├── documents_rows.csv
+│   ├── rag_feedback_logs_rows.csv
+│   ├── rag_ingestion_errors_rows.csv
+│   ├── rag_ingestion_logs_rows.csv
+│   ├── rag_knowledge_articles_rows.csv
+│   ├── rag_knowledge_chunks_rows.csv
+│   ├── rag_review_queue_rows.csv
+│   ├── rag_sop_chunks_rows.csv
+│   ├── rag_sop_library_rows.csv
+│   ├── rag_ticket_chunks_rows.csv
+│   ├── rag_ticket_documents_rows.csv
+│   └── support_conversation_state_rows.csv
+├── architecture.md
+├── automation_feasibility_report.md
+├── code.md
+├── concept.md
+├── data_quality_analysis.md
+├── dataset_profiling_summary.md
+├── dataset_schema_analysis.md
+├── generate_structure.py
+├── glossary.md
+├── issues_observed.md
+├── kwikid-ai-ingest
+│   ├── ai_project
+│   │   └── fumadocs_ingest_service
+│   │       ├── .dockerignore
+│   │       ├── .env
+│   │       ├── .env.example
+│   │       ├── .env.example2
+│   │       ├── .github
+│   │       │   └── workflows
+│   │       │       └── ci.yml
+│   │       ├── .gitignore
+│   │       ├── ARCHITECTURE_DECISIONS.md
+│   │       ├── Dockerfile
+│   │       ├── EXPERIMENT_LOG.md
+│   │       ├── KNOWN_ISSUES.md
+│   │       ├── LOCAL_SETUP_GUIDE.md
+│   │       ├── NEXT_PHASE_PLAN.md
+│   │       ├── PROJECT_MAP.md
+│   │       ├── PROJECT_TRACKER.md
+│   │       ├── README.md
+│   │       ├── REVIEW.md
+│   │       ├── SOP_INGESTION_GUIDE.md
+│   │       ├── Telegram + Freshdesk -_ OpenAPI Issue Analysis -_ Supabase RAG -_ OpenAPI Response (8).json
+│   │       ├── app
+│   │       │   ├── __init__.py
+│   │       │   ├── chat.py
+│   │       │   ├── chunker.py
+│   │       │   ├── chunker_v2.py
+│   │       │   ├── config.py
+│   │       │   ├── embedder.py
+│   │       │   ├── embeddings.py
+│   │       │   ├── feedback.py
+│   │       │   ├── freshdesk_webhook.py
+│   │       │   ├── git_sync.py
+│   │       │   ├── ingest.py
+│   │       │   ├── main.py
+│   │       │   ├── parser_excel.py
+│   │       │   ├── parser_freshdesk.py
+│   │       │   ├── parser_json.py
+│   │       │   ├── parser_md.py
+│   │       │   ├── query.py
+│   │       │   ├── query_preprocessor.py
+│   │       │   ├── query_router.py
+│   │       │   ├── rate_limiter.py
+│   │       │   ├── security.py
+│   │       │   ├── suggestions.py
+│   │       │   ├── train.py
+│   │       │   ├── uploader.py
+│   │       │   └── vector_store.py
+│   │       ├── curl_examples.md
+│   │       ├── data
+│   │       │   ├── intermediate
+│   │       │   ├── processed
+│   │       │   │   ├── automation_labels.csv
+│   │       │   │   ├── evaluation_dataset.json
+│   │       │   │   ├── gold_dataset.csv
+│   │       │   │   ├── knowledge_card_candidates.json
+│   │       │   │   ├── query_taxonomy.json
+│   │       │   │   ├── unified_cleaned_dataset.csv
+│   │       │   │   └── unified_cleaned_dataset.parquet
+│   │       │   ├── reports
+│   │       │   │   ├── b1_integrity_report.md
+│   │       │   │   ├── b1_retrieval_sanity_report.md
+│   │       │   │   ├── b2_generation_report.md
+│   │       │   │   ├── b3_knowledge_report.md
+│   │       │   │   ├── ingestion_20260515_093753_274854d2.json
+│   │       │   │   ├── ingestion_20260515_105411_17a8b5a6.json
+│   │       │   │   ├── ingestion_20260518_065643_a9f86440.json
+│   │       │   │   ├── ingestion_20260518_070107_ed849776.json
+│   │       │   │   ├── ingestion_20260518_071840_eec75d87.json
+│   │       │   │   ├── ingestion_20260518_074228_dd9b00c2.json
+│   │       │   │   ├── ingestion_20260518_075610_5211697a.json
+│   │       │   │   └── preprocessing_report.md
+│   │       │   └── sop
+│   │       │       ├── account_lockout_resolution.md
+│   │       │       ├── otp_delivery_failure_resolution.md
+│   │       │       └── video_kyc_session_failure.md
+│   │       ├── dataset_pipeline
+│   │       │   ├── README.md
+│   │       │   ├── __init__.py
+│   │       │   ├── config.py
+│   │       │   ├── loaders
+│   │       │   │   ├── __init__.py
+│   │       │   │   ├── loader_csv.py
+│   │       │   │   ├── loader_xlsx.py
+│   │       │   │   └── schema.py
+│   │       │   ├── models
+│   │       │   │   ├── __init__.py
+│   │       │   │   └── ticket.py
+│   │       │   ├── preprocessing
+│   │       │   │   ├── __init__.py
+│   │       │   │   ├── html_cleaner.py
+│   │       │   │   └── signature_cleaner.py
+│   │       │   ├── run.py
+│   │       │   └── stages
+│   │       │       ├── __init__.py
+│   │       │       ├── s1_load.py
+│   │       │       ├── s2_normalize.py
+│   │       │       ├── s3_filter.py
+│   │       │       ├── s4_clean.py
+│   │       │       ├── s5_rca_score.py
+│   │       │       ├── s6_automate_label.py
+│   │       │       ├── s7_extract.py
+│   │       │       ├── s8_eval.py
+│   │       │       └── s9_export.py
+│   │       ├── docker-compose.yml
+│   │       ├── docs
+│   │       │   ├── ai_agent_handoff.md
+│   │       │   ├── archive_candidates.md
+│   │       │   ├── b1_chunking_strategy.md
+│   │       │   ├── b1_embedding_pipeline.md
+│   │       │   ├── b1_validation_status.md
+│   │       │   ├── current_project_state.md
+│   │       │   ├── development_rules.md
+│   │       │   ├── final_pre_migration_status.md
+│   │       │   ├── index.md
+│   │       │   ├── local_setup_guide.md
+│   │       │   ├── manual_migration_steps.md
+│   │       │   ├── security_checklist.md
+│   │       │   ├── security_review.md
+│   │       │   └── supabase_state.md
+│   │       ├── docs_internal
+│   │       │   ├── PHASE_B1_FINAL_AUDIT.md
+│   │       │   ├── PHASE_B1_FULL_ANALYSIS.md
+│   │       │   ├── PHASE_B2_5_SECURITY_HARDENING.md
+│   │       │   ├── PHASE_B2_IMPLEMENTATION.md
+│   │       │   ├── RCA_RETRIEVAL_FIX_REPORT.md
+│   │       │   ├── RETRIEVAL_TUNING_REPORT.md
+│   │       │   ├── SOP_INGESTION_IMPLEMENTATION.md
+│   │       │   ├── current_retrieval_analysis.md
+│   │       │   └── hybrid_retrieval_architecture.md
+│   │       ├── evaluation
+│   │       │   ├── README.md
+│   │       │   ├── evaluate_response.py
+│   │       │   ├── evaluate_retrieval.py
+│   │       │   ├── expected_outputs.json
+│   │       │   ├── gold_dataset.json
+│   │       │   └── metrics.py
+│   │       ├── fix_minimal_reply_issue.py
+│   │       ├── fix_public_body.py
+│   │       ├── logs
+│   │       │   ├── 2026-05-18.log
+│   │       │   ├── 2026-05-19.log
+│   │       │   ├── 2026-05-20.log
+│   │       │   └── 2026-05-21.log
+│   │       ├── n8n
+│   │       │   └── environment.example
+│   │       ├── observability
+│   │       │   ├── __init__.py
+│   │       │   ├── logger.py
+│   │       │   ├── metrics.py
+│   │       │   ├── models.py
+│   │       │   └── tracer.py
+│   │       ├── patch_formatter_labels.py
+│   │       ├── postman
+│   │       │   └── fumadocs_ingest_service_e2e.postman_collection.json
+│   │       ├── query_router
+│   │       │   ├── README.md
+│   │       │   ├── classifier.py
+│   │       │   ├── models.py
+│   │       │   ├── taxonomy.py
+│   │       │   └── thresholds.py
+│   │       ├── rag_architecture.md
+│   │       ├── rag_engine
+│   │       │   ├── __init__.py
+│   │       │   ├── chunking
+│   │       │   │   ├── __init__.py
+│   │       │   │   └── ticket_chunker.py
+│   │       │   ├── cli
+│   │       │   │   ├── __init__.py
+│   │       │   │   ├── ingest_cli.py
+│   │       │   │   └── sample_retrieval.py
+│   │       │   ├── config
+│   │       │   │   ├── .env.b1.template
+│   │       │   │   ├── __init__.py
+│   │       │   │   └── rag_settings.py
+│   │       │   ├── database
+│   │       │   │   ├── __init__.py
+│   │       │   │   └── supabase_client.py
+│   │       │   ├── document_builder
+│   │       │   │   ├── __init__.py
+│   │       │   │   ├── sop_builder.py
+│   │       │   │   └── ticket_builder.py
+│   │       │   ├── embedding
+│   │       │   │   ├── __init__.py
+│   │       │   │   ├── base.py
+│   │       │   │   ├── batch_processor.py
+│   │       │   │   └── openai_provider.py
+│   │       │   ├── feedback
+│   │       │   │   ├── __init__.py
+│   │       │   │   ├── feedback_loop.py
+│   │       │   │   └── review_queue.py
+│   │       │   ├── generation
+│   │       │   │   ├── __init__.py
+│   │       │   │   ├── chat_generator.py
+│   │       │   │   ├── context_assembler.py
+│   │       │   │   ├── llm_client.py
+│   │       │   │   └── prompt_builder.py
+│   │       │   ├── ingestion
+│   │       │   │   ├── __init__.py
+│   │       │   │   ├── deduplication.py
+│   │       │   │   ├── delta_tracker.py
+│   │       │   │   ├── knowledge_classifier.py
+│   │       │   │   ├── knowledge_pipeline.py
+│   │       │   │   ├── parsers
+│   │       │   │   │   ├── __init__.py
+│   │       │   │   │   └── stackoverflow_parser.py
+│   │       │   │   ├── pipeline.py
+│   │       │   │   ├── schema_mapper.py
+│   │       │   │   ├── sop_pipeline.py
+│   │       │   │   └── tenant_mapper.py
+│   │       │   ├── observability
+│   │       │   │   ├── __init__.py
+│   │       │   │   ├── ingestion_logger.py
+│   │       │   │   └── metrics_collector.py
+│   │       │   ├── retrieval
+│   │       │   │   ├── __init__.py
+│   │       │   │   ├── hybrid_ticket_retriever.py
+│   │       │   │   ├── reranking_hook.py
+│   │       │   │   └── ticket_retriever.py
+│   │       │   ├── schemas
+│   │       │   │   ├── __init__.py
+│   │       │   │   ├── chunk_schema.py
+│   │       │   │   ├── ingestion_record.py
+│   │       │   │   └── ticket_document.py
+│   │       │   ├── sop
+│   │       │   │   ├── __init__.py
+│   │       │   │   └── sop_parser.py
+│   │       │   └── utils
+│   │       │       ├── __init__.py
+│   │       │       └── tokens.py
+│   │       ├── reapply_formatter_safeguards.py
+│   │       ├── recreate-container.ps1
+│   │       ├── refine_public_reply_professional.py
+│   │       ├── remove_result_tags_public_reply.py
+│   │       ├── requirements.txt
+│   │       ├── retrieval
+│   │       │   ├── __init__.py
+│   │       │   ├── config.py
+│   │       │   ├── filters.py
+│   │       │   ├── fusion.py
+│   │       │   ├── hybrid_search.py
+│   │       │   ├── keyword_search.py
+│   │       │   ├── metrics.py
+│   │       │   ├── models.py
+│   │       │   ├── reranker.py
+│   │       │   └── semantic_search.py
+│   │       ├── scripts
+│   │       │   ├── evaluate_rag.py
+│   │       │   ├── evaluate_retrieval.py
+│   │       │   ├── export_supabase_schema.py
+│   │       │   ├── export_video_ticket_conversations.py
+│   │       │   ├── freshdesk_export_ticket_fields.py
+│   │       │   ├── freshdesk_ticket_fields_probe.py
+│   │       │   ├── generate_video_issues_report.py
+│   │       │   ├── ingest_freshdesk_ticket_ids.py
+│   │       │   ├── ingest_knowledge.py
+│   │       │   ├── ingest_sop.py
+│   │       │   ├── list_freshdesk_contacts_by_email_domain.py
+│   │       │   ├── rag_eval_dataset.example.json
+│   │       │   ├── reingest_v2.py
+│   │       │   ├── security_scan.py
+│   │       │   ├── validate_b1_db_integrity.py
+│   │       │   ├── validate_b1_infrastructure.py
+│   │       │   ├── validate_b1_ingestion.py
+│   │       │   ├── validate_b1_retrieval.py
+│   │       │   ├── validate_b1_tokens.py
+│   │       │   ├── validate_b2_5_security.py
+│   │       │   ├── validate_b2_generation.py
+│   │       │   ├── validate_b3_knowledge.py
+│   │       │   ├── validate_response_governance.py
+│   │       │   └── verify_index_integrity.py
+│   │       ├── scripts_dev
+│   │       │   ├── cleanup_logs.ps1
+│   │       │   ├── debug_trace.ps1
+│   │       │   ├── run_local.ps1
+│   │       │   └── run_local.sh
+│   │       ├── sql
+│   │       │   ├── MIGRATIONS.md
+│   │       │   ├── b1_migrations
+│   │       │   │   ├── B1_001_ticket_documents.sql
+│   │       │   │   ├── B1_002_sop_library.sql
+│   │       │   │   ├── B1_003_ingestion_logs.sql
+│   │       │   │   ├── B1_004_feedback_logs.sql
+│   │       │   │   ├── B1_005_rpc_functions.sql
+│   │       │   │   ├── B1_006_indexes.sql
+│   │       │   │   ├── B1_007_fts_setup.sql
+│   │       │   │   ├── B1_008_fts_rpc.sql
+│   │       │   │   └── B1_009_sop_unique_constraint.sql
+│   │       │   ├── b3_migrations
+│   │       │   │   ├── B3_001_knowledge_tables.sql
+│   │       │   │   ├── B3_002_extend_match_all_sources.sql
+│   │       │   │   ├── B3_003_feedback_enhancements.sql
+│   │       │   │   ├── B3_004_raise_quality_gate.sql
+│   │       │   │   └── B3_005_fts_quality_gate.sql
+│   │       │   ├── chat_messages.sql
+│   │       │   ├── current_schema.sql
+│   │       │   ├── fix_match_documents_final.sql
+│   │       │   ├── fts_rpc.sql
+│   │       │   ├── fts_setup.sql
+│   │       │   ├── kb_chunks.sql
+│   │       │   ├── knowledge_cards.sql
+│   │       │   ├── match_documents_documents.sql
+│   │       │   └── support_conversation_state.sql
+│   │       ├── tests
+│   │       │   ├── test_b1_embedding_resilience.py
+│   │       │   ├── test_b1_retrieval.py
+│   │       │   ├── test_b1_token_chunking.py
+│   │       │   └── test_ingest_context_improvements.py
+│   │       ├── tests_local
+│   │       │   └── test_hybrid_retrieval.py
+│   │       ├── tmp_workflow_node_scripts
+│   │       │   ├── Build_Supabase_Context.js
+│   │       │   ├── Build_TicketplusConversation_Text.js
+│   │       │   ├── Collect_Final_Response.js
+│   │       │   └── Prepare_First_Response_Prompt.js
+│   │       ├── traces
+│   │       │   ├── 20260519_123109_69f33d8a.json
+│   │       │   ├── 20260519_125403_9728a82a.json
+│   │       │   ├── 20260519_125652_571f371a.json
+│   │       │   └── 20260520_055800_9e9e80be.json
+│   │       ├── update_n8n_workflow.py
+│   │       ├── update_prompt_grounding.py
+│   │       └── validate_workflow_changes.py
+│   └── supabasesuccess.py
+├── postman
+│   ├── collections
+│   ├── environments
+│   ├── flows
+│   ├── globals
+│   │   └── workspace.globals.yaml
+│   ├── mocks
+│   └── specs
+├── profiling_deep.py
+├── profiling_deep2.py
+├── profiling_step1.py
+├── query_pattern_analysis.md
+├── research.md
+├── structure.txt
+├── structure_utf8.txt
+└── workflow.md

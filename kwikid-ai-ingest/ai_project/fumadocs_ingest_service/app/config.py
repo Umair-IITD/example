@@ -104,6 +104,20 @@ class Settings:
     freshdesk_webhook_reply_as_note: bool
     freshdesk_webhook_min_confidence: str
     freshdesk_webhook_tenant_tag_prefix: str
+    # When true: startup FAILS if webhook is enabled but no HMAC secret is set.
+    # When false (default): startup emits a warning and allows unauthenticated webhooks.
+    freshdesk_webhook_enforce_hmac: bool
+
+    # ── Phase B2: Redis rate limiting ─────────────────────────────────────────
+    redis_rate_limit_enabled: bool     # disabled by default — in-process fallback used
+    redis_url: str                     # redis://localhost:6379
+    rag_chat_rate_limit: int           # max requests per 60s for /rag/chat
+
+    # ── Phase B2: Prometheus metrics ─────────────────────────────────────────
+    prometheus_enabled: bool           # disabled by default
+
+    # ── Phase B1/B3: Hybrid retrieval ────────────────────────────────────────
+    b1_hybrid_retrieval_enabled: bool  # enables HybridTicketRetriever (FTS + semantic)
 
 
 def _validate_embedding_settings(settings: Settings) -> None:
@@ -187,8 +201,13 @@ def _validate_freshdesk_settings(settings: Settings) -> None:
 
 
 def get_settings() -> Settings:
-    provider = os.getenv("EMBEDDING_PROVIDER", "ollama").strip().lower()
-    model = os.getenv("EMBEDDING_MODEL", "nomic-embed-text")
+    provider = os.getenv("EMBEDDING_PROVIDER", "openai").strip().lower()
+    if not provider:
+        raise ValueError(
+            "EMBEDDING_PROVIDER is required. Set it to 'openai' or 'ollama'. "
+            "There is no safe default — the provider must match the model used to index your documents."
+        )
+    model = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
     if provider == "openai":
         base_url = os.getenv("EMBEDDING_BASE_URL", os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1"))
         api_key = os.getenv("EMBEDDING_API_KEY", os.getenv("OPENAI_API_KEY", ""))
@@ -244,7 +263,7 @@ def get_settings() -> Settings:
         confidence_min_rerank=float(os.getenv("CONFIDENCE_MIN_RERANK", "0.05")),
         hybrid_retrieval_enabled=_env_bool("HYBRID_RETRIEVAL_ENABLED", default=False),
         query_source_thresholds={
-            "freshdesk": float(os.getenv("QUERY_SOURCE_THRESHOLD_FRESHDESK", "0.30")),
+            "freshdesk": float(os.getenv("QUERY_SOURCE_THRESHOLD_FRESHDESK", "0.20")),
             "md": float(os.getenv("QUERY_SOURCE_THRESHOLD_MD", "0.20")),
             "json": float(os.getenv("QUERY_SOURCE_THRESHOLD_JSON", "0.20")),
             "excel": float(os.getenv("QUERY_SOURCE_THRESHOLD_EXCEL", "0.20")),
@@ -268,7 +287,7 @@ def get_settings() -> Settings:
         chat_retry_base_delay_s=float(os.getenv("CHAT_RETRY_BASE_DELAY_S", "0.8")),
         chat_temperature=float(os.getenv("CHAT_TEMPERATURE", "0.2")),
         chat_max_output_tokens=int(os.getenv("CHAT_MAX_OUTPUT_TOKENS", "800")),
-        chat_context_chunk_max_chars=int(os.getenv("CHAT_CONTEXT_CHUNK_MAX_CHARS", "1400")),
+        chat_context_chunk_max_chars=int(os.getenv("CHAT_CONTEXT_CHUNK_MAX_CHARS", "3500")),
         chat_history_turns=int(os.getenv("CHAT_HISTORY_TURNS", "6")),
         chat_history_table=os.getenv("CHAT_HISTORY_TABLE", "chat_messages"),
         freshdesk_webhook_enabled=_env_bool("FRESHDESK_WEBHOOK_ENABLED", default=False),
@@ -277,6 +296,15 @@ def get_settings() -> Settings:
         freshdesk_webhook_reply_as_note=_env_bool("FRESHDESK_WEBHOOK_REPLY_AS_NOTE", default=True),
         freshdesk_webhook_min_confidence=os.getenv("FRESHDESK_WEBHOOK_MIN_CONFIDENCE", "low").strip().lower(),
         freshdesk_webhook_tenant_tag_prefix=os.getenv("FRESHDESK_WEBHOOK_TENANT_TAG_PREFIX", "client:").strip(),
+        freshdesk_webhook_enforce_hmac=_env_bool("FRESHDESK_WEBHOOK_ENFORCE_HMAC", default=False),
+        # Redis
+        redis_rate_limit_enabled=_env_bool("REDIS_RATE_LIMIT_ENABLED", default=False),
+        redis_url=os.getenv("REDIS_URL", "redis://localhost:6379").strip(),
+        rag_chat_rate_limit=int(os.getenv("RAG_CHAT_RATE_LIMIT", "20")),
+        # Prometheus
+        prometheus_enabled=_env_bool("PROMETHEUS_ENABLED", default=False),
+        # Hybrid retrieval
+        b1_hybrid_retrieval_enabled=_env_bool("B1_HYBRID_RETRIEVAL_ENABLED", default=False),
     )
     _validate_embedding_settings(settings)
     _validate_freshdesk_settings(settings)
