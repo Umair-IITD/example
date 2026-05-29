@@ -297,9 +297,9 @@ def _document_row_to_summary(
     )
 
 
-def delete_document_chunks_for_card(settings: Settings, card_id: str) -> int:
+def delete_document_chunks_for_card(settings: Settings, card_id: str, *, supabase_client: Any = None) -> int:
     """Delete `public.documents` rows whose metadata.card_id == card_id."""
-    client = _train_supabase_client(settings)
+    client = supabase_client if supabase_client is not None else _train_supabase_client(settings)
     response = client.table(settings.supabase_table).select("id").eq("metadata->>card_id", str(card_id)).execute()
     deleted = 0
     for row in response.data or []:
@@ -311,8 +311,8 @@ def delete_document_chunks_for_card(settings: Settings, card_id: str) -> int:
     return deleted
 
 
-def fetch_card_head_document(settings: Settings, card_id: str) -> dict[str, Any] | None:
-    client = _train_supabase_client(settings)
+def fetch_card_head_document(settings: Settings, card_id: str, *, supabase_client: Any = None) -> dict[str, Any] | None:
+    client = supabase_client if supabase_client is not None else _train_supabase_client(settings)
     response = (
         client.table(settings.supabase_table)
         .select("*")
@@ -346,10 +346,11 @@ def list_train_card_heads_from_documents(
     access_scope: str | None = None,
     status: str | None = None,
     session_id: str | None = None,
+    supabase_client: Any = None,
 ) -> tuple[list[KnowledgeCardSummary], int]:
     if status == "draft":
         return [], 0
-    client = _train_supabase_client(settings)
+    client = supabase_client if supabase_client is not None else _train_supabase_client(settings)
     query = (
         client.table(settings.supabase_table)
         .select("*", count="exact")
@@ -408,6 +409,7 @@ def run_train_chat(
     access_scope: str | None = None,
     history_turns: int | None = None,
     persist_history: bool = True,
+    supabase_client: Any = None,
 ) -> TrainChatResult:
     if not query_text or not query_text.strip():
         raise ValueError("query_text must be non-empty")
@@ -443,6 +445,7 @@ def run_train_chat(
         supabase_url=settings.supabase_url,
         supabase_key=settings.supabase_key,
         table_name=settings.chat_history_table,
+        supabase_client=supabase_client,
     )
 
     history: list[dict[str, str]] = []
@@ -652,6 +655,7 @@ def list_knowledge_cards(
     access_scope: str | None = None,
     status: str | None = None,
     session_id: str | None = None,
+    supabase_client: Any = None,
 ) -> tuple[list[KnowledgeCardSummary], int]:
     return list_train_card_heads_from_documents(
         settings,
@@ -661,11 +665,12 @@ def list_knowledge_cards(
         access_scope=access_scope,
         status=status,
         session_id=session_id,
+        supabase_client=supabase_client,
     )
 
 
-def get_knowledge_card(settings: Settings, card_id: str) -> KnowledgeCardSummary | None:
-    row = fetch_card_head_document(settings, card_id)
+def get_knowledge_card(settings: Settings, card_id: str, *, supabase_client: Any = None) -> KnowledgeCardSummary | None:
+    row = fetch_card_head_document(settings, card_id, supabase_client=supabase_client)
     if not row:
         return None
     md = row.get("metadata") or {}
@@ -680,8 +685,8 @@ def get_knowledge_card(settings: Settings, card_id: str) -> KnowledgeCardSummary
     return _document_row_to_summary(row, chunk_ids=chunk_ids)
 
 
-def delete_knowledge_card(settings: Settings, card_id: str) -> dict[str, Any]:
-    deleted = delete_document_chunks_for_card(settings, card_id)
+def delete_knowledge_card(settings: Settings, card_id: str, *, supabase_client: Any = None) -> dict[str, Any]:
+    deleted = delete_document_chunks_for_card(settings, card_id, supabase_client=supabase_client)
     if deleted == 0:
         return {"card_id": card_id, "deleted_chunks": 0, "status": "missing"}
     LOGGER.info("train_delete card_id=%s deleted_chunks=%s", card_id, deleted)

@@ -55,29 +55,48 @@ class DeduplicationChecker:
         if not ticket_ids:
             return {}
 
-        try:
-            response = (
-                self._client.table(self._chunks_table)
-                .select("ticket_id, chunk_index, content_hash")
-                .in_("ticket_id", ticket_ids)
-                .eq("index_version", index_version)
-                .execute()
-            )
-        except Exception as exc:  # noqa: BLE001
-            LOGGER.warning(
-                "Failed to fetch existing hashes for %d tickets: %s. "
-                "Proceeding without dedup (all chunks will be upserted).",
-                len(ticket_ids), exc
-            )
-            return {}
-
         result: dict[str, dict[int, str]] = {}
-        for row in response.data or []:
-            tid = row.get("ticket_id", "")
-            idx = row.get("chunk_index")
-            h = row.get("content_hash", "")
-            if tid and isinstance(idx, int) and h:
-                result.setdefault(tid, {})[idx] = h
+        _PAGE_SIZE = 1000
+        page = 0
+
+        while True:
+            start = page * _PAGE_SIZE
+            end   = start + _PAGE_SIZE - 1
+            try:
+                response = (
+                    self._client.table(self._chunks_table)
+                    .select("ticket_id, chunk_index, content_hash")
+                    .in_("ticket_id", ticket_ids)
+                    .eq("index_version", index_version)
+                    .range(start, end)
+                    .execute()
+                )
+            except Exception as exc:  # noqa: BLE001
+                LOGGER.warning(
+                    "Failed to fetch existing hashes (page %d, rows %d–%d) "
+                    "for %d tickets: %s. "
+                    "Proceeding with partial dedup (%d hashes accumulated).",
+                    page, start, end, len(ticket_ids), exc, len(result),
+                )
+                break
+
+            rows = response.data or []
+            LOGGER.debug(
+                "fetch_existing_hashes: page %d fetched %d rows "
+                "(total accumulated: %d)",
+                page, len(rows), len(result) + len(rows),
+            )
+
+            for row in rows:
+                tid = row.get("ticket_id", "")
+                idx = row.get("chunk_index")
+                h   = row.get("content_hash", "")
+                if tid and isinstance(idx, int) and h:
+                    result.setdefault(tid, {})[idx] = h
+
+            if len(rows) < _PAGE_SIZE:
+                break
+            page += 1
 
         return result
 

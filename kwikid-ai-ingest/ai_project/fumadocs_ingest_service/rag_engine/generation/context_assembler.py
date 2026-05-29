@@ -36,7 +36,8 @@ if TYPE_CHECKING:
 
 LOGGER = logging.getLogger(__name__)
 
-_MAX_CONTEXT_TOKENS = 6_000   # leave headroom for system prompt + output within 16k window
+_MAX_CONTEXT_TOKENS = 4_500  # enterprise SOP reasoning: SOPs can be 800+ tokens each; 4500 allows
+                              # 1 SOP + 2 RESOLUTION_RCA + 2 QUERY_BODY + 1-2 ISSUE_HEADER with headroom
 
 _CHUNK_TYPE_LABEL = {
     "ISSUE_HEADER": "Ticket Header",
@@ -67,6 +68,9 @@ class AssembledContext:
     has_resolution: bool
     total_tokens: int = 0         # token count of the assembled context_block
     skipped_chunks: int = 0       # chunks dropped due to token budget exhaustion
+    # chunk_type distribution of what the LLM actually sees (post-budget-enforcement)
+    # hash=False, compare=False: dict is unhashable — exclude from frozen dataclass hashing
+    context_chunk_types: dict = field(default_factory=dict, hash=False, compare=False)
 
 
 def assemble_context(
@@ -103,16 +107,22 @@ def assemble_context(
         if c.source_table == "rag_ticket_chunks"
         and c.chunk_type == "RESOLUTION_RCA"
     ]
-    ticket_other = [
+    ticket_query_body = [
         c for c in chunks
         if c.source_table == "rag_ticket_chunks"
-        and c.chunk_type != "RESOLUTION_RCA"
+        and c.chunk_type == "QUERY_BODY"
     ]
+    ticket_issue_header = [
+        c for c in chunks
+        if c.source_table == "rag_ticket_chunks"
+        and c.chunk_type == "ISSUE_HEADER"
+    ][:2]  # cap at 2 — headers provide ticket context; more than 2 adds noise without substance
 
-    # Ordered by authority: SOP → VERIFIED knowledge → other knowledge → RCA → other tickets
-    ordered_chunks = sop_chunks + knowledge_verified + knowledge_other + ticket_rca + ticket_other
+    # Authority order: SOP → verified knowledge → other knowledge → RCA → query body → header (capped)
+    ordered_chunks = sop_chunks + knowledge_verified + knowledge_other + ticket_rca + ticket_query_body + ticket_issue_header
 
     candidate_blocks: list[str] = []
+    candidate_types: list[str] = []   # parallel list — chunk_type for each candidate_block
     idx = 1
 
     for chunk in ordered_chunks:
@@ -153,13 +163,15 @@ def assemble_context(
             )
 
         candidate_blocks.append(f"{header}\n{content}")
+        candidate_types.append(chunk.chunk_type)
         idx += 1
 
     # Token budget enforcement — SOPs (listed first) are always preserved under budget pressure
     budget = max_context_tokens
     final_blocks: list[str] = []
+    final_chunk_types: dict[str, int] = {}
     skipped = 0
-    for block in candidate_blocks:
+    for block, ctype in zip(candidate_blocks, candidate_types):
         tok = _count_tokens(block)
         if tok > budget:
             skipped += 1
@@ -167,6 +179,7 @@ def assemble_context(
         else:
             budget -= tok
             final_blocks.append(block)
+            final_chunk_types[ctype] = final_chunk_types.get(ctype, 0) + 1
 
     if skipped:
         LOGGER.warning(
@@ -175,8 +188,7 @@ def assemble_context(
             max_context_tokens,
         )
 
-    # Compute metadata (ticket chunks only for has_resolution — preserves B1 semantics)
-    all_ticket_chunks = ticket_rca + ticket_other
+    all_ticket_chunks = [c for c in chunks if c.source_table == "rag_ticket_chunks"]
     has_resolution = any(
         c.chunk_type == "RESOLUTION_RCA" and c.has_rca for c in all_ticket_chunks
     )
@@ -191,6 +203,7 @@ def assemble_context(
         has_resolution=has_resolution,
         total_tokens=total_tokens,
         skipped_chunks=skipped,
+        context_chunk_types=final_chunk_types,
     )
 
 

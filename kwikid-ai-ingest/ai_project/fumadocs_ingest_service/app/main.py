@@ -13,7 +13,7 @@ from typing import Any
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field, field_validator
 
 from app.security import (
@@ -83,6 +83,30 @@ _B1_HYBRID_ENABLED = os.getenv("B1_HYBRID_RETRIEVAL_ENABLED", "false").strip().l
 }
 
 _QUERY_ROUTER = QueryRouter()
+
+# ── SPRINT0_FIX_SINGLETON — module-level client singletons ───────────────────
+# Sprint 0 benchmark showed that creating new Supabase + OpenAI clients per
+# request adds ~2.4 s of TCP/TLS cold-start overhead per /rag/chat call.
+# These singletons are pre-warmed during lifespan startup (single-threaded)
+# so the first live request is already warm.
+#
+# Thread-safety model:
+#   Supabase client — httpcore.ConnectionPool handles concurrent requests safely.
+#   OpenAI embedder — httpx.Client is not documented as fully thread-safe;
+#     embed calls are serialised via _EMBEDDER_CALL_LOCK (see _ThreadSafeEmbedderWrapper).
+#   Both singletons — initialisation protected by double-checked locking.
+#
+# Rollback: revert _build_chat_generator() to call create_client() and
+#   OpenAIEmbeddingProvider() directly, and remove the lifespan pre-warm block.
+import threading as _threading
+
+_SB_INIT_LOCK = _threading.Lock()
+_EMBEDDER_INIT_LOCK = _threading.Lock()
+_EMBEDDER_CALL_LOCK = _threading.Lock()   # serialises concurrent embed_single() calls
+_GENERATOR_LOCK = _threading.Lock()
+_sb_singleton: Any = None                 # supabase.Client — set in lifespan startup
+_embedder_singleton: Any = None          # OpenAIEmbeddingProvider — set in lifespan startup
+_generator_singleton: Any = None         # ChatGenerator (holds retriever + LLM + history)
 
 
 @asynccontextmanager
@@ -154,16 +178,86 @@ async def lifespan(_app: FastAPI):
     # ACTIVE_INDEX_VERSION controls which chunk version is served at query time.
     # B1_INDEX_VERSION controls which version new data is written as (ingestion).
     # These should match after migration is validated; they can differ during rollout.
+    _active_ver = os.getenv("ACTIVE_INDEX_VERSION", "v1")
+    _hnsw_v2_on = os.getenv("B1_HNSW_V2_ENABLED", "false").strip().lower() in {
+        "1", "true", "yes", "on"
+    }
     _LOGGER_PRE.info(
-        "[CONFIG] ACTIVE_INDEX_VERSION=%s B1_INDEX_VERSION=%s DEBUG_RAG=%s hybrid=%s",
-        os.getenv("ACTIVE_INDEX_VERSION", "v1"),
+        "[CONFIG] ACTIVE_INDEX_VERSION=%s B1_INDEX_VERSION=%s DEBUG_RAG=%s hybrid=%s hnsw_v2=%s",
+        _active_ver,
         os.getenv("B1_INDEX_VERSION", "v1"),
         os.getenv("DEBUG_RAG", "false"),
         os.getenv("B1_HYBRID_RETRIEVAL_ENABLED", "false"),
+        os.getenv("B1_HNSW_V2_ENABLED", "false"),
     )
+    # When ACTIVE_INDEX_VERSION is still "v1" (the default) but HNSW v2 optimisations
+    # are enabled, the partial HNSW indexes built for v2 data (B1_011) never activate.
+    # Queries run against v1 rows, hit the global HNSW index, and emit post-scan
+    # filtering. API diagnostics also report index_version="v1" even when
+    # v2_hnsw_used=true, because the v2 SQL functions are called with index_version="v1".
+    # Fix: set ACTIVE_INDEX_VERSION=v2 in .env once v2 ingest is confirmed stable.
+    if _active_ver == "v1" and (_B1_HYBRID_ENABLED or _hnsw_v2_on):
+        _LOGGER_PRE.warning(
+            "CONFIG_MISMATCH: ACTIVE_INDEX_VERSION=v1 (default) but "
+            "B1_HYBRID_RETRIEVAL_ENABLED=%s / B1_HNSW_V2_ENABLED=%s. "
+            "Partial HNSW indexes for v2 (B1_011/B1_012) cannot activate while v1 is queried. "
+            "Set ACTIVE_INDEX_VERSION=v2 in .env to enable partial index optimisation, "
+            "OR apply B1_012 Section 4 to create v1 partial indexes for the current data version.",
+            os.getenv("B1_HYBRID_RETRIEVAL_ENABLED", "false"),
+            os.getenv("B1_HNSW_V2_ENABLED", "false"),
+        )
+
+    # ── SPRINT0_FIX_SINGLETON: pre-warm singletons ────────────────────────────
+    # Running here (single-threaded startup) means the first /rag/chat request
+    # sees warm TCP connections — no cold-start penalty.
+    global _sb_singleton, _embedder_singleton, _generator_singleton
+    try:
+        _pre_settings = get_settings()
+        _pre_rag = get_rag_settings()
+        _pre_key = os.getenv("OPENAI_API_KEY", _pre_settings.chat_api_key).strip()
+        _sb_singleton = create_client(_pre_settings.supabase_url, _pre_settings.supabase_key)
+        _embedder_singleton = OpenAIEmbeddingProvider(
+            api_key=_pre_key,
+            model=_pre_rag.embedding_model,
+            base_url=os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1"),
+            dimensions=_pre_rag.embedding_dimensions,
+            max_retries=_pre_rag.embedding_max_retries,
+            retry_base_delay_s=_pre_rag.embedding_retry_base_delay_s,
+            retry_max_delay_s=_pre_rag.embedding_retry_max_delay_s,
+            connect_timeout_s=_pre_rag.embedding_connect_timeout_s,
+            read_timeout_s=_pre_rag.embedding_read_timeout_s,
+            write_timeout_s=_pre_rag.embedding_write_timeout_s,
+            pool_timeout_s=_pre_rag.embedding_pool_timeout_s,
+        )
+        # Pre-warm the ChatGenerator singleton — creates B1LLMClient with its
+        # persistent httpx.Client so the first /rag/chat request reuses the
+        # already-open TCP connection to the OpenAI chat completions endpoint.
+        _, _generator_singleton, _ = _build_chat_generator(_pre_settings, _pre_rag, _pre_key)
+        _LOGGER_PRE.info(
+            "sprint0_singleton_warmed supabase=ok embedder=ok generator=ok model=%s",
+            _pre_rag.embedding_model,
+        )
+    except Exception as _exc:  # noqa: BLE001
+        _LOGGER_PRE.warning(
+            "sprint0_singleton_warmup_failed error=%s — cold start will occur on first request",
+            _exc,
+        )
 
     yield
 
+    # ── SPRINT0_FIX_SINGLETON: graceful shutdown ───────────────────────────────
+    if _generator_singleton is not None:
+        try:
+            _generator_singleton._llm.close()
+            _LOGGER_PRE.info("sprint0_singleton_shutdown llm_client=closed")
+        except Exception:  # noqa: BLE001
+            pass
+    if _embedder_singleton is not None:
+        try:
+            _embedder_singleton.close()
+            _LOGGER_PRE.info("sprint0_singleton_shutdown embedder=closed")
+        except Exception:  # noqa: BLE001
+            pass
     _LOGGER_PRE.info("service_shutdown")
 
 
@@ -180,6 +274,138 @@ app = FastAPI(
     openapi_url="/openapi.json" if _docs_enabled else None,
 )
 LOGGER = logging.getLogger(__name__)
+
+
+# ── SPRINT0_FIX_SINGLETON — helper class and getters ─────────────────────────
+
+class _ThreadSafeEmbedderWrapper:
+    """
+    SPRINT0_FIX_SINGLETON: Lightweight per-request wrapper around the singleton embedder.
+
+    Created fresh per request (O(1), no connections opened) and handed to the
+    retriever in place of a raw OpenAIEmbeddingProvider.  Two responsibilities:
+
+      1. Serialise concurrent embed_single / embed_batch calls via _EMBEDDER_CALL_LOCK.
+         OpenAIEmbeddingProvider documents its underlying httpx.Client as not
+         thread-safe; the lock ensures only one thread calls it at a time.
+         At this system's concurrency level (<5 simultaneous requests) the lock
+         wait is negligible compared to the ~300 ms embedding round-trip.
+
+      2. Make close() a no-op so the callers' existing finally-blocks:
+             if embedder is not None: await asyncio.to_thread(embedder.close)
+         remain safe to run without closing the shared singleton.
+    """
+    __slots__ = ("_inner", "_lock")
+
+    def __init__(self, inner: Any, lock: _threading.Lock) -> None:
+        self._inner = inner
+        self._lock = lock
+
+    def embed_single(self, text: str) -> list[float]:
+        LOGGER.debug("sprint0_singleton embedder=warm_reuse")
+        with self._lock:
+            return self._inner.embed_single(text)
+
+    def embed_batch(self, texts: list[str]) -> Any:
+        with self._lock:
+            return self._inner.embed_batch(texts)
+
+    @property
+    def dimensions(self) -> int:
+        return self._inner.dimensions
+
+    @property
+    def model_name(self) -> str:
+        return self._inner.model_name
+
+    def close(self) -> None:
+        """No-op: singleton lifecycle is managed by lifespan, not per-request cleanup."""
+
+
+def _get_supabase_client(app_settings: Any) -> Any:
+    """
+    SPRINT0_FIX_SINGLETON: Return the module-level Supabase client singleton.
+
+    The underlying httpcore.ConnectionPool handles concurrent HTTP requests safely,
+    so no per-call lock is required once the singleton is initialised.
+    Initialisation itself uses double-checked locking to prevent duplicate creation
+    under concurrent cold-start (should not occur after lifespan pre-warms the client).
+    """
+    global _sb_singleton
+    if _sb_singleton is not None:
+        LOGGER.debug("sprint0_singleton supabase=warm_reuse")
+        return _sb_singleton
+    with _SB_INIT_LOCK:
+        if _sb_singleton is None:
+            LOGGER.warning(
+                "sprint0_singleton supabase=cold_start — lifespan pre-warm may have failed; "
+                "creating Supabase client now"
+            )
+            _sb_singleton = create_client(app_settings.supabase_url, app_settings.supabase_key)
+    return _sb_singleton
+
+
+def _get_embedder_wrapper(
+    app_settings: Any,
+    rag_settings: Any,
+    openai_api_key: str,
+) -> _ThreadSafeEmbedderWrapper:
+    """
+    SPRINT0_FIX_SINGLETON: Return a per-request _ThreadSafeEmbedderWrapper.
+
+    The wrapper delegates to the singleton OpenAIEmbeddingProvider and serialises
+    concurrent embed calls. Creating the wrapper is O(1) — no connections are opened.
+    """
+    global _embedder_singleton
+    if _embedder_singleton is None:
+        with _EMBEDDER_INIT_LOCK:
+            if _embedder_singleton is None:
+                LOGGER.warning(
+                    "sprint0_singleton embedder=cold_start — lifespan pre-warm may have failed; "
+                    "creating OpenAIEmbeddingProvider now"
+                )
+                _embedder_singleton = OpenAIEmbeddingProvider(
+                    api_key=openai_api_key,
+                    model=rag_settings.embedding_model,
+                    base_url=os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1"),
+                    dimensions=rag_settings.embedding_dimensions,
+                    max_retries=rag_settings.embedding_max_retries,
+                    retry_base_delay_s=rag_settings.embedding_retry_base_delay_s,
+                    retry_max_delay_s=rag_settings.embedding_retry_max_delay_s,
+                    connect_timeout_s=rag_settings.embedding_connect_timeout_s,
+                    read_timeout_s=rag_settings.embedding_read_timeout_s,
+                    write_timeout_s=rag_settings.embedding_write_timeout_s,
+                    pool_timeout_s=rag_settings.embedding_pool_timeout_s,
+                )
+    return _ThreadSafeEmbedderWrapper(_embedder_singleton, _EMBEDDER_CALL_LOCK)
+
+
+def _get_generator(
+    app_settings: Any,
+    rag_settings: Any,
+    openai_api_key: str,
+) -> Any:
+    """
+    SPRINT0_FIX_SINGLETON: Return the module-level ChatGenerator singleton.
+
+    Double-checked locking guards against concurrent cold-start (should not occur
+    after lifespan pre-warms the generator, but protects if pre-warm failed).
+    The generator holds the singleton retriever, LLM client (with persistent
+    httpx.Client), and history store — all created once and reused per process.
+    """
+    global _generator_singleton
+    if _generator_singleton is not None:
+        LOGGER.debug("sprint0_singleton generator=warm_reuse")
+        return _generator_singleton
+    with _GENERATOR_LOCK:
+        if _generator_singleton is None:
+            LOGGER.warning(
+                "sprint0_singleton generator=cold_start — lifespan pre-warm may have failed; "
+                "creating ChatGenerator now"
+            )
+            _, _generator_singleton, _ = _build_chat_generator(app_settings, rag_settings, openai_api_key)
+    return _generator_singleton
+
 
 _cors_origins_raw = os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000")
 _cors_origins = [o.strip() for o in _cors_origins_raw.split(",") if o.strip()]
@@ -653,6 +879,7 @@ async def chat_endpoint(payload: ChatRequest) -> dict[str, Any]:
             strict_latest_within_top_n=payload.strict_latest_within_top_n,
             chat_history_turns=payload.history_turns,
             persist_history=payload.persist_history,
+            supabase_client=_get_supabase_client(settings),
         )
     except ValueError as exc:
         raise HTTPException(
@@ -725,6 +952,7 @@ async def chat_suggestions(
             tenant=tenant,
             access_scope=access_scope,
             limit=limit,
+            supabase_client=_get_supabase_client(settings),
         )
     except Exception as exc:  # noqa: BLE001
         LOGGER.exception("chat_suggestions failed")
@@ -766,6 +994,7 @@ async def train_chat(payload: TrainChatRequest) -> dict[str, Any]:
             access_scope=payload.access_scope,
             history_turns=payload.history_turns,
             persist_history=payload.persist_history,
+            supabase_client=_get_supabase_client(settings),
         )
     except ValueError as exc:
         raise HTTPException(
@@ -866,6 +1095,7 @@ async def train_cards_list(
             access_scope=access_scope,
             status=status,
             session_id=session_id,
+            supabase_client=_get_supabase_client(settings),
         )
     except Exception as exc:  # noqa: BLE001
         LOGGER.exception("train_cards_list failed")
@@ -903,7 +1133,7 @@ async def train_cards_list(
 async def train_cards_get(card_id: str) -> dict[str, Any]:
     settings = get_settings()
     try:
-        card = await asyncio.to_thread(get_knowledge_card, settings, card_id)
+        card = await asyncio.to_thread(get_knowledge_card, settings, card_id, supabase_client=_get_supabase_client(settings))
     except Exception as exc:  # noqa: BLE001
         LOGGER.exception("train_cards_get failed")
         raise HTTPException(
@@ -936,7 +1166,7 @@ async def train_cards_get(card_id: str) -> dict[str, Any]:
 async def train_cards_delete(card_id: str) -> dict[str, Any]:
     settings = get_settings()
     try:
-        result = await asyncio.to_thread(delete_knowledge_card, settings, card_id)
+        result = await asyncio.to_thread(delete_knowledge_card, settings, card_id, supabase_client=_get_supabase_client(settings))
     except Exception as exc:  # noqa: BLE001
         LOGGER.exception("train_cards_delete failed")
         raise HTTPException(
@@ -960,26 +1190,20 @@ def _build_chat_generator(
 ) -> tuple[Any, Any, Any]:
     """
     Build (embedder, generator, supabase) for B1 RAG pipeline.
-    Caller MUST call embedder.close() in a finally block.
+
+    SPRINT0_FIX_SINGLETON: supabase and the underlying OpenAI embedding client
+    are now module-level singletons — no new TCP/TLS connections per request.
+    The returned embedder is a _ThreadSafeEmbedderWrapper whose close() is a no-op,
+    so the callers' existing finally-blocks remain correct without any changes:
+        if embedder is not None: await asyncio.to_thread(embedder.close)
 
     Selects HybridTicketRetriever when B1_HYBRID_RETRIEVAL_ENABLED=true,
     otherwise uses the pure-semantic TicketRetriever.
     """
-    supabase = create_client(app_settings.supabase_url, app_settings.supabase_key)
-
-    embedder = OpenAIEmbeddingProvider(
-        api_key=openai_api_key,
-        model=rag_settings.embedding_model,
-        base_url=os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1"),
-        dimensions=rag_settings.embedding_dimensions,
-        max_retries=rag_settings.embedding_max_retries,
-        retry_base_delay_s=rag_settings.embedding_retry_base_delay_s,
-        retry_max_delay_s=rag_settings.embedding_retry_max_delay_s,
-        connect_timeout_s=rag_settings.embedding_connect_timeout_s,
-        read_timeout_s=rag_settings.embedding_read_timeout_s,
-        write_timeout_s=rag_settings.embedding_write_timeout_s,
-        pool_timeout_s=rag_settings.embedding_pool_timeout_s,
-    )
+    # SPRINT0_FIX_SINGLETON: reuse module-level singletons — eliminates ~2.4 s
+    # TCP+TLS cold-start observed per request in the Sprint 0 benchmark.
+    supabase = _get_supabase_client(app_settings)
+    embedder = _get_embedder_wrapper(app_settings, rag_settings, openai_api_key)
 
     if _B1_HYBRID_ENABLED:
         from rag_engine.retrieval.hybrid_ticket_retriever import HybridTicketRetriever  # noqa: PLC0415
@@ -1046,13 +1270,9 @@ async def rag_chat(payload: RagChatRequest, request: Request) -> dict[str, Any]:
     app_settings = get_settings()
     rag_settings = get_rag_settings()
     openai_api_key = os.getenv("OPENAI_API_KEY", app_settings.chat_api_key).strip()
-    embedder = None
 
     try:
-        embedder, generator, _supabase = _build_chat_generator(
-            app_settings, rag_settings, openai_api_key
-        )
-
+        generator = _get_generator(app_settings, rag_settings, openai_api_key)
         gen_request = GenerationRequest(
             query_text=payload.query_text,
             client=payload.client,
@@ -1078,12 +1298,6 @@ async def rag_chat(payload: RagChatRequest, request: Request) -> dict[str, Any]:
             status_code=502,
             detail={"status": "upstream_error", "error": str(exc)},
         ) from exc
-    finally:
-        if embedder is not None:
-            try:
-                await asyncio.to_thread(embedder.close)
-            except Exception:  # noqa: BLE001
-                pass
 
     LOGGER.info(
         "rag_chat client=%s session=%s confidence=%s chunks=%d insufficient=%s hybrid=%s route=%s",
@@ -1115,6 +1329,58 @@ async def rag_chat(payload: RagChatRequest, request: Request) -> dict[str, Any]:
         "chunks": result.chunks,
         "diagnostics": diagnostics,
     }
+
+
+@app.post("/rag/chat/stream")
+async def rag_chat_stream(payload: RagChatRequest, request: Request) -> StreamingResponse:
+    """
+    B1 RAG streaming chat endpoint — SSE token-by-token delivery.
+
+    Retrieval runs synchronously in a thread (~3 s); LLM answer tokens stream
+    back immediately thereafter, eliminating the 30 s TTFB of the blocking path.
+
+    Event types:
+      {"type": "metadata", "session_id": ..., "confidence": ..., "requires_human": ...}
+      {"type": "token", "content": "<delta>"}
+      {"type": "done", "answer": "<full text>", "session_id": ..., "message_id": ...}
+      {"type": "error", "message": "..."}
+
+    Rate limited per IP: shared with /rag/chat (RAG_CHAT_RATE_LIMIT req/60 s).
+    """
+    client_ip = request.client.host if request.client else "unknown"
+    limiter = pick_limiter(get_limiters(), "/rag/chat")
+    if not limiter.is_allowed(client_ip):
+        record_rate_limit_rejection("/rag/chat")
+        raise HTTPException(
+            status_code=429,
+            detail={"error": "rate_limited", "message": "Too many requests. Please slow down."},
+        )
+
+    app_settings = get_settings()
+    rag_settings = get_rag_settings()
+    openai_api_key = os.getenv("OPENAI_API_KEY", app_settings.chat_api_key).strip()
+
+    try:
+        generator = _get_generator(app_settings, rag_settings, openai_api_key)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail={"error": str(exc)}) from exc
+
+    gen_request = GenerationRequest(
+        query_text=payload.query_text,
+        client=payload.client,
+        session_id=payload.session_id,
+        top_k=payload.top_k,
+        similarity_threshold=payload.similarity_threshold,
+        persist_history=payload.persist_history,
+        history_turns=payload.history_turns,
+        index_version=app_settings.active_index_version,
+    )
+
+    return StreamingResponse(
+        generator.stream_generate(gen_request),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 # ── Freshdesk webhook ─────────────────────────────────────────────────────────
@@ -1197,12 +1463,9 @@ async def freshdesk_webhook(request: Request) -> dict[str, Any]:
     # ── Run RAG pipeline ──────────────────────────────────────────────────────
     rag_settings = get_rag_settings()
     openai_api_key = os.getenv("OPENAI_API_KEY", app_settings.chat_api_key).strip()
-    embedder = None
 
     try:
-        embedder, generator, _supabase = _build_chat_generator(
-            app_settings, rag_settings, openai_api_key
-        )
+        generator = _get_generator(app_settings, rag_settings, openai_api_key)
         gen_request = GenerationRequest(
             query_text=query_text,
             client=client,
@@ -1225,12 +1488,6 @@ async def freshdesk_webhook(request: Request) -> dict[str, Any]:
             status_code=502,
             detail={"status": "rag_error", "error": str(exc), "ticket_id": ticket_id},
         ) from exc
-    finally:
-        if embedder is not None:
-            try:
-                await asyncio.to_thread(embedder.close)
-            except Exception:  # noqa: BLE001
-                pass
 
     # ── Confidence gate ───────────────────────────────────────────────────────
     if result.requires_human:
@@ -1324,32 +1581,24 @@ async def post_feedback(request: FeedbackRequest) -> FeedbackResponse:
     """
     app_settings = get_settings()
     rag_settings = get_rag_settings()
-    supabase = create_client(app_settings.supabase_url, app_settings.supabase_key)
+    supabase = _get_supabase_client(app_settings)  # SPRINT0_FIX_SINGLETON
     openai_key = app_settings.chat_api_key or os.getenv("OPENAI_API_KEY", "")
-    openai_base = app_settings.chat_base_url
+    embedder = _get_embedder_wrapper(app_settings, rag_settings, openai_key)  # SPRINT0_FIX_SINGLETON
+    ingester = FeedbackIngester(
+        supabase,
+        feedback_logs_table=rag_settings.feedback_logs_table,
+    )
 
-    embedder = OpenAIEmbeddingProvider(api_key=openai_key, base_url=openai_base)
-    try:
-        ingester = FeedbackIngester(
-            supabase,
-            feedback_logs_table=rag_settings.feedback_logs_table,
-        )
+    from rag_engine.ingestion.knowledge_pipeline import KnowledgePipeline  # noqa: PLC0415
+    knowledge_pipeline = KnowledgePipeline(rag_settings, supabase, embedder)
+    review_queue = ReviewQueueManager(
+        supabase,
+        review_queue_table=rag_settings.review_queue_table,
+        knowledge_pipeline=knowledge_pipeline,
+    )
 
-        from rag_engine.ingestion.knowledge_pipeline import KnowledgePipeline  # noqa: PLC0415
-        knowledge_pipeline = KnowledgePipeline(rag_settings, supabase, embedder)
-        review_queue = ReviewQueueManager(
-            supabase,
-            review_queue_table=rag_settings.review_queue_table,
-            knowledge_pipeline=knowledge_pipeline,
-        )
-
-        return await handle_feedback(
-            request,
-            feedback_ingester=ingester,
-            review_queue=review_queue,
-        )
-    finally:
-        try:
-            embedder.close()
-        except Exception:  # noqa: BLE001
-            pass
+    return await handle_feedback(
+        request,
+        feedback_ingester=ingester,
+        review_queue=review_queue,
+    )

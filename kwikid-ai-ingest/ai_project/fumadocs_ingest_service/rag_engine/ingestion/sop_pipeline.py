@@ -53,11 +53,15 @@ LOGGER = logging.getLogger(__name__)
 _MAX_SOP_CHUNK_TOKENS = 7_000
 
 
-def _sop_chunk_id(sop_id: str, chunk_index: int, sop_version: int) -> str:
-    """Deterministic UUID5 for a SOP chunk position. Changing sop_version invalidates old IDs."""
+def _sop_chunk_id(sop_id: str, chunk_index: int, sop_version: int, index_version: str = "v1") -> str:
+    """Deterministic UUID5 for a SOP chunk position.
+
+    index_version is encoded so v1 and v2 chunks for the same SOP get distinct IDs,
+    making version migration safe: old version rows are never silently overwritten.
+    """
     return str(uuid.uuid5(
         uuid.NAMESPACE_URL,
-        f"sop_chunk:{sop_id}:{chunk_index}:{sop_version}",
+        f"sop_chunk:{sop_id}:{chunk_index}:{sop_version}:{index_version}",
     ))
 
 
@@ -220,23 +224,39 @@ class SopIngestionPipeline:
             existing = self._fetch_existing_sop(sop_doc.sop_id)
 
             if existing is not None:
-                if existing["content_hash"] == sop_doc.content_hash:
+                existing_iv = existing.get("index_version") or "v1"
+                hash_match = existing["content_hash"] == sop_doc.content_hash
+                iv_match   = existing_iv == self._settings.index_version
+
+                if hash_match and iv_match:
+                    # Truly unchanged: same content AND same index version
                     LOGGER.info(
-                        "SOP unchanged (hash match): '%s' — skipping",
+                        "SOP unchanged (hash + index_version match): '%s' — skipping",
                         sop_doc.title,
                     )
                     result.sops_skipped = 1
                     result.duration_s   = time.monotonic() - t_start
                     return result
 
-                # Content changed: bump version for new chunk IDs
-                new_version    = existing["version"] + 1
-                sop_doc.version = new_version
-                LOGGER.info(
-                    "SOP updated: '%s' v%d → v%d",
-                    sop_doc.title, existing["version"], new_version,
-                )
-                is_update = True
+                if hash_match and not iv_match:
+                    # Content is the same but we're migrating to a new index_version.
+                    # Re-ingest without bumping sop_version — chunk IDs already differ
+                    # because _sop_chunk_id now encodes index_version.
+                    sop_doc.version = existing["version"]
+                    LOGGER.info(
+                        "SOP index_version migration '%s': %s → %s (content unchanged, re-ingesting)",
+                        sop_doc.title, existing_iv, self._settings.index_version,
+                    )
+                    is_update = True
+                else:
+                    # Content changed: bump version for new chunk IDs
+                    new_version    = existing["version"] + 1
+                    sop_doc.version = new_version
+                    LOGGER.info(
+                        "SOP updated: '%s' v%d → v%d",
+                        sop_doc.title, existing["version"], new_version,
+                    )
+                    is_update = True
             else:
                 LOGGER.info("New SOP: '%s' (%s)", sop_doc.title, sop_doc.sop_id)
                 is_update = False
@@ -295,7 +315,7 @@ class SopIngestionPipeline:
         try:
             resp = (
                 self._client.table(self._settings.sop_library_table)
-                .select("sop_id, version, content_hash, is_active")
+                .select("sop_id, version, content_hash, is_active, index_version")
                 .eq("sop_id", sop_id)
                 .limit(1)
                 .execute()
@@ -332,12 +352,21 @@ class SopIngestionPipeline:
         ).execute()
 
     def _delete_sop_chunks(self, sop_id: str) -> None:
-        """Remove all chunk rows for a SOP before re-inserting on version bump."""
+        """Remove chunk rows for a SOP scoped to the current index_version.
+
+        Scoping by index_version preserves v1 chunks when creating v2 chunks during
+        migration — the two versions have independent rows in rag_sop_chunks.
+        """
         try:
             self._client.table(self._settings.sop_chunks_table).delete().eq(
                 "sop_id", sop_id
+            ).eq(
+                "index_version", self._settings.index_version
             ).execute()
-            LOGGER.debug("Deleted old chunks for SOP %s", sop_id)
+            LOGGER.debug(
+                "Deleted old chunks for SOP %s (index_version=%s)",
+                sop_id, self._settings.index_version,
+            )
         except Exception as exc:
             LOGGER.warning("Failed to delete old SOP chunks for %s: %s", sop_id, exc)
 
@@ -381,7 +410,7 @@ class SopIngestionPipeline:
                 truncated   = True
                 token_count = _MAX_SOP_CHUNK_TOKENS
 
-            chunk_id     = _sop_chunk_id(sop_doc.sop_id, idx, sop_doc.version)
+            chunk_id     = _sop_chunk_id(sop_doc.sop_id, idx, sop_doc.version, self._settings.index_version)
             content_hash = _sha256(content)
 
             chunks.append({

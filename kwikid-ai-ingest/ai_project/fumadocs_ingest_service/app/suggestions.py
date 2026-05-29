@@ -12,6 +12,7 @@ something useful.
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from supabase import Client, create_client
 
@@ -124,10 +125,11 @@ def get_suggestions(
     tenant: str | None = None,
     access_scope: str | None = None,
     limit: int = 6,
+    supabase_client: Any = None,
 ) -> list[str]:
     if limit <= 0:
         return []
-    client = _get_client(settings)
+    client = supabase_client if supabase_client is not None else _get_client(settings)
 
     primary = _collect_from_train_documents(
         client,

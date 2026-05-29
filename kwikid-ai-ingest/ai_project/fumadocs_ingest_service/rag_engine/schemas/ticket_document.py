@@ -23,10 +23,24 @@ class AutomationLabel(str, Enum):
 
 
 class ChunkType(str, Enum):
-    ISSUE_HEADER = "ISSUE_HEADER"
-    QUERY_BODY = "QUERY_BODY"
-    RESOLUTION_RCA = "RESOLUTION_RCA"
-    SOP_STEPS = "SOP_STEPS"
+    # ── Ticket chunk types ─────────────────────────────────────────────────────
+    ISSUE_HEADER   = "ISSUE_HEADER"    # ticket metadata (category, client, priority)
+    QUERY_BODY     = "QUERY_BODY"      # customer complaint — primary semantic match target
+    RESOLUTION_RCA = "RESOLUTION_RCA" # resolution steps + root cause — answer source
+
+    # ── SOP chunk types ────────────────────────────────────────────────────────
+    SOP_STEPS = "SOP_STEPS"           # standard operating procedure section
+
+    # ── Knowledge chunk types ──────────────────────────────────────────────────
+    VERIFIED_REPLY  = "VERIFIED_REPLY"   # human-reviewed Q+A
+    TROUBLESHOOTING = "TROUBLESHOOTING"  # troubleshooting procedure
+    HOW_TO          = "HOW_TO"           # step-by-step guide
+    CONCEPT         = "CONCEPT"          # explanatory prose
+    CODE_SAMPLE     = "CODE_SAMPLE"      # fenced code block
+    COMMAND         = "COMMAND"          # shell/CLI command sequence
+    FAQ_ANSWER      = "FAQ_ANSWER"       # general FAQ response
+    POLICY          = "POLICY"           # policy / compliance text
+    RCA             = "RCA"              # root cause analysis article
 
 
 class TicketSourceRow(BaseModel):

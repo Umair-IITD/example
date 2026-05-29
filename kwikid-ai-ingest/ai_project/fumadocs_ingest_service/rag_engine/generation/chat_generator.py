@@ -17,10 +17,12 @@ from __future__ import annotations
 import logging
 import os
 import re as _re
+import threading as _threading
+import time
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any, AsyncGenerator, Optional
 
 from rag_engine.generation.context_assembler import assemble_context
 from rag_engine.generation.llm_client import B1LLMClient
@@ -163,10 +165,34 @@ class ChatGenerator:
         self._history_store = history_store
         self._per_chunk_max_chars = per_chunk_max_chars
 
-    def generate(self, request: GenerationRequest) -> GenerationResult:
+    # ── Shared retrieval + context preparation ────────────────────────────────
+
+    def _compute_retrieval_context(self, request: GenerationRequest) -> dict[str, Any]:
+        """Retrieval + classification + context assembly (sync, blocking).
+
+        Starts a history fetch thread before retrieval so both run concurrently.
+        Returns all pre-LLM state needed by generate() and stream_generate().
+        """
         effective_session_id = request.session_id or str(uuid.uuid4())
         user_msg_id = str(uuid.uuid4())
         assistant_msg_id = str(uuid.uuid4())
+
+        # Start history fetch concurrently with retrieval
+        _hist_state: dict[str, Any] = {"history": []}
+
+        def _fetch_history() -> None:
+            if self._history_store and request.session_id:
+                try:
+                    _hist_state["history"] = self._history_store.fetch_recent(
+                        request.session_id, request.history_turns
+                    )
+                except Exception:  # noqa: BLE001
+                    pass
+
+        _hist_thread: _threading.Thread | None = None
+        if self._history_store and request.session_id:
+            _hist_thread = _threading.Thread(target=_fetch_history, daemon=True, name="b2_history")
+            _hist_thread.start()
 
         # ── Retrieval ─────────────────────────────────────────────────────────
         retrieval = self._retriever.retrieve(
@@ -182,12 +208,9 @@ class ChatGenerator:
         insufficient_context = len(chunks) == 0
 
         # Phase B3: True when any retrieved chunk came from the knowledge table.
-        # RetrievalResponse has no has_knowledge_context attribute — derive it from chunks.
         has_knowledge_context = any(c.source_table == "rag_knowledge_chunks" for c in chunks)
 
         diagnostics: dict[str, Any] = {
-            # Explicit top-level key so index_version is always visible in DEBUG_RAG
-            # output regardless of which retriever branch populated retrieval_metadata.
             "index_version": request.index_version,
             "returned_count": len(chunks),
             "total_candidates": retrieval.total_candidates,
@@ -203,14 +226,6 @@ class ChatGenerator:
         }
 
         # ── Workflow coverage classification ──────────────────────────────────
-        # Computed BEFORE the LLM call so the LLM sees workflow_match_type in the
-        # diagnostics JSON and applies the correct WORKFLOW COVERAGE rules.
-        #
-        # Use the boosted SOP score for exact_match classification, not raw cosine.
-        # SOP chunks receive a +0.15 retrieval boost in the RPC SQL. If we classify
-        # against raw cosine only, a SOP chunk with raw=0.47 (boosted=0.62) would
-        # be downgraded to related_match despite being a genuinely strong match.
-        # classification_sim = max(best SOP boosted score, overall raw best).
         sop_chunks_in_result = [c for c in chunks if c.source_table == "rag_sop_chunks"]
         best_sop_boosted = round(
             max((c.boosted_score for c in sop_chunks_in_result), default=0.0), 4
@@ -235,11 +250,6 @@ class ChatGenerator:
         diagnostics["partial_match_detected"] = workflow_match_type == "related_match"
 
         # ── SOP branch detection (pre-LLM) ────────────────────────────────────
-        # Detect critical decision-tree branches in retrieved SOP chunks using
-        # structure-aware regex patterns (rag_engine/sop/sop_parser.py).
-        # Results are injected into diagnostics → read by build_user_prompt() to
-        # add BRANCH MANDATE flags to the RESPONSE MODE instruction before the LLM call.
-        # Only runs when SOP chunks are present and match quality is exact or related.
         sop_flags: SopDocumentFlags | None = None
         if sop_chunks_in_result and workflow_match_type in ("exact_match", "related_match"):
             combined_sop_text = "\n\n".join(c.content for c in sop_chunks_in_result)
@@ -252,31 +262,84 @@ class ChatGenerator:
         assembled = assemble_context(chunks, per_chunk_max_chars=self._per_chunk_max_chars)
         diagnostics["context_tokens"] = assembled.total_tokens
         diagnostics["context_skipped_chunks"] = assembled.skipped_chunks
+        diagnostics["context_chunk_types"] = assembled.context_chunk_types
 
-        # ── History ───────────────────────────────────────────────────────────
-        history: list[dict[str, str]] = []
-        if self._history_store and request.session_id:
-            history = self._history_store.fetch_recent(request.session_id, request.history_turns)
+        # ── Join history fetch (it's had the entire retrieval time to complete) ─
+        if _hist_thread is not None:
+            _hist_thread.join(timeout=2.0)
+        history = list(_hist_state["history"])
+
+        return {
+            "effective_session_id": effective_session_id,
+            "user_msg_id": user_msg_id,
+            "assistant_msg_id": assistant_msg_id,
+            "chunks": chunks,
+            "assembled": assembled,
+            "diagnostics": diagnostics,
+            "history": history,
+            "retrieval": retrieval,
+            "insufficient_context": insufficient_context,
+            "has_knowledge_context": has_knowledge_context,
+            "workflow_match_type": workflow_match_type,
+            "retrieval_confidence": retrieval_confidence,
+            "branch_flags": branch_flags,
+            "sop_chunks_in_result": sop_chunks_in_result,
+            "best_sop_boosted": best_sop_boosted,
+            "sop_flags": sop_flags,
+        }
+
+    # ── Blocking (non-streaming) generation ───────────────────────────────────
+
+    def generate(self, request: GenerationRequest) -> GenerationResult:
+        t_gen_start = time.perf_counter()
+        ctx = self._compute_retrieval_context(request)
+        context_prep_ms = round((time.perf_counter() - t_gen_start) * 1000, 1)
+
+        chunks             = ctx["chunks"]
+        assembled          = ctx["assembled"]
+        diagnostics        = ctx["diagnostics"]
+        history            = ctx["history"]
+        retrieval          = ctx["retrieval"]
+        insufficient_context  = ctx["insufficient_context"]
+        has_knowledge_context = ctx["has_knowledge_context"]
+        workflow_match_type   = ctx["workflow_match_type"]
+        retrieval_confidence  = ctx["retrieval_confidence"]
+        branch_flags          = ctx["branch_flags"]
+        effective_session_id  = ctx["effective_session_id"]
+        user_msg_id           = ctx["user_msg_id"]
+        assistant_msg_id      = ctx["assistant_msg_id"]
 
         # ── LLM call ──────────────────────────────────────────────────────────
+        t_prompt = time.perf_counter()
         user_prompt = build_user_prompt(
             request.query_text,
             context_block=assembled.context_block,
             diagnostics=diagnostics,
             client=request.client,
         )
+        prompt_build_ms = round((time.perf_counter() - t_prompt) * 1000, 1)
+
+        t_llm = time.perf_counter()
+        _llm_timing: list[dict] = []
         try:
             parsed = self._llm.complete_json(
                 system_prompt=B2_SYSTEM_PROMPT,
                 user_prompt=user_prompt,
                 history=history or None,
+                _timing_capture=_llm_timing,
             )
         except Exception as exc:  # noqa: BLE001
+            llm_ms = round((time.perf_counter() - t_llm) * 1000, 1)
+            total_ms = round((time.perf_counter() - t_gen_start) * 1000, 1)
             LOGGER.error(
                 "B2 LLM call failed — returning degraded result: client=%s error=%s",
                 request.client,
                 type(exc).__name__,
             )
+            diagnostics["context_prep_ms"]     = context_prep_ms
+            diagnostics["prompt_build_ms"]     = prompt_build_ms
+            diagnostics["llm_request_ms"]      = llm_ms
+            diagnostics["total_generation_ms"] = total_ms
             return _degraded_result(
                 request=request,
                 session_id=effective_session_id,
@@ -285,6 +348,13 @@ class ChatGenerator:
                 diagnostics=diagnostics,
                 reason=str(exc),
             )
+        llm_request_ms = round((time.perf_counter() - t_llm) * 1000, 1)
+        if _llm_timing:
+            _u = _llm_timing[0]
+            diagnostics["llm_prompt_tokens"]     = _u.get("prompt_tokens")
+            diagnostics["llm_completion_tokens"] = _u.get("completion_tokens")
+            diagnostics["llm_total_tokens"]      = _u.get("total_tokens")
+            diagnostics["llm_model_name"]        = _u.get("model")
 
         # ── Normalize output ──────────────────────────────────────────────────
         answer = _sanitize_answer(str(parsed.get("answer") or ""))
@@ -300,10 +370,6 @@ class ChatGenerator:
         ) or None
 
         # ── Branch completeness check (post-LLM) ─────────────────────────────
-        # Verify that critical SOP decision-tree branches (escalation conditions,
-        # denial paths, security freeze, post-resolution steps) survived LLM summarization.
-        # Logs warnings when branches appear missing; downgrades "high" → "medium" when
-        # >= 2 branches are absent. Conservative direction — never upgrades confidence.
         if branch_flags and workflow_match_type == "exact_match":
             completeness_warnings = _check_answer_completeness(answer, branch_flags)
             if completeness_warnings:
@@ -337,7 +403,7 @@ class ChatGenerator:
             retrieval_confidence=retrieval_confidence,
         )
 
-        # Derive numeric confidence score deterministically from categorical + context signals
+        # Derive numeric confidence score deterministically
         confidence_score = _derive_confidence_score(
             confidence,
             insufficient_context=insufficient_context,
@@ -378,37 +444,58 @@ class ChatGenerator:
         diagnostics["automation_safe"]            = automation_safe
         diagnostics["automation_block_reason"]    = block_reason
 
-        # ── Persist history ───────────────────────────────────────────────────
+        # ── Generation timing ─────────────────────────────────────────────────
+        total_generation_ms = round((time.perf_counter() - t_gen_start) * 1000, 1)
+        diagnostics["context_prep_ms"]     = context_prep_ms
+        diagnostics["prompt_build_ms"]     = prompt_build_ms
+        diagnostics["llm_request_ms"]      = llm_request_ms
+        diagnostics["total_generation_ms"] = total_generation_ms
+
+        # ── Fire-and-forget history persistence ───────────────────────────────
         if request.persist_history and self._history_store:
-            self._history_store.append(
-                session_id=effective_session_id,
-                role="user",
-                content=request.query_text,
-                message_id=user_msg_id,
-                metadata={"match_count": len(chunks), "client": request.client},
-            )
-            self._history_store.append(
-                session_id=effective_session_id,
-                role="assistant",
-                content=answer,
-                message_id=assistant_msg_id,
-                metadata={
-                    "confidence": confidence,
-                    "confidence_score": confidence_score,
-                    "requires_human": requires_human,
-                    "citations": citations,
-                    "follow_up_question": follow_up,
-                    "insufficient_context": insufficient_context,
-                    "diagnostics": diagnostics,
-                    "source": "b2_rag",
-                },
-            )
+            _eff_sid = effective_session_id
+            _uid, _aid = user_msg_id, assistant_msg_id
+            _q, _cl, _nc = request.query_text, request.client, len(chunks)
+            _ans, _conf, _cscore = answer, confidence, confidence_score
+            _rh, _cit = requires_human, citations
+            _fup, _ic = follow_up, insufficient_context
+            _diag = dict(diagnostics)
+
+            def _persist() -> None:
+                try:
+                    self._history_store.append(
+                        session_id=_eff_sid,
+                        role="user",
+                        content=_q,
+                        message_id=_uid,
+                        metadata={"match_count": _nc, "client": _cl},
+                    )
+                    self._history_store.append(
+                        session_id=_eff_sid,
+                        role="assistant",
+                        content=_ans,
+                        message_id=_aid,
+                        metadata={
+                            "confidence": _conf,
+                            "confidence_score": _cscore,
+                            "requires_human": _rh,
+                            "citations": _cit,
+                            "follow_up_question": _fup,
+                            "insufficient_context": _ic,
+                            "diagnostics": _diag,
+                            "source": "b2_rag",
+                        },
+                    )
+                except Exception:  # noqa: BLE001
+                    LOGGER.warning("b2_history_persist_failed session_id=%s", _eff_sid)
+
+            _threading.Thread(target=_persist, daemon=True, name="b2_persist").start()
 
         LOGGER.info(
             "B2 generate: client=%s chunks=%d sop=%d rca=%s knowledge=%s "
             "confidence=%s confidence_score=%.3f requires_human=%s "
-            "context_tokens=%d skipped_chunks=%d retrieval_mode=%s used_fallback=%s "
-            "embedding_ms=%.0f total_ms=%.0f",
+            "context_tokens=%d skipped=%d retrieval_mode=%s used_fallback=%s "
+            "embedding_ms=%.0f context_prep_ms=%.0f llm_ms=%.0f total_ms=%.0f",
             request.client,
             len(chunks),
             assembled.sop_count,
@@ -422,7 +509,9 @@ class ChatGenerator:
             retrieval.retrieval_metadata.get("retrieval_mode", "semantic_rpc"),
             retrieval.retrieval_metadata.get("used_fallback", False),
             retrieval.retrieval_metadata.get("embedding_latency_ms", 0),
-            retrieval.total_latency_ms,
+            context_prep_ms,
+            llm_request_ms,
+            total_generation_ms,
         )
 
         return GenerationResult(
@@ -437,6 +526,135 @@ class ChatGenerator:
             session_id=effective_session_id,
             message_id=assistant_msg_id,
             insufficient_context=insufficient_context,
+        )
+
+    # ── True streaming generation ─────────────────────────────────────────────
+
+    async def stream_generate(self, request: GenerationRequest) -> AsyncGenerator[str, None]:
+        """True streaming generation — yields SSE 'data: ...' lines.
+
+        Retrieval runs synchronously in a thread pool (~3 s), then LLM tokens
+        stream back immediately. TTFB is bounded by retrieval latency, not total
+        LLM generation time.
+
+        Event types emitted:
+          {"type": "metadata", "session_id": ..., "confidence": ..., ...}
+          {"type": "token", "content": "<delta>"}
+          {"type": "done", "answer": "<full sanitized text>", ...}
+          {"type": "error", "message": "..."}
+        """
+        import asyncio
+        import json as _json
+
+        from rag_engine.generation.prompt_builder import (
+            B2_STREAM_SYSTEM_PROMPT,
+            build_stream_user_prompt,
+        )
+
+        ctx = await asyncio.to_thread(self._compute_retrieval_context, request)
+
+        chunks                = ctx["chunks"]
+        assembled             = ctx["assembled"]
+        diagnostics           = ctx["diagnostics"]
+        retrieval             = ctx["retrieval"]
+        insufficient_context  = ctx["insufficient_context"]
+        workflow_match_type   = ctx["workflow_match_type"]
+        retrieval_confidence  = ctx["retrieval_confidence"]
+        effective_session_id  = ctx["effective_session_id"]
+        user_msg_id           = ctx["user_msg_id"]
+        assistant_msg_id      = ctx["assistant_msg_id"]
+
+        # Pre-compute Python-derived confidence (no LLM wait needed)
+        if insufficient_context:
+            confidence = "low"
+        elif retrieval.has_sop_context and workflow_match_type == "exact_match":
+            confidence = "high"
+        elif retrieval.has_sop_context or workflow_match_type == "related_match":
+            confidence = "medium"
+        else:
+            confidence = "low"
+
+        requires_human = _derive_requires_human(
+            llm_flag=None,
+            insufficient_context=insufficient_context,
+            confidence=confidence,
+            has_sop_context=retrieval.has_sop_context,
+            workflow_match_type=workflow_match_type,
+            retrieval_confidence=retrieval_confidence,
+        )
+
+        # Metadata event — client can update UI before LLM starts
+        yield (
+            "data: " + _json.dumps({
+                "type": "metadata",
+                "session_id": effective_session_id,
+                "message_id": assistant_msg_id,
+                "confidence": confidence,
+                "requires_human": requires_human,
+                "workflow_match_type": workflow_match_type,
+                "chunk_count": len(chunks),
+                "context_tokens": assembled.total_tokens,
+            }) + "\n\n"
+        )
+
+        user_prompt = build_stream_user_prompt(
+            request.query_text,
+            context_block=assembled.context_block,
+            diagnostics=diagnostics,
+            client=request.client,
+        )
+
+        token_parts: list[str] = []
+        t_llm_stream_start = time.perf_counter()
+        first_token_ms: float | None = None
+        try:
+            async for token in self._llm.stream_complete_async(
+                system_prompt=B2_STREAM_SYSTEM_PROMPT,
+                user_prompt=user_prompt,
+            ):
+                if first_token_ms is None:
+                    first_token_ms = round((time.perf_counter() - t_llm_stream_start) * 1000, 1)
+                token_parts.append(token)
+                yield "data: " + _json.dumps({"type": "token", "content": token}) + "\n\n"
+        except Exception as exc:  # noqa: BLE001
+            LOGGER.error("B2 stream_generate LLM error client=%s: %s", request.client, exc)
+            yield "data: " + _json.dumps({"type": "error", "message": "LLM streaming failed"}) + "\n\n"
+            return
+        stream_completion_ms = round((time.perf_counter() - t_llm_stream_start) * 1000, 1)
+
+        answer = _sanitize_answer("".join(token_parts))
+
+        if request.persist_history and self._history_store:
+            _eff_sid, _uid, _aid = effective_session_id, user_msg_id, assistant_msg_id
+            _q, _cl, _nc = request.query_text, request.client, len(chunks)
+            _ans, _conf, _rh = answer, confidence, requires_human
+
+            def _persist() -> None:
+                try:
+                    self._history_store.append(
+                        session_id=_eff_sid, role="user", content=_q,
+                        message_id=_uid, metadata={"match_count": _nc, "client": _cl},
+                    )
+                    self._history_store.append(
+                        session_id=_eff_sid, role="assistant", content=_ans,
+                        message_id=_aid, metadata={
+                            "confidence": _conf, "requires_human": _rh, "source": "b2_stream",
+                        },
+                    )
+                except Exception:  # noqa: BLE001
+                    LOGGER.warning("b2_stream_persist_failed session_id=%s", _eff_sid)
+
+            _threading.Thread(target=_persist, daemon=True, name="b2_stream_persist").start()
+
+        yield (
+            "data: " + _json.dumps({
+                "type": "done",
+                "answer": answer,
+                "session_id": effective_session_id,
+                "message_id": assistant_msg_id,
+                "first_token_ms": first_token_ms,
+                "stream_completion_ms": stream_completion_ms,
+            }) + "\n\n"
         )
 
 

@@ -56,11 +56,20 @@ from rag_engine.schemas.ticket_document import RagTicketDocument, TicketSourceRo
 LOGGER = logging.getLogger(__name__)
 
 
-def _deterministic_document_id(ticket_id: str, index_version: str) -> str:
-    """UUID5 document ID — same ticket + version always produces the same ID."""
+def _deterministic_document_id(ticket_id: str) -> str:
+    """
+    Version-agnostic UUID5 document ID.
+
+    Used ONLY for tickets not yet present in rag_ticket_documents.
+    For tickets that already have a canonical document row, the DB-fetched
+    id is used directly — see _fetch_existing_document_ids.
+
+    The seed deliberately omits index_version: documents are shared across
+    all ingestion versions; their identity is the ticket, not the run version.
+    """
     return str(uuid.uuid5(
         uuid.NAMESPACE_URL,
-        f"freshdesk:doc:{ticket_id}:{index_version}",
+        f"freshdesk:doc:{ticket_id}",
     ))
 
 
@@ -165,8 +174,26 @@ class IngestionPipeline:
         try:
             # ── Step 2: Load source data ──────────────────────────────────────
             df = self._load_source(mode=mode, source_path=source_path)
-            run.total_source_rows = len(df)
             run.source_file = str(source_path) if source_path else "default"
+
+            # ── Step 2a: Source-level ticket deduplication ────────────────────
+            # The parquet source may contain duplicate ticket_id rows. Identical
+            # ticket_ids produce identical deterministic chunk UUIDs via UUID5.
+            # When two identical UUIDs land in the same PostgreSQL upsert batch,
+            # Postgres raises "ON CONFLICT DO UPDATE command cannot affect row a
+            # second time", rolling back the entire 50-row batch atomically and
+            # causing collateral failures for innocent chunks in the same batch.
+            # Dedup here so all downstream stages see only unique ticket_ids.
+            _pre_dedup_count = len(df)
+            df = df.drop_duplicates(subset=["ticket_id"], keep="first")
+            _deduped_count = len(df)
+            _dupes_removed = _pre_dedup_count - _deduped_count
+            if _dupes_removed:
+                LOGGER.info(
+                    "Source deduplication removed %d duplicate ticket rows (%d → %d)",
+                    _dupes_removed, _pre_dedup_count, _deduped_count,
+                )
+            run.total_source_rows = _deduped_count
 
             # ── Step 3: Apply delta filter ────────────────────────────────────
             if mode == IngestionMode.DELTA:
@@ -183,8 +210,23 @@ class IngestionPipeline:
                 run.mark_completed(t_start, time.monotonic())
                 return run
 
+            # ── Step 3a: Pre-fetch existing document IDs ─────────────────────
+            # Documents are canonical and shared across index versions.
+            # For tickets already in rag_ticket_documents, the stored ID is the
+            # authoritative FK target — a new version-specific UUID would conflict
+            # with the UNIQUE(ticket_id, source_file) constraint.
+            source_ticket_ids = [
+                str(r.get("ticket_id", "")) for _, r in df.iterrows()
+                if r.get("ticket_id")
+            ]
+            existing_doc_ids = self._fetch_existing_document_ids(source_ticket_ids)
+            LOGGER.info(
+                "Document pre-fetch: %d existing document rows found (of %d source tickets)",
+                len(existing_doc_ids), len(source_ticket_ids),
+            )
+
             # ── Step 4: Process each ticket (build + chunk) ───────────────────
-            all_docs:   list[tuple[RagTicketDocument, str]] = []  # (doc, document_id)
+            new_docs:   list[tuple[RagTicketDocument, str]] = []  # new tickets only
             all_chunks: list[TicketChunk] = []
             consecutive_errors = 0
 
@@ -201,9 +243,9 @@ class IngestionPipeline:
                     return run
 
                 try:
-                    doc, doc_id, chunks = self._process_row(row_data, run)
-                    if doc is not None:
-                        all_docs.append((doc, doc_id))
+                    doc, doc_id, chunks = self._process_row(row_data, run, existing_doc_ids)
+                    if doc is not None and doc.ticket_id not in existing_doc_ids:
+                        new_docs.append((doc, doc_id))
                     all_chunks.extend(chunks)
                     consecutive_errors = 0
                     run.documents_processed += 1
@@ -233,21 +275,32 @@ class IngestionPipeline:
                 run.mark_completed(t_start, time.monotonic())
                 return run
 
-            # ── Step 5: Upsert documents (rag_ticket_documents) ───────────────
-            # This populates the parent table so chunks have a valid document_id FK.
-            # Done before dedup so document rows exist before chunk upsert.
-            if not dry_run and all_docs:
-                doc_rows = [
-                    self._doc_to_db_row(doc, doc_id, run)
-                    for doc, doc_id in all_docs
-                ]
-                doc_upserted, doc_failed = self._upsert_documents(doc_rows, run)
+            # ── Step 5: Upsert new documents only (rag_ticket_documents) ──────
+            # Existing document rows are reused via existing_doc_ids — they are
+            # the canonical source of truth and must not be mutated by this run.
+            # Only tickets with no existing row receive a new document insert.
+            docs_reused = len(existing_doc_ids)
+            if not dry_run:
+                if new_docs:
+                    doc_rows = [
+                        self._doc_to_db_row(doc, doc_id, run)
+                        for doc, doc_id in new_docs
+                    ]
+                    doc_upserted, doc_failed = self._upsert_documents(doc_rows, run)
+                    LOGGER.info(
+                        "Document upsert: %d new inserted, %d existing reused, %d failed",
+                        doc_upserted, docs_reused, doc_failed,
+                    )
+                else:
+                    LOGGER.info(
+                        "Document upsert: 0 new (all %d existing rows reused)",
+                        docs_reused,
+                    )
+            else:
                 LOGGER.info(
-                    "Document upsert: %d upserted, %d failed",
-                    doc_upserted, doc_failed,
+                    "[DRY RUN] Would insert %d new document rows; %d existing reused.",
+                    len(new_docs), docs_reused,
                 )
-            elif dry_run:
-                LOGGER.info("[DRY RUN] Would upsert %d document rows.", len(all_docs))
 
             # ── Step 6: Deduplication ─────────────────────────────────────────
             all_ticket_ids = list({c.ticket_id for c in all_chunks})
@@ -333,6 +386,9 @@ class IngestionPipeline:
             "rca_quality_score":  doc.rca_quality_score,
             "subject":            doc.subject,
             "document_text":      doc.full_document_text,
+            "issue_header_text":  doc.issue_header_text,
+            "query_body_text":    doc.query_body_text,
+            "resolution_rca_text": doc.resolution_rca_text,
             "content_hash":       doc.content_hash,
             "agent_interactions": doc.agent_interactions,
             "handling_time_mins": doc.handling_time_mins,
@@ -373,6 +429,53 @@ class IngestionPipeline:
                 total_failed += len(batch)
 
         return total_upserted, total_failed
+
+    def _fetch_existing_document_ids(
+        self,
+        ticket_ids: list[str],
+    ) -> dict[str, str]:
+        """
+        Bulk-fetch existing document IDs from rag_ticket_documents by ticket_id.
+
+        Returns {ticket_id: document_id} for all tickets that already have a
+        canonical document row. These IDs are used as the FK target in v2+ chunks,
+        preserving the UNIQUE(ticket_id, source_file) constraint and FK integrity
+        without touching any existing document rows.
+
+        Batches IN() queries at 500 ticket_ids each to respect PostgREST limits.
+        On fetch failure, logs a warning and returns partial results — callers fall
+        back to generating new version-agnostic IDs for the missing tickets.
+        """
+        if not ticket_ids:
+            return {}
+
+        result: dict[str, str] = {}
+        _BATCH = 500  # safe upper bound for PostgREST IN() clause
+
+        for i in range(0, len(ticket_ids), _BATCH):
+            batch = ticket_ids[i : i + _BATCH]
+            try:
+                resp = (
+                    self._client.table(self._settings.ticket_documents_table)
+                    .select("id, ticket_id")
+                    .in_("ticket_id", batch)
+                    .execute()
+                )
+                for row in resp.data or []:
+                    tid = row.get("ticket_id")
+                    did = row.get("id")
+                    if tid and did:
+                        result[tid] = did
+            except Exception as exc:  # noqa: BLE001
+                LOGGER.warning(
+                    "Failed to fetch existing document IDs (batch %d/%d): %s. "
+                    "Affected tickets will attempt new document inserts.",
+                    i // _BATCH + 1,
+                    -(-len(ticket_ids) // _BATCH),
+                    exc,
+                )
+
+        return result
 
     # ── Private: streaming embed + upsert ─────────────────────────────────────
 
@@ -463,13 +566,15 @@ class IngestionPipeline:
         self,
         row_data: Any,
         run: IngestionRunRecord,
+        existing_doc_ids: dict[str, str],
     ) -> tuple[Optional[RagTicketDocument], str, list[TicketChunk]]:
         """
         Single DataFrame row → TicketSourceRow → RagTicketDocument → list[TicketChunk].
 
         Returns (doc, document_id, chunks).
         doc is None when the row is skipped (ESCALATION or no usable content).
-        document_id is always a deterministic UUID5 string, even for skipped rows.
+        document_id is the existing DB row's id if the ticket is already in
+        rag_ticket_documents, or a freshly generated version-agnostic UUID5 otherwise.
         """
         import math
 
@@ -494,9 +599,10 @@ class IngestionPipeline:
         except ValidationError as exc:
             raise ValueError(f"Schema validation failed: {exc}") from exc
 
-        placeholder_id = _deterministic_document_id(
-            str(normalized.get("ticket_id", "unknown")),
-            self._settings.index_version,
+        raw_ticket_id  = str(normalized.get("ticket_id", "unknown"))
+        placeholder_id = (
+            existing_doc_ids.get(raw_ticket_id)
+            or _deterministic_document_id(raw_ticket_id)
         )
 
         if source_row.automation_label == "ESCALATION":
@@ -508,7 +614,10 @@ class IngestionPipeline:
             run.documents_skipped += 1
             return None, placeholder_id, []
 
-        document_id = _deterministic_document_id(doc.ticket_id, self._settings.index_version)
+        document_id = (
+            existing_doc_ids.get(doc.ticket_id)
+            or _deterministic_document_id(doc.ticket_id)
+        )
         chunks = self._chunker.chunk(
             doc,
             document_id=document_id,

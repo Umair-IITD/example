@@ -77,6 +77,39 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+from rag_engine.chunking.chunk_quality_filter import ChunkQualityConfig, ChunkQualityFilter  # noqa: E402
+
+
+def _build_quality_filter() -> ChunkQualityFilter:
+    """
+    Build a ChunkQualityFilter from env vars, matching the CHUNK_QUALITY_* convention
+    used in rag_settings.py.  Called once per pipeline function so each run gets a
+    freshly reset batch-dedup state.
+    """
+    cfg = ChunkQualityConfig(
+        min_content_chars       = int(os.getenv("CHUNK_QUALITY_MIN_CONTENT_CHARS",  "30")),
+        min_alpha_chars         = int(os.getenv("CHUNK_QUALITY_MIN_ALPHA_CHARS",     "20")),
+        min_token_count         = int(os.getenv("CHUNK_QUALITY_MIN_TOKEN_COUNT",      "8")),
+        min_unique_token_ratio  = float(os.getenv("CHUNK_QUALITY_MIN_UNIQUE_RATIO",  "0.25")),
+        max_boilerplate_density = float(os.getenv("CHUNK_QUALITY_MAX_BOILERPLATE",   "0.70")),
+        reject_mime_encoded     = os.getenv("CHUNK_QUALITY_REJECT_MIME", "true").lower()
+                                  not in {"0", "false", "no", "off"},
+        encoded_token_ratio_max = float(os.getenv("CHUNK_QUALITY_ENCODED_TOKEN_RATIO_MAX", "0.40")),
+        pure_alpha_ratio_min    = float(os.getenv("CHUNK_QUALITY_PURE_ALPHA_RATIO_MIN",    "0.35")),
+    )
+    f = ChunkQualityFilter(cfg)
+    LOGGER.info(
+        "ChunkQualityFilter config: reject_mime=%s enc_ratio_max=%.2f alpha_min=%.2f "
+        "min_chars=%d min_alpha=%d min_tokens=%d",
+        cfg.reject_mime_encoded,
+        cfg.encoded_token_ratio_max,
+        cfg.pure_alpha_ratio_min,
+        cfg.min_content_chars,
+        cfg.min_alpha_chars,
+        cfg.min_token_count,
+    )
+    return f
+
 
 # ── Ingestion result tracking ─────────────────────────────────────────────────
 
@@ -86,6 +119,7 @@ class ReingestStats:
     client: str = ""
     source_docs_fetched: int = 0
     chunks_produced: int = 0
+    chunks_filtered: int = 0   # rejected by ChunkQualityFilter before embedding
     chunks_upserted: int = 0
     chunks_skipped: int = 0
     embed_errors: int = 0
@@ -132,7 +166,7 @@ def _fetch_all_paginated(
             for col, val in eq_filters.items():
                 if val is not None:
                     q = q.eq(col, val)
-        q = q.range(offset, offset + page_size - 1)
+        q = q.order("id").range(offset, offset + page_size - 1)
         resp = q.execute()
         batch = resp.data or []
         all_rows.extend(batch)
@@ -168,6 +202,9 @@ def _embed_batch(texts: list[str], api_key: str, model: str) -> list[list[float]
 
 
 # ── Chunker v2 adapter ────────────────────────────────────────────────────────
+
+import hashlib as _hashlib
+
 
 def _chunk_text(
     content: str,
@@ -211,6 +248,83 @@ def _chunk_text(
     ]
 
 
+def _chunk_ticket_sections_semantic(
+    doc: dict,
+    *,
+    target_tokens: int,
+    max_input_tokens: int,
+    overlap_tokens: int,
+) -> list[dict[str, Any]]:
+    """
+    Create semantically structured chunks preserving ISSUE_HEADER / QUERY_BODY /
+    RESOLUTION_RCA section boundaries.
+
+    When the source row has issue_header_text / query_body_text / resolution_rca_text
+    populated (written by TicketDocumentBuilder), each section becomes its own chunk
+    with the correct chunk_type. Long sections are token-split, but the section boundary
+    is never crossed.
+
+    Falls back to generic document_text chunking only for legacy rows that pre-date
+    the section column additions.
+    """
+    _SECTIONS = [
+        ("issue_header_text",   "ISSUE_HEADER"),
+        ("query_body_text",     "QUERY_BODY"),
+        ("resolution_rca_text", "RESOLUTION_RCA"),
+    ]
+
+    ticket_id   = doc.get("ticket_id") or doc["id"]
+    source_type = doc.get("source_type", "freshdesk")
+    subject     = doc.get("subject", "")
+    has_sections = any((doc.get(col) or "").strip() for col, _ in _SECTIONS)
+
+    if has_sections:
+        chunks: list[dict[str, Any]] = []
+        global_idx = 0
+        for col, chunk_type in _SECTIONS:
+            section_text = (doc.get(col) or "").strip()
+            if not section_text:
+                continue
+            # Token-split long sections; short sections become a single chunk
+            sub_chunks = _chunk_text(
+                section_text,
+                source_type=source_type,
+                source_id=ticket_id,
+                title=subject,
+                target_tokens=target_tokens,
+                max_input_tokens=max_input_tokens,
+                overlap_tokens=overlap_tokens,
+            )
+            for local_idx, sc in enumerate(sub_chunks):
+                # Use a stable ID that incorporates chunk_type and global position
+                id_str = f"v2_ticket:{ticket_id}:{chunk_type}:{local_idx}"
+                content_hash = _hashlib.sha256(sc["content"].encode()).hexdigest()
+                chunks.append({
+                    "chunk_id":    id_str,
+                    "content":     sc["content"],
+                    "chunk_index": global_idx,
+                    "chunk_type":  chunk_type,
+                    "content_hash": content_hash,
+                })
+                global_idx += 1
+        return chunks
+
+    # Legacy fallback: section columns absent — chunk full document_text generically
+    text = (doc.get("document_text") or "").strip()
+    if not text:
+        return []
+    raw = _chunk_text(
+        text,
+        source_type=source_type,
+        source_id=ticket_id,
+        title=subject,
+        target_tokens=target_tokens,
+        max_input_tokens=max_input_tokens,
+        overlap_tokens=overlap_tokens,
+    )
+    return [{**c, "chunk_type": "QUERY_BODY"} for c in raw]
+
+
 # ── Table-specific reingest functions ─────────────────────────────────────────
 
 def _reingest_ticket_chunks(
@@ -230,15 +344,19 @@ def _reingest_ticket_chunks(
     stats = ReingestStats(table="rag_ticket_chunks", client=client)
     t0 = time.perf_counter()
 
+    quality_filter = _build_quality_filter()
+
     LOGGER.info("[ticket] Fetching rag_ticket_documents for client=%s (paginated) ...", client)
     # Paginated: rag_ticket_documents can exceed 1000 rows for large tenants.
     # A single .execute() without pagination would silently truncate the result.
+    # Select section columns so _chunk_ticket_sections_semantic() can preserve structure.
     docs = _fetch_all_paginated(
         supabase,
         "rag_ticket_documents",
         "id,ticket_id,source_type,subject,document_text,automation_label,"
         "has_rca,has_sop,query_type,issue_area,environment,"
-        "escalation_flag,ingestion_run_id,ticket_created_at",
+        "escalation_flag,ingestion_run_id,ticket_created_at,"
+        "issue_header_text,query_body_text,resolution_rca_text",
         eq_filters={"client": client},
         description=f"rag_ticket_documents client={client}",
     )
@@ -248,23 +366,35 @@ def _reingest_ticket_chunks(
     chunk_rows: list[dict[str, Any]] = []
 
     for doc in docs:
-        text = (doc.get("document_text") or "").strip()
-        if not text:
-            if verbose:
-                LOGGER.debug("[ticket] Skipping empty document ticket_id=%s", doc.get("ticket_id"))
-            continue
-
-        chunks = _chunk_text(
-            text,
-            source_type=doc.get("source_type", "freshdesk"),
-            source_id=doc.get("ticket_id", doc["id"]),
-            title=doc.get("subject", ""),
+        # Use semantic section chunking when section columns are populated.
+        # Falls back to generic document_text chunking for legacy rows.
+        chunks = _chunk_ticket_sections_semantic(
+            doc,
             target_tokens=target_tokens,
             max_input_tokens=max_input_tokens,
             overlap_tokens=overlap_tokens,
         )
+        if not chunks:
+            if verbose:
+                LOGGER.debug("[ticket] Skipping empty document ticket_id=%s", doc.get("ticket_id"))
+            continue
 
         for c in chunks:
+            qf_result = quality_filter.check(
+                c["content"],
+                context=f"ticket_id={doc.get('ticket_id')} type={c.get('chunk_type')}",
+            )
+            if not qf_result.is_valid:
+                stats.chunks_filtered += 1
+                LOGGER.debug(
+                    "[ticket] FILTERED ticket_id=%s type=%s reason=%s preview=%r",
+                    doc.get("ticket_id"),
+                    c.get("chunk_type"),
+                    qf_result.rejection_reason,
+                    c["content"][:120],
+                )
+                continue
+
             chunk_rows.append({
                 "id_str":           c["chunk_id"],
                 "document_id":      doc["id"],
@@ -272,7 +402,7 @@ def _reingest_ticket_chunks(
                 "source_type":      doc.get("source_type", "freshdesk"),
                 "client":           client,
                 "chunk_index":      c["chunk_index"],
-                "chunk_type":       "QUERY_BODY",
+                "chunk_type":       c["chunk_type"],
                 "chunk_total":      len(chunks),
                 "content":          c["content"],
                 "word_count":       len(c["content"].split()),
@@ -292,7 +422,14 @@ def _reingest_ticket_chunks(
             })
 
     stats.chunks_produced = len(chunk_rows)
-    LOGGER.info("[ticket] Produced %d chunks (token-aware v2)", len(chunk_rows))
+    chunk_type_dist: dict[str, int] = {}
+    for row in chunk_rows:
+        chunk_type_dist[row["chunk_type"]] = chunk_type_dist.get(row["chunk_type"], 0) + 1
+    LOGGER.info(
+        "[ticket] Produced %d chunks (semantic sections): %s",
+        len(chunk_rows),
+        ", ".join(f"{k}={v}" for k, v in sorted(chunk_type_dist.items())),
+    )
 
     if dry_run:
         LOGGER.info("[ticket] DRY RUN — skipping embed and upsert")
@@ -327,6 +464,8 @@ def _reingest_sop_chunks(
 ) -> ReingestStats:
     stats = ReingestStats(table="rag_sop_chunks", client=client)
     t0 = time.perf_counter()
+
+    quality_filter = _build_quality_filter()
 
     LOGGER.info("[sop] Fetching rag_sop_library (paginated) ...")
     # Paginated: fetch all SOP rows, then filter in Python.
@@ -363,6 +502,20 @@ def _reingest_sop_chunks(
             overlap_tokens=overlap_tokens,
         )
         for c in chunks:
+            qf_result = quality_filter.check(
+                c["content"],
+                context=f"sop_id={sop['sop_id']}",
+            )
+            if not qf_result.is_valid:
+                stats.chunks_filtered += 1
+                LOGGER.debug(
+                    "[sop] FILTERED sop_id=%s reason=%s preview=%r",
+                    sop["sop_id"],
+                    qf_result.rejection_reason,
+                    c["content"][:120],
+                )
+                continue
+
             chunk_rows.append({
                 "id_str":        c["chunk_id"],
                 "sop_id":        sop["sop_id"],
@@ -416,6 +569,8 @@ def _reingest_knowledge_chunks(
     stats = ReingestStats(table="rag_knowledge_chunks", client=client)
     t0 = time.perf_counter()
 
+    quality_filter = _build_quality_filter()
+
     LOGGER.info("[knowledge] Fetching rag_knowledge_articles (paginated) ...")
     # Paginated: fetch all articles, then filter in Python.
     # Knowledge articles use clients[] — cannot filter array membership in PostgREST
@@ -468,6 +623,20 @@ def _reingest_knowledge_chunks(
             overlap_tokens=overlap_tokens,
         )
         for c in chunks:
+            qf_result = quality_filter.check(
+                c["content"],
+                context=f"article_id={article['article_id']}",
+            )
+            if not qf_result.is_valid:
+                stats.chunks_filtered += 1
+                LOGGER.debug(
+                    "[knowledge] FILTERED article_id=%s reason=%s preview=%r",
+                    article["article_id"],
+                    qf_result.rejection_reason,
+                    c["content"][:120],
+                )
+                continue
+
             chunk_rows.append({
                 "id_str":          c["chunk_id"],
                 "article_id":      article["article_id"],
@@ -563,24 +732,38 @@ def _embed_and_upsert(
         LOGGER.warning("[%s] No chunks to upsert after embedding", table)
         return
 
-    # Upsert in batches
-    for batch_start in range(0, len(rows_to_upsert), upsert_batch_size):
-        batch = rows_to_upsert[batch_start: batch_start + upsert_batch_size]
+    # Upsert in batches with automatic halving on statement timeout (code 57014)
+    def _upsert_with_retry(rows: list, batch_label: str, min_size: int = 5) -> None:
+        """Try to upsert rows; on timeout split into halves and retry recursively."""
+        if not rows:
+            return
         try:
             supabase.table(table).upsert(
-                batch,
-                on_conflict="id",  # deterministic UUIDs — safe idempotent upsert
+                rows,
+                on_conflict="id",
             ).execute()
-            stats.chunks_upserted += len(batch)
+            stats.chunks_upserted += len(rows)
             if verbose:
-                LOGGER.debug(
-                    "[%s] Upserted batch %d-%d (%d rows)",
-                    table, batch_start, batch_start + len(batch) - 1, len(batch),
-                )
+                LOGGER.debug("[%s] Upserted %s (%d rows)", table, batch_label, len(rows))
         except Exception as exc:
-            stats.upsert_errors += 1
-            stats.errors.append(f"Upsert batch {batch_start}: {exc}")
-            LOGGER.warning("[%s] Upsert error batch %d: %s", table, batch_start, exc)
+            exc_str = str(exc)
+            is_timeout = "57014" in exc_str or "statement timeout" in exc_str.lower()
+            half = len(rows) // 2
+            if is_timeout and half >= min_size:
+                LOGGER.warning(
+                    "[%s] Timeout on %s (%d rows) — retrying as two halves of %d/%d",
+                    table, batch_label, len(rows), half, len(rows) - half,
+                )
+                _upsert_with_retry(rows[:half], f"{batch_label}a", min_size)
+                _upsert_with_retry(rows[half:], f"{batch_label}b", min_size)
+            else:
+                stats.upsert_errors += 1
+                stats.errors.append(f"Upsert {batch_label}: {exc}")
+                LOGGER.warning("[%s] Upsert error %s: %s", table, batch_label, exc)
+
+    for batch_start in range(0, len(rows_to_upsert), upsert_batch_size):
+        batch = rows_to_upsert[batch_start: batch_start + upsert_batch_size]
+        _upsert_with_retry(batch, f"batch {batch_start}")
 
     LOGGER.info(
         "[%s] Upserted %d/%d chunks (%d skipped, %d errors)",
@@ -793,9 +976,10 @@ def _parse_args() -> argparse.Namespace:
         "--all-clients", action="store_true",
         help="Reingest ALL tenants found in rag_ticket_documents",
     )
-    client_group.add_argument(
+
+    parser.add_argument(
         "--rollback", action="store_true",
-        help="Delete all v2 rows for the specified --client",
+        help="Delete all v2 rows for the specified --client (requires --client)",
     )
 
     parser.add_argument(
@@ -828,7 +1012,12 @@ def _parse_args() -> argparse.Namespace:
         help="Verbose per-batch logging",
     )
 
-    return parser.parse_args()
+    args = parser.parse_args()
+
+    if args.rollback and not args.client:
+        parser.error("--rollback requires --client SLUG")
+
+    return args
 
 
 def main() -> int:
@@ -871,9 +1060,6 @@ def main() -> int:
 
     # Rollback path
     if args.rollback:
-        if not args.client:
-            LOGGER.error("--rollback requires --client SLUG")
-            return 1
         _rollback_v2(supabase, args.client, active_tables, args.dry_run)
         return 0
 
@@ -947,10 +1133,10 @@ def main() -> int:
     LOGGER.info("=" * 60)
     for s in all_stats:
         LOGGER.info(
-            "  %-30s client=%-15s docs=%d chunks_produced=%d upserted=%d skipped=%d "
+            "  %-30s client=%-15s docs=%d produced=%d filtered=%d upserted=%d skipped=%d "
             "errors=%d duration=%.1fs",
             s.table, s.client, s.source_docs_fetched, s.chunks_produced,
-            s.chunks_upserted, s.chunks_skipped,
+            s.chunks_filtered, s.chunks_upserted, s.chunks_skipped,
             s.embed_errors + s.upsert_errors, s.duration_s,
         )
         for err in s.errors[:3]:

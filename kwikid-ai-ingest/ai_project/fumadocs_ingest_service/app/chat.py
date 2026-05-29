@@ -380,8 +380,8 @@ class ChatGPTClient:
 class ChatHistoryStore:
     """Persists chat turns in public.chat_messages (separate from vector `documents`)."""
 
-    def __init__(self, supabase_url: str, supabase_key: str, table_name: str = "chat_messages") -> None:
-        self._client: Client = create_client(supabase_url, supabase_key)
+    def __init__(self, supabase_url: str, supabase_key: str, table_name: str = "chat_messages", *, supabase_client: Any = None) -> None:
+        self._client: Client = supabase_client if supabase_client is not None else create_client(supabase_url, supabase_key)
         self._table_name = table_name
 
     def fetch_recent_turns(self, session_id: str, limit: int) -> list[dict[str, str]]:
@@ -452,6 +452,7 @@ def run_chat(
     strict_latest_within_top_n: bool | None = None,
     chat_history_turns: int | None = None,
     persist_history: bool = True,
+    supabase_client: Any = None,
 ) -> ChatResult:
     effective_session_id = session_id or str(uuid.uuid4())
     user_message_id = str(uuid.uuid4())
@@ -476,6 +477,7 @@ def run_chat(
         supabase_url=settings.supabase_url,
         supabase_key=settings.supabase_key,
         table_name=settings.chat_history_table,
+        supabase_client=supabase_client,
     )
 
     history = _fetch_history(

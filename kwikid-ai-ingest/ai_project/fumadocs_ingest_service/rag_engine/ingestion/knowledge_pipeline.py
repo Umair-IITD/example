@@ -40,6 +40,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Optional
 
+from rag_engine.chunking.chunk_quality_filter import ChunkQualityConfig, ChunkQualityFilter
+from rag_engine.chunking.knowledge_chunker import KnowledgeChunker
 from rag_engine.config.rag_settings import RagEngineSettings
 from rag_engine.embedding.base import EmbeddingProvider
 from rag_engine.ingestion.knowledge_classifier import KnowledgeClass, KnowledgeClassifier
@@ -142,6 +144,7 @@ class KnowledgeIngestionResult:
     articles_rejected:   int   = 0   # classifier rejected
     articles_failed:     int   = 0   # unexpected error
     chunks_created:      int   = 0
+    chunks_rejected:     int   = 0   # quality filter rejections
     embeddings_generated: int  = 0
     pii_redactions:      int   = 0
     duration_s:          float = 0.0
@@ -149,10 +152,12 @@ class KnowledgeIngestionResult:
     def log_summary(self) -> None:
         LOGGER.info(
             "Knowledge ingestion: %d inserted, %d updated, %d skipped, "
-            "%d rejected, %d failed | %d chunks embedded | %d PII redactions | %.1fs",
+            "%d rejected, %d failed | %d chunks embedded, %d quality-filtered | "
+            "%d PII redactions | %.1fs",
             self.articles_inserted, self.articles_updated, self.articles_skipped,
             self.articles_rejected, self.articles_failed,
-            self.embeddings_generated, self.pii_redactions, self.duration_s,
+            self.embeddings_generated, self.chunks_rejected,
+            self.pii_redactions, self.duration_s,
         )
 
 
@@ -187,6 +192,18 @@ class KnowledgePipeline:
         self._classifier = KnowledgeClassifier()
         self._parser     = StackOverflowParser()
 
+        # Quality filter — shared across articles within a run; reset per run
+        _qf_config = ChunkQualityConfig(
+            min_content_chars       = settings.chunk_quality_min_content_chars,
+            min_alpha_chars         = settings.chunk_quality_min_alpha_chars,
+            min_token_count         = settings.chunk_quality_min_token_count,
+            min_unique_token_ratio  = settings.chunk_quality_min_unique_ratio,
+            max_boilerplate_density = settings.chunk_quality_max_boilerplate,
+            encoded_token_ratio_max = settings.chunk_quality_encoded_token_ratio_max,
+            pure_alpha_ratio_min    = settings.chunk_quality_pure_alpha_ratio_min,
+        )
+        self._quality_filter = ChunkQualityFilter(_qf_config)
+
     # ── Public API ─────────────────────────────────────────────────────────────
 
     def run(
@@ -207,6 +224,7 @@ class KnowledgePipeline:
         """
         result  = KnowledgeIngestionResult()
         t_start = time.monotonic()
+        self._quality_filter.reset_batch()
 
         LOGGER.info(
             "KnowledgePipeline: starting run data_dir=%s dry_run=%s client_filter=%s",
@@ -244,6 +262,7 @@ class KnowledgePipeline:
                 result.articles_skipped   += article_result["skipped"]
                 result.articles_rejected  += article_result["rejected"]
                 result.chunks_created     += article_result["chunks"]
+                result.chunks_rejected    += article_result.get("chunks_rejected", 0)
                 result.pii_redactions     += article_result["pii_redactions"]
                 if article_result.get("chunk_records"):
                     to_embed.extend(article_result["chunk_records"])
@@ -500,33 +519,39 @@ class KnowledgePipeline:
         answer_score:    int,
         source_post_id:  int,
     ) -> list[dict]:
-        """Split embed_text into chunks and build DB-ready dicts."""
-        raw_chunks = _chunk_text(
-            embed_text,
-            target_words   = 350,
-            overlap_words  = 50,
-            min_chunk_chars= self._settings.knowledge_min_chunk_chars,
+        """
+        Split embed_text into semantic chunks using KnowledgeChunker and
+        apply ChunkQualityFilter before building DB-ready records.
+        """
+        chunker = KnowledgeChunker(
+            knowledge_class      = knowledge_class,
+            chunk_target_tokens  = self._settings.chunk_target_tokens,
+            chunk_overlap_tokens = self._settings.chunk_overlap_tokens,
+            max_input_tokens     = self._settings.embedding_max_input_tokens,
+            embedding_model      = self._settings.embedding_model,
+            min_chunk_chars      = self._settings.knowledge_min_chunk_chars,
         )
-        if not raw_chunks:
+        semantic_chunks = chunker.chunk(
+            embed_text,
+            article_id    = article_id,
+            index_version = self._settings.index_version,
+        )
+        if not semantic_chunks:
             return []
 
-        # Map knowledge_class to chunk_type label
-        chunk_type = self._knowledge_class_to_chunk_type(knowledge_class)
-
-        records: list[dict] = []
-        for idx, content in enumerate(raw_chunks):
-            content_hash = _sha256(content)
-            chunk_id     = _knowledge_chunk_id(article_id, idx, self._settings.index_version)
-            records.append({
-                "id":              chunk_id,
+        # Build raw record dicts for quality filtering
+        raw_records: list[dict] = []
+        for kc in semantic_chunks:
+            raw_records.append({
+                "id":              kc.chunk_id,
                 "article_id":      article_id,
                 "source_post_id":  source_post_id,
-                "chunk_index":     idx,
-                "chunk_type":      chunk_type,
-                "content":         content,
-                "word_count":      len(content.split()),
-                "content_hash":    content_hash,
-                "embedding":       None,  # filled during batch embed
+                "chunk_index":     kc.chunk_index,
+                "chunk_type":      kc.chunk_type,
+                "content":         kc.content,
+                "word_count":      kc.word_count,
+                "content_hash":    kc.content_hash,
+                "embedding":       None,
                 "clients":         clients,
                 "tags_raw":        tags_raw,
                 "knowledge_class": knowledge_class.value,
@@ -536,18 +561,20 @@ class KnowledgePipeline:
                 "ingested_at":     datetime.now(timezone.utc).isoformat(),
                 "index_version":   self._settings.index_version,
             })
-        return records
 
-    @staticmethod
-    def _knowledge_class_to_chunk_type(klass: KnowledgeClass) -> str:
-        """Map KnowledgeClass to the chunk_type stored in the DB."""
-        return {
-            KnowledgeClass.VERIFIED_REPLY:  "VERIFIED_REPLY",
-            KnowledgeClass.TROUBLESHOOTING: "TROUBLESHOOTING",
-            KnowledgeClass.FAQ:             "FAQ_ANSWER",
-            KnowledgeClass.POLICY:          "POLICY",
-            KnowledgeClass.RCA:             "RCA",
-        }.get(klass, "FAQ_ANSWER")
+        # Quality gate — reject boilerplate, tiny, or repetitive chunks
+        valid_records, rejected = self._quality_filter.filter_batch(
+            raw_records,
+            content_key="content",
+            context_key="article_id",
+        )
+        if rejected:
+            LOGGER.info(
+                "Knowledge article %s: %d/%d chunks rejected by quality filter",
+                article_id, len(rejected), len(raw_records),
+            )
+
+        return valid_records
 
     # ── Private: batch embedding + upsert ─────────────────────────────────────
 

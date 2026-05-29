@@ -129,6 +129,22 @@ class RagEngineSettings:
     knowledge_source_dir:         str     # default relative path to More_data/
     tenant_map_path:              str     # optional JSON override for tag→client mapping
 
+    # ── Chunk quality filter thresholds ───────────────────────────────────────
+    # Applied before embedding to reject low-signal chunks.
+    # Tighten these only after validating recall impact on benchmark queries.
+    chunk_quality_min_content_chars:   int    # fast gate: minimum raw character count
+    chunk_quality_min_alpha_chars:     int    # minimum alphabetic character count
+    chunk_quality_min_token_count:     int    # minimum whitespace-delimited token count
+    chunk_quality_min_unique_ratio:    float  # unique_tokens / total_tokens floor
+    chunk_quality_max_boilerplate:     float  # maximum boilerplate phrase density
+
+    # ── Chunk quality: MIME / encoded-content thresholds ──────────────────────
+    # Hard reject when this fraction of meaningful tokens are encoded-like
+    # (digit+letter mix, or pure-alpha with high case-switch ratio).
+    chunk_quality_encoded_token_ratio_max: float
+    # Minimum pure-alpha token ratio. Used only when encoded_token_ratio > 0.25.
+    chunk_quality_pure_alpha_ratio_min:    float
+
 
 def get_rag_settings() -> RagEngineSettings:
     _service_root    = Path(__file__).parent.parent.parent
@@ -208,4 +224,15 @@ def get_rag_settings() -> RagEngineSettings:
         # Phase B3: ingestion paths
         knowledge_source_dir=_env_str("B3_KNOWLEDGE_SOURCE_DIR", ""),
         tenant_map_path     =_env_str("B3_TENANT_MAP_PATH",       ""),
+
+        # Chunk quality filter thresholds
+        chunk_quality_min_content_chars =_env_int  ("CHUNK_QUALITY_MIN_CONTENT_CHARS",  30),
+        chunk_quality_min_alpha_chars   =_env_int  ("CHUNK_QUALITY_MIN_ALPHA_CHARS",     20),
+        chunk_quality_min_token_count   =_env_int  ("CHUNK_QUALITY_MIN_TOKEN_COUNT",      8),
+        chunk_quality_min_unique_ratio  =_env_float("CHUNK_QUALITY_MIN_UNIQUE_RATIO",   0.25),
+        chunk_quality_max_boilerplate   =_env_float("CHUNK_QUALITY_MAX_BOILERPLATE",    0.70),
+
+        # Chunk quality: MIME / encoded-content thresholds
+        chunk_quality_encoded_token_ratio_max=_env_float("CHUNK_QUALITY_ENCODED_TOKEN_RATIO_MAX", 0.40),
+        chunk_quality_pure_alpha_ratio_min   =_env_float("CHUNK_QUALITY_PURE_ALPHA_RATIO_MIN",    0.35),
     )

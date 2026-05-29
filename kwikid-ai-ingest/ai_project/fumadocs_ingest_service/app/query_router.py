@@ -120,13 +120,25 @@ _ROUTES: list[RouteDefinition] = [
             "timeout error", "connection refused", "stack trace", "exception",
             "null pointer", "500 error", "503 error", "404 not found",
             "integration error", "webhook failed", "callback failed",
+            # Auth / session failures
+            "401", "403", "unauthorized", "forbidden",
+            "authentication failed", "auth failed", "token expired",
+            "token invalid", "session expired", "session invalid",
+            "login failed", "access denied", "permission denied",
+            # API / webhook patterns
+            "api returning", "api response", "api timeout",
+            "webhook not", "webhook error", "webhook timeout",
+            "endpoint not", "endpoint error", "endpoint returning",
+            # Network / TLS
+            "ssl error", "tls error", "certificate", "dns error",
+            "connection timeout", "connection reset",
         ),
         priority=5,
         retrieval_strategy={
             "requires_human_review": False,
             "boost_sop": True,
             "boost_knowledge": True,
-            "chunk_types_hint": ["QUERY_BODY", "SOP_STEPS"],
+            "chunk_types_hint": ["RESOLUTION_RCA", "QUERY_BODY", "SOP_STEPS"],
         },
     ),
     RouteDefinition(
@@ -150,13 +162,18 @@ _ROUTES: list[RouteDefinition] = [
             "not working", "doesn't work", "does not work", "not able to",
             "unable to", "cannot", "can't", "issue with", "problem with",
             "error", "failed", "failure", "broken", "fix", "resolve", "stuck",
+            # Session / login general issues
+            "session", "login", "sign in", "sign-in", "not logging",
+            "not loading", "not responding", "slow", "keeps failing",
+            "intermittent", "sometimes", "randomly", "page not",
+            "not received", "not getting", "not sending", "not syncing",
         ),
         priority=7,
         retrieval_strategy={
             "requires_human_review": False,
             "boost_sop": True,
             "boost_knowledge": False,
-            "chunk_types_hint": ["QUERY_BODY", "SOP_STEPS"],
+            "chunk_types_hint": ["RESOLUTION_RCA", "QUERY_BODY", "SOP_STEPS"],
         },
     ),
     RouteDefinition(

@@ -54,6 +54,21 @@ _PRIORITY_DISPLAY: dict[str, str] = {
     "urgent": "Urgent",
 }
 
+# Generic resolution status values that carry no semantic signal for RAG retrieval.
+# Including these as document content creates near-identical embeddings across thousands
+# of tickets (e.g. "Within SLA" appears on ~80% of resolved tickets), collapsing the
+# semantic space and degrading retrieval precision.
+_BOILERPLATE_STATUSES: frozenset[str] = frozenset({
+    "within sla",
+    "resolved",
+    "closed",
+    "completed",
+    "done",
+    "fixed",
+    "resolved - within sla",
+    "closed - within sla",
+})
+
 
 def _sha256(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
@@ -186,7 +201,6 @@ class TicketDocumentBuilder:
         The LLM draws from this section to draft its response.
         """
         if not row.has_usable_rca:
-            # Add context signals even without RCA text
             parts = ["[TROUBLESHOOTING AND RESOLUTION]"]
 
             if row.sop_status == "SOP Present" and row.has_sop:
@@ -197,7 +211,11 @@ class TicketDocumentBuilder:
             elif row.sop_status == "Solved by SOP":
                 parts.append("This issue was resolved by following the standard SOP.")
 
-            if row.resolution_status:
+            # Only include resolution_status when it carries semantic signal.
+            # Generic values like "Within SLA" / "Resolved" appear on ~80% of tickets
+            # and create near-identical embeddings — omit them to avoid semantic collapse.
+            status_lower = (row.resolution_status or "").strip().lower()
+            if row.resolution_status and status_lower not in _BOILERPLATE_STATUSES:
                 parts.append(f"Resolution Status: {row.resolution_status}")
 
             return _clean_whitespace("\n".join(parts)) if len(parts) > 1 else ""

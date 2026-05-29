@@ -202,66 +202,98 @@ def bench_match_all_b1_sources_pooled(
     return latencies
 
 
-# ─── Stage 4: Individual legs (ticket-only, SOP-only) ─────────────────────────
+# ─── Stage 4: v2 HNSW retrieval legs (match_b1_ticket_chunks_v2 / match_b1_sop_chunks_v2) ──
 
-def bench_individual_legs(
+def bench_v2_legs(
     supabase_url: str,
     supabase_key: str,
     embedding: list[float],
     client_slug: str,
     match_count: int,
-    threshold: float,
     index_version: str,
-) -> dict[str, float]:
-    """Run match_ticket_chunks and match_sop_chunks separately to compare."""
+    iterations: int = 3,
+) -> dict[str, list[float]]:
+    """
+    Benchmark the B1_010/B1_012 HNSW-compatible v2 retrieval functions.
+    These are the functions that should use partial HNSW indexes after B1_012 is applied.
+
+    IMPORTANT: The partial index (idx_rtc_embedding_hnsw_unity_v2) only activates when:
+      1. B1_012 is applied (PL/pgSQL with literal injection)
+      2. ACTIVE_INDEX_VERSION=v2 is set in .env (so index_version='v2' is passed)
+      3. The partial index for v1 (idx_rtc_embedding_hnsw_unity_v1) is used when v1 is active
+
+    After B1_012, run EXPLAIN ANALYZE in Supabase SQL Editor to confirm:
+      EXPLAIN (ANALYZE, FORMAT TEXT, BUFFERS)
+      SELECT * FROM public.match_b1_ticket_chunks_v2(
+          '[0.01, ...]'::VECTOR(1536), 'unity_bank', 40, 'v2'
+      );
+      Expected: "Index Scan using idx_rtc_embedding_hnsw_unity_v2"
+      Expected: "Rows Removed by Filter: 0"
+    """
     from supabase import create_client  # type: ignore
 
     sb = create_client(supabase_url, supabase_key)
-    results: dict[str, float] = {}
+    results: dict[str, list[float]] = {
+        "match_b1_ticket_chunks_v2": [],
+        "match_b1_sop_chunks_v2": [],
+        "search_b1_sources_fts": [],
+    }
 
-    print(f"\n[Stage 4] Individual search legs (shared client)")
+    print(f"\n[Stage 4] v2 HNSW retrieval legs (shared client, {iterations} iters each)")
+    print(f"  client={client_slug!r} | index_version={index_version!r} | match_count={match_count}")
 
-    # Ticket chunks only
-    t0 = time.perf_counter()
-    try:
-        resp = sb.rpc(
-            "match_ticket_chunks",
-            {
-                "p_query_embedding": embedding,
-                "p_client": client_slug,
-                "p_match_count": match_count,
-                "p_match_threshold": threshold,
-                "p_index_version": index_version,
-            },
-        ).execute()
-        elapsed = (time.perf_counter() - t0) * 1000
-        results["match_ticket_chunks"] = elapsed
-        print(f"  match_ticket_chunks: {_fmt_ms(elapsed)} — rows={len(resp.data or [])}")
-    except Exception as exc:
-        print(f"  match_ticket_chunks: FAILED — {exc}")
-        results["match_ticket_chunks"] = -1.0
+    for i in range(iterations):
+        # ── Ticket chunks v2 ─────────────────────────────────────────────────
+        t0 = time.perf_counter()
+        try:
+            resp = sb.rpc(
+                "match_b1_ticket_chunks_v2",
+                {
+                    "p_query_embedding": embedding,
+                    "p_client": client_slug,
+                    "p_match_count": match_count,
+                    "p_index_version": index_version,
+                },
+            ).execute()
+            elapsed = (time.perf_counter() - t0) * 1000
+            results["match_b1_ticket_chunks_v2"].append(elapsed)
+            rows = resp.data or []
+            if i == 0:
+                print(f"\n  match_b1_ticket_chunks_v2:")
+            print(f"    iter {i+1}: {_fmt_ms(elapsed)} — rows={len(rows)}"
+                  + (" [warm]" if i > 0 else " [first]"))
+        except Exception as exc:
+            print(f"  match_b1_ticket_chunks_v2: FAILED — {type(exc).__name__}: {exc}")
+            print("    Apply sql/b1_migrations/B1_010_hnsw_compatible_retrieval.sql first.")
+            results["match_b1_ticket_chunks_v2"].append(-1.0)
 
-    # SOP chunks only
-    t0 = time.perf_counter()
-    try:
-        resp = sb.rpc(
-            "match_sop_chunks",
-            {
-                "p_query_embedding": embedding,
-                "p_client": client_slug,
-                "p_match_count": match_count,
-                "p_match_threshold": 0.20,  # SOPs use lower threshold
-                "p_index_version": index_version,
-            },
-        ).execute()
-        elapsed = (time.perf_counter() - t0) * 1000
-        results["match_sop_chunks"] = elapsed
-        print(f"  match_sop_chunks:   {_fmt_ms(elapsed)} — rows={len(resp.data or [])}")
-    except Exception as exc:
-        print(f"  match_sop_chunks: FAILED — {exc}")
-        results["match_sop_chunks"] = -1.0
+    for i in range(iterations):
+        # ── SOP chunks v2 ────────────────────────────────────────────────────
+        t0 = time.perf_counter()
+        try:
+            resp = sb.rpc(
+                "match_b1_sop_chunks_v2",
+                {
+                    "p_query_embedding": embedding,
+                    "p_client": client_slug,
+                    "p_match_count": match_count,
+                    "p_index_version": index_version,
+                },
+            ).execute()
+            elapsed = (time.perf_counter() - t0) * 1000
+            results["match_b1_sop_chunks_v2"].append(elapsed)
+            rows = resp.data or []
+            if i == 0:
+                print(f"\n  match_b1_sop_chunks_v2:")
+            print(f"    iter {i+1}: {_fmt_ms(elapsed)} — rows={len(rows)}"
+                  + (" [warm]" if i > 0 else " [first]"))
+        except Exception as exc:
+            print(f"  match_b1_sop_chunks_v2: FAILED — {type(exc).__name__}: {exc}")
+            print("    Apply sql/b1_migrations/B1_010_hnsw_compatible_retrieval.sql first.")
+            results["match_b1_sop_chunks_v2"].append(-1.0)
 
-    # FTS search
+    # ── FTS ──────────────────────────────────────────────────────────────────
+    print(f"\n  search_b1_sources_fts (FTS, runs parallel to embedding in production):")
     t0 = time.perf_counter()
     try:
         resp = sb.rpc(
@@ -274,13 +306,61 @@ def bench_individual_legs(
             },
         ).execute()
         elapsed = (time.perf_counter() - t0) * 1000
-        results["search_b1_sources_fts"] = elapsed
-        print(f"  search_b1_sources_fts: {_fmt_ms(elapsed)} — rows={len(resp.data or [])}")
+        results["search_b1_sources_fts"].append(elapsed)
+        print(f"    iter 1: {_fmt_ms(elapsed)} — rows={len(resp.data or [])}")
     except Exception as exc:
-        print(f"  search_b1_sources_fts: FAILED ({type(exc).__name__}) — likely B1_008 not applied")
-        results["search_b1_sources_fts"] = -1.0
+        print(f"    FAILED ({type(exc).__name__}) — B1_008 migration not yet applied")
+        results["search_b1_sources_fts"].append(-1.0)
 
     return results
+
+
+def print_index_verification_instructions(client_slug: str, index_version: str) -> None:
+    """Print SQL to verify partial index usage in Supabase SQL Editor."""
+    _header("PARTIAL INDEX VERIFICATION (run in Supabase SQL Editor)")
+    print(f"""
+  After applying B1_012, run these in the Supabase SQL Editor:
+
+  -- 1. Confirm partial indexes are valid:
+  SELECT indexrelname,
+         pg_size_pretty(pg_relation_size(indexrelid)) AS idx_size,
+         idx_scan
+  FROM pg_stat_user_indexes
+  WHERE indexrelname IN (
+      'idx_rtc_embedding_hnsw_{client_slug}_{index_version}',
+      'idx_rsc_embedding_hnsw_{index_version}',
+      'idx_rtc_embedding_hnsw',
+      'idx_rsc_embedding_hnsw'
+  );
+
+  -- 2. EXPLAIN on ticket function (replace [...] with a real 1536-dim vector):
+  EXPLAIN (ANALYZE, FORMAT TEXT, BUFFERS)
+  SELECT * FROM public.match_b1_ticket_chunks_v2(
+      '[0.01, 0.02, ...]'::VECTOR(1536),
+      '{client_slug}',
+      40,
+      '{index_version}'
+  );
+  -- Expected: "Index Scan using idx_rtc_embedding_hnsw_{client_slug}_{index_version}"
+  -- Expected: "Rows Removed by Filter: 0"
+
+  -- 3. EXPLAIN on SOP function:
+  EXPLAIN (ANALYZE, FORMAT TEXT, BUFFERS)
+  SELECT * FROM public.match_b1_sop_chunks_v2(
+      '[0.01, 0.02, ...]'::VECTOR(1536),
+      '{client_slug}',
+      40,
+      '{index_version}'
+  );
+  -- Expected: "Index Scan using idx_rsc_embedding_hnsw_{index_version}"
+  -- Expected: "Rows Removed by Filter: 0"
+
+  -- 4. After live traffic: confirm global indexes stop accumulating scans:
+  SELECT indexrelname, idx_scan
+  FROM pg_stat_user_indexes
+  WHERE indexrelname LIKE 'idx_rtc_embedding_hnsw%'
+     OR indexrelname LIKE 'idx_rsc_embedding_hnsw%';
+""".format(client_slug=client_slug, index_version=index_version))
 
 
 # ─── Stage 5: Row count check ─────────────────────────────────────────────────
@@ -466,10 +546,10 @@ def main() -> None:
         args.client, args.match_count, args.threshold, args.index_version, args.iterations,
     )
 
-    # ── Stage 4: Individual legs ──────────────────────────────────────────────
-    bench_individual_legs(
+    # ── Stage 4: v2 HNSW legs (match_b1_ticket_chunks_v2, match_b1_sop_chunks_v2) ──
+    v2_results = bench_v2_legs(
         supabase_url, supabase_key, embedding,
-        args.client, args.match_count, args.threshold, args.index_version,
+        args.client, args.match_count, args.index_version, args.iterations,
     )
 
     # ── Stage 5: Row counts ───────────────────────────────────────────────────
@@ -477,6 +557,41 @@ def main() -> None:
 
     # ── Summary ───────────────────────────────────────────────────────────────
     print_summary(embed_new, embed_pooled, rpc_new, rpc_pooled, row_counts)
+
+    # ── v2 leg summary ────────────────────────────────────────────────────────
+    def _avg(lst: list[float]) -> float:
+        valid = [x for x in lst if x >= 0]
+        return sum(valid) / len(valid) if valid else -1.0
+
+    _header("v2 HNSW LEGS LATENCY SUMMARY")
+    print(f"\n{'Function':<40} {'Avg':>10} {'Min':>10} {'Max':>10}")
+    print(f"{'─'*40} {'─'*10} {'─'*10} {'─'*10}")
+    for fn_name, latencies in v2_results.items():
+        valid = [x for x in latencies if x >= 0]
+        if valid:
+            print(
+                f"{fn_name:<40} {_fmt_ms(_avg(latencies)):>10} "
+                f"{_fmt_ms(min(valid)):>10} {_fmt_ms(max(valid)):>10}"
+            )
+        else:
+            print(f"{fn_name:<40} {'FAILED':>10}")
+
+    ticket_avg = _avg(v2_results.get("match_b1_ticket_chunks_v2", [-1.0]))
+    sop_avg = _avg(v2_results.get("match_b1_sop_chunks_v2", [-1.0]))
+    if ticket_avg > 0 and sop_avg > 0:
+        combined_seq = ticket_avg + sop_avg
+        print(f"\n  Sequential v2 total (ticket + SOP):  {_fmt_ms(combined_seq)}")
+        print(f"  vs match_all_b1_sources (shared):    {_fmt_ms(_avg(rpc_pooled))}")
+        if combined_seq < _avg(rpc_pooled) * 0.8:
+            print("  ✓ v2 legs are faster than UNION ALL path — partial index is effective")
+        elif combined_seq > _avg(rpc_pooled):
+            print("  ⚠ v2 legs are SLOWER — partial index may not be active yet")
+            print("    Check: Did you apply B1_012? Is index_version matching the partial index?")
+            print(f"    Queried version: {args.index_version}")
+            print(f"    Partial index exists for: unity_bank + {args.index_version}?")
+
+    # ── Index verification SQL ────────────────────────────────────────────────
+    print_index_verification_instructions(args.client, args.index_version)
 
 
 if __name__ == "__main__":
