@@ -158,7 +158,17 @@ def meets_confidence_threshold(confidence: str, min_confidence: str) -> bool:
 # ── HTML formatters ────────────────────────────────────────────────────────────
 
 def _safe_html(val: Any) -> str:
-    return str(val or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    import html as _html
+    return _html.escape(str(val or ""), quote=True)
+
+
+def _safe_url(val: Any) -> str:
+    """Return a URL safe for use inside an href attribute, or empty string if unsafe."""
+    url = str(val or "").strip()
+    # Only allow http/https; block javascript:, data:, vbscript:, etc.
+    if url and not url.lower().startswith(("http://", "https://")):
+        return ""
+    return _safe_html(url)
 
 
 def _answer_to_html(answer: str) -> str:
@@ -185,7 +195,7 @@ def format_note_html(
             "<li>"
             + _safe_html(c.get("title") or c.get("ticket_id") or c.get("id") or "source")
             + (
-                f' — <a href="{_safe_html(c.get("url") or c.get("ticket_url") or "")}">'
+                f' — <a href="{_safe_url(c.get("url") or c.get("ticket_url") or "")}">'
                 f'{_safe_html(c.get("url") or c.get("ticket_url") or "")}</a>'
                 if (c.get("url") or c.get("ticket_url"))
                 else ""

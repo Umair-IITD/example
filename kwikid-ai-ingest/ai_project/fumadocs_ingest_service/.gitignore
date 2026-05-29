@@ -26,6 +26,9 @@ logs/
 traces/
 *.log
 *.log.*
+*_log.txt
+error_log.txt
+ingest_log.txt
 tmp/
 *.tmp
 temp/
@@ -42,6 +45,20 @@ data/reports/*.json
 data/reports/*.md
 data/fumadocs_repo/
 data/raw/
+
+# ── Development / debug scripts (one-off, not for production) ─
+check_db.py
+count_tokens_check.py
+debug_*.py
+test_local_*.py
+
+# ── Benchmark outputs (may contain PII — ticket query text) ───
+benchmark_results*.json
+regression_report*.md
+before_vs_after.json
+*_benchmark_*.json
+before.json
+after.json
 
 # ── IDE & editor ─────────────────────────────────────────────
 .idea/

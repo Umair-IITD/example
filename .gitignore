@@ -1,53 +1,222 @@
+# ────────────────────────────────────────────────────────────
 # OS artifacts
+# ────────────────────────────────────────────────────────────
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
 Thumbs.db
+ehthumbs.db
 desktop.ini
 
-# IDE files
+# ────────────────────────────────────────────────────────────
+# IDE / editor files
+# ────────────────────────────────────────────────────────────
 .idea/
 .vscode/
+*.swp
+*.swo
+*~
+.cursor/
+.zed/
+
+# Internal Claude Code files — project-specific memory and session data
 .claude/
+
+# Scratch / personal notes
 scratch/
-
-# Environments
-.env
-*.env
-*.pem
-*.key
-.venv/
-venv/
-env/
-
-# Python & Node
-__pycache__/
-*.py[cod]
-.pytest_cache/
-node_modules/
-
-# Local data & artifacts
-artifacts/
-logs/
-traces/
-data/raw/
-data/backups/
-data/exports/
-temporary/
-tmp/
-*.tmp
-
-# Generated & local runtimes
-data/reports/
-generated/
-*.xlsx
-*.xls
-*.csv
-
-# Secrets / API clients
-# .postman/ — hidden Postman directory (contains env secrets — keep ignored)
-.postman/
-# postman/ — Postman collection JSON files MUST be tracked for team sharing
-# Do NOT add postman/ here
-
 PERSONAL_REPORT.md
 Big_Phase_1_documentations/BIG_PHASE_2_ROADMAP.md
 
+# ────────────────────────────────────────────────────────────
+# Secrets — NEVER commit these
+# ────────────────────────────────────────────────────────────
+# Any .env file (real credentials live here)
+.env
+.env.*
+!.env.example
+!.env.*.example
+!.env.*.template
+*.env
+
+# Key / certificate files
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+secrets/
+credentials/
+**/secrets.json
+**/credentials.json
+**/service_account*.json
+
+# Postman environments (contain API keys)
+.postman/
+# NOTE: postman/ (collection JSONs) are safe to track — do NOT add postman/ here
+
+# ────────────────────────────────────────────────────────────
+# Python
+# ────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.pyd
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.virtualenv/
+
+# Test / coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+nosetests.xml
+pytest.ini.bak
+
+# Type checking
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pytype/
+.pyre/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# ────────────────────────────────────────────────────────────
+# Node / frontend (if any)
+# ────────────────────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.npm
+.yarn/cache
+.yarn/unplugged
+
+# ────────────────────────────────────────────────────────────
+# Logs — never commit log output
+# ────────────────────────────────────────────────────────────
+logs/
+*.log
+error_log.txt
+ingest_log.txt
+*_log.txt
+log.txt
+
+# ────────────────────────────────────────────────────────────
+# Trace / observability output
+# ────────────────────────────────────────────────────────────
+traces/
+.traces/
+
+# ────────────────────────────────────────────────────────────
+# Data directories — raw/sensitive/generated data
+# ────────────────────────────────────────────────────────────
+data/raw/
+data/backups/
+data/exports/
+data/reports/
+data/kwikid/
+data/fumadocs_repo/
+data/excel/
+
+# Uploaded / downloaded data files
+*.xlsx
+*.xls
+*.csv
+*.parquet
+*.feather
+*.pkl
+*.pickle
+*.h5
+*.hdf5
+
+# ────────────────────────────────────────────────────────────
+# Benchmark outputs — may contain PII (query text from tickets)
+# ────────────────────────────────────────────────────────────
+benchmark_results*.json
+regression_report*.md
+before_vs_after.json
+*_benchmark_*.json
+before.json
+after.json
+
+# ────────────────────────────────────────────────────────────
+# Temporary / generated artifacts
+# ────────────────────────────────────────────────────────────
+artifacts/
+temporary/
+tmp/
+temp/
+*.tmp
+*.temp
+generated/
+*.bak
+
+# ────────────────────────────────────────────────────────────
+# Development / debug scripts
+# (one-off scripts that should not be shipped)
+# ────────────────────────────────────────────────────────────
+check_db.py
+count_tokens_check.py
+debug_*.py
+test_local_*.py
+
+# ────────────────────────────────────────────────────────────
+# Docker / container artifacts
+# ────────────────────────────────────────────────────────────
+.docker/
+docker-compose.override.yml
+
+# ────────────────────────────────────────────────────────────
+# Database / migration state files
+# ────────────────────────────────────────────────────────────
+*.db
+*.sqlite
+*.sqlite3
+
+# ────────────────────────────────────────────────────────────
+# Compiled / distribution
+# ────────────────────────────────────────────────────────────
+*.o
+*.a
+*.dylib
+*.dll
+*.exe

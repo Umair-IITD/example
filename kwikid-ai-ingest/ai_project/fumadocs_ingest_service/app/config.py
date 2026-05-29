@@ -280,7 +280,7 @@ def get_settings() -> Settings:
         freshdesk_min_wait_on_429_s=float(os.getenv("FRESHDESK_MIN_WAIT_ON_429_S", "25.0")),
         freshdesk_request_spacing_s=float(os.getenv("FRESHDESK_REQUEST_SPACING_S", "3.5")),
         chat_api_key=os.getenv("OPENAI_CHAT_API_KEY", os.getenv("OPENAI_API_KEY", "")).strip(),
-        chat_model=os.getenv("OPENAI_CHAT_MODEL", "gpt-4o-mini").strip(),
+        chat_model=os.getenv("OPENAI_CHAT_MODEL", "gpt-4.1-mini").strip(),
         chat_base_url=os.getenv("OPENAI_CHAT_BASE_URL", os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")).strip(),
         chat_timeout_s=int(os.getenv("CHAT_TIMEOUT_S", "60")),
         chat_max_retries=int(os.getenv("CHAT_MAX_RETRIES", "3")),

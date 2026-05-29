@@ -14,6 +14,7 @@ GenerationResult carries the full structured response:
 """
 from __future__ import annotations
 
+import hashlib as _hashlib
 import logging
 import os
 import re as _re
@@ -24,7 +25,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, AsyncGenerator, Optional
 
-from rag_engine.generation.context_assembler import assemble_context
+from rag_engine.generation.context_assembler import assemble_context, count_tokens
 from rag_engine.generation.llm_client import B1LLMClient
 from rag_engine.generation.prompt_builder import B2_SYSTEM_PROMPT, build_user_prompt
 from rag_engine.retrieval.ticket_retriever import (
@@ -35,6 +36,21 @@ from rag_engine.retrieval.ticket_retriever import (
 from rag_engine.sop.sop_parser import SopDocumentFlags, parse_sop_content
 
 LOGGER = logging.getLogger(__name__)
+
+# System prompt token count — computed once on first request to avoid cold-import overhead.
+# Used by Phase 3 diagnostics to surface overhead_tokens = llm_prompt_tokens - context_tokens.
+_SYSTEM_PROMPT_TOKENS: int | None = None
+_SYSTEM_PROMPT_TOKENS_LOCK = _threading.Lock()
+
+
+def _get_system_prompt_tokens() -> int:
+    global _SYSTEM_PROMPT_TOKENS
+    if _SYSTEM_PROMPT_TOKENS is None:
+        with _SYSTEM_PROMPT_TOKENS_LOCK:
+            if _SYSTEM_PROMPT_TOKENS is None:
+                _SYSTEM_PROMPT_TOKENS = count_tokens(B2_SYSTEM_PROMPT)
+    return _SYSTEM_PROMPT_TOKENS
+
 
 # When DEBUG_RAG=true, chunk dicts include content_preview, retrieval_rank, and
 # rerank_score. Used to verify whether generated answers are grounded in retrieved
@@ -49,8 +65,6 @@ _DEBUG_RAG: bool = os.getenv("DEBUG_RAG", "false").strip().lower() in {"1", "tru
 # 3,500 chars (~500 words) matches the ingestion target without exceeding the 6k token budget.
 _PER_CHUNK_MAX_CHARS: int = int(os.getenv("CHAT_CONTEXT_CHUNK_MAX_CHARS", "3500"))
 
-_VALID_CONFIDENCE = {"high", "medium", "low"}
-
 # Deterministic base scores for each categorical confidence level.
 # These are calibrated so that: high > medium > low, and no single level
 # occupies more than 0.45 of the [0,1] range, preserving separation.
@@ -59,6 +73,23 @@ _CONFIDENCE_BASE: dict[str, float] = {
     "medium": 0.50,
     "low": 0.18,
 }
+
+# ── Stage 1 optimization: adaptive context + fast path ────────────────────────
+# Adaptive context budgeting (Priority 2): when exact SOP match is high-confidence,
+# SOP chunks are always included and non-SOP chunks share a tight token budget.
+# This reduces context from ~841 tokens to ~300-500 on qualifying queries.
+_ADAPTIVE_CONTEXT_ENABLED: bool = os.getenv("ADAPTIVE_CONTEXT_ENABLED", "true").lower() in {"1", "true", "yes", "on"}
+_ADAPTIVE_CONTEXT_BUDGET: int = int(os.getenv("ADAPTIVE_CONTEXT_BUDGET", "650"))
+_ADAPTIVE_SOP_THRESHOLD: float = float(os.getenv("ADAPTIVE_SOP_THRESHOLD", "0.60"))
+
+# Early exit fast path (Priority 4): when SOP confidence is very high and no RCA/knowledge
+# context is needed, ticket chunks are filtered from context post-retrieval.
+# Reduces LLM input tokens; retrieval still runs (shared query), savings are context-side.
+_FAST_PATH_ENABLED: bool = os.getenv("FAST_PATH_ENABLED", "true").lower() in {"1", "true", "yes", "on"}
+_FAST_PATH_SOP_THRESHOLD: float = float(os.getenv("FAST_PATH_SOP_THRESHOLD", "0.75"))
+
+# Stage 0 system prompt token baseline — pre-optimization reference for compression_ratio.
+_SYSTEM_PROMPT_TOKENS_BASELINE: int = 903
 
 
 @dataclass
@@ -258,11 +289,59 @@ class ChatGenerator:
                 diagnostics["sop_branch_flags"] = sop_flags.to_dict()
         branch_flags: dict[str, Any] = diagnostics.get("sop_branch_flags", {})
 
+        # ── Priority 4: Fast path — filter ticket chunks on very-high-confidence SOP match ──
+        # Post-retrieval filter: when SOP confidence is >= 0.75, ticket chunks add noise rather
+        # than grounding value. SOP already fully covers the procedure; tickets only add context
+        # that the LLM doesn't need for exact SOP answers. Saves ~100-200 input tokens.
+        _fast_path = (
+            _FAST_PATH_ENABLED
+            and workflow_match_type == "exact_match"
+            and best_sop_boosted >= _FAST_PATH_SOP_THRESHOLD
+            and not retrieval.has_rca_context
+            and not has_knowledge_context
+        )
+        if _fast_path:
+            _pre_filter_count = len(chunks)
+            chunks = [c for c in chunks if c.source_table == "rag_sop_chunks"]
+            _filtered_count = _pre_filter_count - len(chunks)
+            diagnostics["fast_path_triggered"] = True
+            diagnostics["fast_path_ticket_chunks_filtered"] = _filtered_count
+            LOGGER.debug(
+                "fast_path: filtered %d ticket chunks (sop_score=%.3f)",
+                _filtered_count, best_sop_boosted,
+            )
+        else:
+            diagnostics["fast_path_triggered"] = False
+            diagnostics["fast_path_ticket_chunks_filtered"] = 0
+
         # ── Context assembly ──────────────────────────────────────────────────
-        assembled = assemble_context(chunks, per_chunk_max_chars=self._per_chunk_max_chars)
+        # Phase C2: suppress ISSUE_HEADER chunks from LLM context on exact_match — they
+        # carry no grounding value when a matching SOP is present, and cost ~200-400 tokens.
+        _suppress_headers = workflow_match_type == "exact_match" and len(sop_chunks_in_result) > 0
+
+        # Priority 2: Adaptive context budgeting — on high-confidence exact SOP match,
+        # constrain non-SOP context to a tight budget. SOP chunks are ALWAYS included.
+        _use_adaptive = (
+            _ADAPTIVE_CONTEXT_ENABLED
+            and workflow_match_type == "exact_match"
+            and best_sop_boosted >= _ADAPTIVE_SOP_THRESHOLD
+            and retrieval_confidence != "low"
+        )
+        _adaptive_budget_val = _ADAPTIVE_CONTEXT_BUDGET if _use_adaptive else None
+
+        assembled = assemble_context(
+            chunks,
+            per_chunk_max_chars=self._per_chunk_max_chars,
+            suppress_issue_headers=_suppress_headers,
+            adaptive_budget=_adaptive_budget_val,
+        )
         diagnostics["context_tokens"] = assembled.total_tokens
         diagnostics["context_skipped_chunks"] = assembled.skipped_chunks
         diagnostics["context_chunk_types"] = assembled.context_chunk_types
+        diagnostics["context_suppress_issue_headers"] = _suppress_headers
+        diagnostics["adaptive_context_enabled"] = _use_adaptive
+        diagnostics["adaptive_context_budget"] = _adaptive_budget_val
+        diagnostics["suppressed_chunks_count"] = assembled.skipped_chunks
 
         # ── Join history fetch (it's had the entire retrieval time to complete) ─
         if _hist_thread is not None:
@@ -351,23 +430,63 @@ class ChatGenerator:
         llm_request_ms = round((time.perf_counter() - t_llm) * 1000, 1)
         if _llm_timing:
             _u = _llm_timing[0]
-            diagnostics["llm_prompt_tokens"]     = _u.get("prompt_tokens")
-            diagnostics["llm_completion_tokens"] = _u.get("completion_tokens")
-            diagnostics["llm_total_tokens"]      = _u.get("total_tokens")
-            diagnostics["llm_model_name"]        = _u.get("model")
+            diagnostics["llm_prompt_tokens"]            = _u.get("prompt_tokens")
+            diagnostics["llm_completion_tokens"]        = _u.get("completion_tokens")
+            diagnostics["llm_total_tokens"]             = _u.get("total_tokens")
+            diagnostics["llm_model_name"]               = _u.get("model")
+            diagnostics["llm_parse_attempts"]           = _u.get("parse_attempts")
+            diagnostics["llm_parse_failures"]           = _u.get("parse_failures")
+            diagnostics["llm_schema_retried"]           = _u.get("schema_retried", False)
+            diagnostics["llm_schema_validation_failed"] = _u.get("schema_validation_failed", False)
 
-        # ── Normalize output ──────────────────────────────────────────────────
+        # Phase A: token breakdown — accounts for every token in the round-trip.
+        # overhead_tokens = llm_prompt_tokens - context_tokens (system prompt + user prompt framing).
+        # All values are None when the LLM call skipped (schema fallback path).
+        _pt = diagnostics.get("llm_prompt_tokens")
+        _ct = diagnostics.get("llm_completion_tokens")
+        _ctx = assembled.total_tokens
+        diagnostics["token_breakdown"] = {
+            "context_tokens":      _ctx,
+            "llm_prompt_tokens":   _pt,
+            "llm_completion_tokens": _ct,
+            "overhead_tokens":     (max(0, _pt - _ctx)) if _pt is not None else None,
+            "total_tokens":        ((_pt or 0) + (_ct or 0)) if (_pt is not None or _ct is not None) else None,
+        }
+
+        # Phase 3: deterministic rendering diagnostics — stable hash for regression detection
+        _norm_ans = _re.sub(r'\s+', ' ', str(parsed.get("answer") or "")).strip().lower()
+        diagnostics["answer_structure_hash"] = _hashlib.sha256(_norm_ans.encode()).hexdigest()[:12]
+        diagnostics["deterministic_rendering_enabled"] = True
+        # Priority 1 diagnostics: track system prompt compression vs Stage 0 baseline
+        _spt = _get_system_prompt_tokens()
+        diagnostics["system_prompt_tokens"] = _spt
+        diagnostics["compacted_system_prompt_tokens"] = _spt
+        diagnostics["original_system_prompt_tokens"] = _SYSTEM_PROMPT_TOKENS_BASELINE
+        diagnostics["compression_ratio"] = round(_spt / _SYSTEM_PROMPT_TOKENS_BASELINE, 3)
+
+        # Schema fallback path: both validation attempts failed
+        if parsed.get("_schema_failure"):
+            diagnostics["llm_schema_failure"]        = True
+            diagnostics["llm_schema_failure_reason"] = parsed.get("_schema_failure_reason")
+
+        # ── Normalize output (Phase 3: LLM provides only answer + citations) ─
         answer = _sanitize_answer(str(parsed.get("answer") or ""))
-        confidence_raw = str(parsed.get("confidence") or "").strip().lower()
-        confidence = confidence_raw if confidence_raw in _VALID_CONFIDENCE else "low"
-
         raw_citations = parsed.get("citations")
         citations = [c for c in (raw_citations or []) if isinstance(c, dict)]
 
-        follow_up_raw = parsed.get("follow_up_question")
-        follow_up: Optional[str] = (
-            follow_up_raw.strip() if isinstance(follow_up_raw, str) else None
-        ) or None
+        # Derive confidence programmatically from retrieval signals
+        confidence = _derive_confidence_programmatic(
+            insufficient_context=insufficient_context,
+            has_sop_context=retrieval.has_sop_context,
+            has_knowledge_context=has_knowledge_context,
+            workflow_match_type=workflow_match_type,
+            chunk_count=len(chunks),
+        )
+
+        follow_up: Optional[str] = _derive_follow_up_question(
+            workflow_match_type=workflow_match_type,
+            insufficient_context=insufficient_context,
+        )
 
         # ── Branch completeness check (post-LLM) ─────────────────────────────
         if branch_flags and workflow_match_type == "exact_match":
@@ -392,10 +511,9 @@ class ChatGenerator:
         if insufficient_context and confidence == "high":
             confidence = "medium"
 
-        # Derive requires_human: LLM signal + Python-side safety overrides
-        llm_requires_human = parsed.get("requires_human")
+        # Derive requires_human programmatically (Phase 3: LLM no longer provides this)
         requires_human = _derive_requires_human(
-            llm_flag=llm_requires_human,
+            llm_flag=None,
             insufficient_context=insufficient_context,
             confidence=confidence,
             has_sop_context=retrieval.has_sop_context,
@@ -415,7 +533,6 @@ class ChatGenerator:
         )
 
         # ── Automation safety gate + governance diagnostics ───────────────────
-        llm_flag_bool = llm_requires_human is True
         automation_safe = _is_automation_safe(
             workflow_match_type=workflow_match_type,
             confidence=confidence,
@@ -423,7 +540,7 @@ class ChatGenerator:
             retrieval_confidence=retrieval_confidence,
         )
         escalation_reason = _escalation_trigger_reason(
-            llm_flag=llm_flag_bool,
+            llm_flag=False,  # Phase 3: LLM no longer provides escalation flag
             insufficient_context=insufficient_context,
             confidence=confidence,
             has_sop_context=retrieval.has_sop_context,
@@ -436,7 +553,7 @@ class ChatGenerator:
                 workflow_match_type=workflow_match_type,
                 confidence=confidence,
                 requires_human=requires_human,
-                llm_flag=llm_flag_bool,
+                llm_flag=False,  # Phase 3: LLM no longer provides this
                 retrieval_confidence=retrieval_confidence,
             )
         )
@@ -558,21 +675,21 @@ class ChatGenerator:
         diagnostics           = ctx["diagnostics"]
         retrieval             = ctx["retrieval"]
         insufficient_context  = ctx["insufficient_context"]
+        has_knowledge_context = ctx["has_knowledge_context"]
         workflow_match_type   = ctx["workflow_match_type"]
         retrieval_confidence  = ctx["retrieval_confidence"]
         effective_session_id  = ctx["effective_session_id"]
         user_msg_id           = ctx["user_msg_id"]
         assistant_msg_id      = ctx["assistant_msg_id"]
 
-        # Pre-compute Python-derived confidence (no LLM wait needed)
-        if insufficient_context:
-            confidence = "low"
-        elif retrieval.has_sop_context and workflow_match_type == "exact_match":
-            confidence = "high"
-        elif retrieval.has_sop_context or workflow_match_type == "related_match":
-            confidence = "medium"
-        else:
-            confidence = "low"
+        # Pre-compute confidence programmatically (same function as non-streaming path)
+        confidence = _derive_confidence_programmatic(
+            insufficient_context=insufficient_context,
+            has_sop_context=retrieval.has_sop_context,
+            has_knowledge_context=has_knowledge_context,
+            workflow_match_type=workflow_match_type,
+            chunk_count=len(chunks),
+        )
 
         requires_human = _derive_requires_human(
             llm_flag=None,
@@ -696,6 +813,40 @@ def _classify_workflow_match(
     if (has_sop_context or has_knowledge_context) and best_similarity >= _WORKFLOW_RELATED_MATCH_SIMILARITY:
         return "related_match"
     return "weak_match"
+
+
+def _derive_confidence_programmatic(
+    *,
+    insufficient_context: bool,
+    has_sop_context: bool,
+    has_knowledge_context: bool,
+    workflow_match_type: str,
+    chunk_count: int,
+) -> str:
+    """Derive categorical confidence from retrieval signals (Phase 3 — no LLM input).
+
+    Matches the logic in stream_generate() so both paths produce identical confidence.
+    """
+    if insufficient_context:
+        return "low"
+    if has_sop_context and workflow_match_type == "exact_match":
+        return "high"
+    if has_sop_context or has_knowledge_context or workflow_match_type == "related_match":
+        return "medium"
+    return "low"
+
+
+def _derive_follow_up_question(
+    *,
+    workflow_match_type: str,
+    insufficient_context: bool,
+) -> Optional[str]:
+    """Derive a follow-up question programmatically based on retrieval coverage (Phase 3)."""
+    if insufficient_context or workflow_match_type == "no_match":
+        return "Could you provide more details about the issue so we can locate the relevant procedure?"
+    if workflow_match_type == "related_match":
+        return "Is there a specific step or condition in this workflow that needs clarification?"
+    return None
 
 
 def _derive_requires_human(

@@ -98,6 +98,7 @@ _QUERY_ROUTER = QueryRouter()
 #
 # Rollback: revert _build_chat_generator() to call create_client() and
 #   OpenAIEmbeddingProvider() directly, and remove the lifespan pre-warm block.
+import collections as _collections
 import threading as _threading
 
 _SB_INIT_LOCK = _threading.Lock()
@@ -107,6 +108,16 @@ _GENERATOR_LOCK = _threading.Lock()
 _sb_singleton: Any = None                 # supabase.Client — set in lifespan startup
 _embedder_singleton: Any = None          # OpenAIEmbeddingProvider — set in lifespan startup
 _generator_singleton: Any = None         # ChatGenerator (holds retriever + LLM + history)
+
+# Phase H: LRU embedding cache — avoids redundant OpenAI API calls for repeated queries.
+# Key: SHA-256 of input text (PII-safe; hash is one-way).
+# Max 256 entries (~1 MB at 3072-float vectors for text-embedding-3-large; less for small).
+# _EMBED_CACHE_LOCK is independent of _EMBEDDER_CALL_LOCK: dict access takes microseconds
+# while API calls take ~300 ms — keeping them separate prevents cache reads from blocking
+# behind ongoing API calls.
+_EMBED_CACHE_LOCK = _threading.Lock()
+_EMBED_LRU_CACHE: _collections.OrderedDict = _collections.OrderedDict()  # type: ignore[type-arg]
+_EMBED_CACHE_MAX = 256
 
 
 @asynccontextmanager
@@ -153,6 +164,11 @@ async def lifespan(_app: FastAPI):
 
     # ── CORS ──────────────────────────────────────────────────────────────────
     cors_origins = [o.strip() for o in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",") if o.strip()]
+    _bad_origins = [o for o in cors_origins if not o.startswith(("http://", "https://"))]
+    if _bad_origins:
+        raise RuntimeError(
+            f"CORS_ALLOWED_ORIGINS contains non-HTTP origins (data:, javascript:, etc. are unsafe): {_bad_origins}"
+        )
     if not cors_origins:
         _LOGGER_PRE.info("cors_origins: using default localhost-only origins (dev mode)")
 
@@ -302,9 +318,21 @@ class _ThreadSafeEmbedderWrapper:
         self._lock = lock
 
     def embed_single(self, text: str) -> list[float]:
-        LOGGER.debug("sprint0_singleton embedder=warm_reuse")
+        key = hashlib.sha256(text.encode()).hexdigest()
+        with _EMBED_CACHE_LOCK:
+            if key in _EMBED_LRU_CACHE:
+                _EMBED_LRU_CACHE.move_to_end(key)
+                LOGGER.debug("embed_cache=hit key_prefix=%s", key[:8])
+                return _EMBED_LRU_CACHE[key]
+        LOGGER.debug("sprint0_singleton embedder=warm_reuse cache=miss")
         with self._lock:
-            return self._inner.embed_single(text)
+            result = self._inner.embed_single(text)
+        with _EMBED_CACHE_LOCK:
+            _EMBED_LRU_CACHE[key] = result
+            _EMBED_LRU_CACHE.move_to_end(key)
+            if len(_EMBED_LRU_CACHE) > _EMBED_CACHE_MAX:
+                _EMBED_LRU_CACHE.popitem(last=False)
+        return result
 
     def embed_batch(self, texts: list[str]) -> Any:
         with self._lock:

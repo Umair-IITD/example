@@ -42,7 +42,7 @@ _MAX_CONTEXT_TOKENS = 4_500  # enterprise SOP reasoning: SOPs can be 800+ tokens
 _CHUNK_TYPE_LABEL = {
     "ISSUE_HEADER": "Ticket Header",
     "QUERY_BODY": "Customer Query",
-    "RESOLUTION_RCA": "Resolution / RCA",
+    "RESOLUTION_RCA": "Resolution/RCA",
 }
 _SEPARATOR = "\n\n---\n\n"
 
@@ -58,6 +58,10 @@ def _get_encoder() -> tiktoken.Encoding:
 
 def _count_tokens(text: str) -> int:
     return len(_get_encoder().encode(text))
+
+
+# Public alias — used by chat_generator for token_breakdown accounting
+count_tokens = _count_tokens
 
 
 @dataclass(frozen=True)
@@ -77,7 +81,15 @@ def assemble_context(
     chunks: list["RetrievedChunk"],
     per_chunk_max_chars: int = 1400,
     max_context_tokens: int = _MAX_CONTEXT_TOKENS,
+    suppress_issue_headers: bool = False,
+    adaptive_budget: int | None = None,
 ) -> AssembledContext:
+    """Assemble retrieved chunks into an LLM-ready context block.
+
+    adaptive_budget: when set, SOP chunks are always included (authoritative content is
+    never budget-dropped), and non-SOP chunks share this token budget. Reduces context
+    on high-confidence exact-match queries from ~841 tokens to ~300-500 tokens.
+    """
     if not chunks:
         return AssembledContext(
             context_block="(no context retrieved)",
@@ -112,7 +124,9 @@ def assemble_context(
         if c.source_table == "rag_ticket_chunks"
         and c.chunk_type == "QUERY_BODY"
     ]
-    ticket_issue_header = [
+    # Phase C2: on exact_match with SOP context, ISSUE_HEADER chunks are pure noise —
+    # the SOP already identifies the workflow; headers add token cost without grounding value.
+    ticket_issue_header: list["RetrievedChunk"] = [] if suppress_issue_headers else [
         c for c in chunks
         if c.source_table == "rag_ticket_chunks"
         and c.chunk_type == "ISSUE_HEADER"
@@ -123,6 +137,7 @@ def assemble_context(
 
     candidate_blocks: list[str] = []
     candidate_types: list[str] = []   # parallel list — chunk_type for each candidate_block
+    candidate_is_sop: list[bool] = [] # parallel list — True for SOP chunks (never budget-dropped)
     idx = 1
 
     for chunk in ordered_chunks:
@@ -132,61 +147,87 @@ def assemble_context(
             flags = parse_sop_content(chunk.content)
             branch_tags: list[str] = []
             if flags.has_escalation_branches:
-                branch_tags.append("escalation:YES")
+                branch_tags.append("esc")
             if flags.has_denial_branches:
-                branch_tags.append("denial:YES")
+                branch_tags.append("deny")
             if flags.has_security_freeze:
-                branch_tags.append("freeze:YES")
+                branch_tags.append("freeze")
             if flags.has_post_resolution:
-                branch_tags.append("post-res:YES")
+                branch_tags.append("post-res")
             if flags.has_mandatory_warnings:
-                branch_tags.append("mandatory:YES")
-            branch_str = (" | " + " | ".join(branch_tags)) if branch_tags else ""
-            header = (
-                f"##{idx} [SOP | sop_id={chunk.sop_id or 'unknown'} | "
-                f"score={chunk.boosted_score:.3f} | AUTHORITATIVE{branch_str}]"
-            )
+                branch_tags.append("warn")
+            branch_str = (" | " + " ".join(branch_tags)) if branch_tags else ""
+            header = f"##{idx} [SOP | {chunk.sop_id or 'unknown'} | AUTHORITATIVE{branch_str}]"
+            candidate_is_sop.append(True)
         elif chunk.source_table == "rag_knowledge_chunks":
             klass = chunk.knowledge_class or chunk.chunk_type
             qs = f" | quality={chunk.quality_score:.2f}" if chunk.quality_score is not None else ""
-            header = (
-                f"##{idx} [INSTITUTIONAL KNOWLEDGE | {klass} | "
-                f"score={chunk.boosted_score:.3f}{qs}]"
-            )
+            header = f"##{idx} [KNOWLEDGE | {klass}{qs}]"
+            candidate_is_sop.append(False)
         else:
-            # Ticket chunks (B1 behavior preserved exactly)
+            # Ticket chunks — type label is self-describing; score fields are analytics, not LLM reasoning inputs
             label = _CHUNK_TYPE_LABEL.get(chunk.chunk_type, chunk.chunk_type)
-            rca_note = " | has_rca=True" if chunk.has_rca else ""
-            header = (
-                f"##{idx} [{label} | ticket_id={chunk.ticket_id or 'unknown'} | "
-                f"chunk_type={chunk.chunk_type} | similarity={chunk.similarity:.3f}{rca_note}]"
-            )
+            header = f"##{idx} [{label} | ticket_id={chunk.ticket_id or 'unknown'}]"
+            candidate_is_sop.append(False)
 
         candidate_blocks.append(f"{header}\n{content}")
         candidate_types.append(chunk.chunk_type)
         idx += 1
 
-    # Token budget enforcement — SOPs (listed first) are always preserved under budget pressure
-    budget = max_context_tokens
+    # Token budget enforcement
     final_blocks: list[str] = []
     final_chunk_types: dict[str, int] = {}
     skipped = 0
-    for block, ctype in zip(candidate_blocks, candidate_types):
-        tok = _count_tokens(block)
-        if tok > budget:
-            skipped += 1
-            LOGGER.debug("context_assembler: skipped block (tok=%d, budget=%d)", tok, budget)
-        else:
-            budget -= tok
-            final_blocks.append(block)
-            final_chunk_types[ctype] = final_chunk_types.get(ctype, 0) + 1
 
-    if skipped:
-        LOGGER.warning(
-            "context_assembler: %d chunk(s) dropped — token budget exhausted (max=%d)",
-            skipped,
-            max_context_tokens,
-        )
+    if adaptive_budget is not None:
+        # Two-pass adaptive enforcement:
+        # Pass 1 — always include SOP chunks (authoritative content must never be dropped)
+        # Pass 2 — fill remaining budget with non-SOP chunks in priority order
+        sop_tokens_used = 0
+        for block, ctype, is_sop in zip(candidate_blocks, candidate_types, candidate_is_sop):
+            if is_sop:
+                sop_tokens_used += _count_tokens(block)
+                final_blocks.append(block)
+                final_chunk_types[ctype] = final_chunk_types.get(ctype, 0) + 1
+
+        non_sop_budget = max(0, adaptive_budget - sop_tokens_used)
+        for block, ctype, is_sop in zip(candidate_blocks, candidate_types, candidate_is_sop):
+            if not is_sop:
+                tok = _count_tokens(block)
+                if tok <= non_sop_budget:
+                    non_sop_budget -= tok
+                    final_blocks.append(block)
+                    final_chunk_types[ctype] = final_chunk_types.get(ctype, 0) + 1
+                else:
+                    skipped += 1
+                    LOGGER.debug(
+                        "context_assembler[adaptive]: skipped non-SOP block (tok=%d, remaining=%d)",
+                        tok, non_sop_budget,
+                    )
+        if skipped:
+            LOGGER.info(
+                "context_assembler[adaptive]: %d non-SOP chunk(s) suppressed — budget=%d sop_used=%d",
+                skipped, adaptive_budget, sop_tokens_used,
+            )
+    else:
+        # Standard budget enforcement — SOPs listed first so they are always preserved
+        budget = max_context_tokens
+        for block, ctype in zip(candidate_blocks, candidate_types):
+            tok = _count_tokens(block)
+            if tok > budget:
+                skipped += 1
+                LOGGER.debug("context_assembler: skipped block (tok=%d, budget=%d)", tok, budget)
+            else:
+                budget -= tok
+                final_blocks.append(block)
+                final_chunk_types[ctype] = final_chunk_types.get(ctype, 0) + 1
+
+        if skipped:
+            LOGGER.warning(
+                "context_assembler: %d chunk(s) dropped — token budget exhausted (max=%d)",
+                skipped,
+                max_context_tokens,
+            )
 
     all_ticket_chunks = [c for c in chunks if c.source_table == "rag_ticket_chunks"]
     has_resolution = any(
