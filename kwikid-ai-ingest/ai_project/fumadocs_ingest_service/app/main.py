@@ -72,6 +72,10 @@ from rag_engine.feedback.review_queue import ReviewQueueManager
 from app.feedback import FeedbackRequest, FeedbackResponse, handle_feedback
 from app.query_router import QueryRouter
 
+from case_engine.case_state import CaseState
+from case_engine.service import CaseService, build_case_service
+from app.pii_masking import mask_aadhaar
+
 
 _LOGGER_PRE = logging.getLogger(__name__)
 
@@ -108,6 +112,8 @@ _GENERATOR_LOCK = _threading.Lock()
 _sb_singleton: Any = None                 # supabase.Client — set in lifespan startup
 _embedder_singleton: Any = None          # OpenAIEmbeddingProvider — set in lifespan startup
 _generator_singleton: Any = None         # ChatGenerator (holds retriever + LLM + history)
+_case_service_singleton: "CaseService | None" = None  # Sprint 1 case engine
+_CASE_SERVICE_LOCK = _threading.Lock()
 
 # Phase H: LRU embedding cache — avoids redundant OpenAI API calls for repeated queries.
 # Key: SHA-256 of input text (PII-safe; hash is one-way).
@@ -257,6 +263,16 @@ async def lifespan(_app: FastAPI):
         _LOGGER_PRE.warning(
             "sprint0_singleton_warmup_failed error=%s — cold start will occur on first request",
             _exc,
+        )
+
+    # ── Sprint 1: Pre-warm CaseService singleton ──────────────────────────────
+    global _case_service_singleton
+    try:
+        _case_service_singleton = build_case_service(_sb_singleton)
+        _LOGGER_PRE.info("sprint1_case_service_warmed supabase_backed=%s", _sb_singleton is not None)
+    except Exception as _exc:  # noqa: BLE001
+        _LOGGER_PRE.warning(
+            "sprint1_case_service_warmup_failed error=%s — offline mode will be used", _exc
         )
 
     yield
@@ -433,6 +449,22 @@ def _get_generator(
             )
             _, _generator_singleton, _ = _build_chat_generator(app_settings, rag_settings, openai_api_key)
     return _generator_singleton
+
+
+def _get_case_service() -> CaseService:
+    """
+    Sprint 1: Return the CaseService singleton.
+
+    Falls back to offline mode (no DB) if the Supabase singleton is not ready.
+    All case engine errors are caught by callers — Phase 1 is never blocked.
+    """
+    global _case_service_singleton
+    if _case_service_singleton is not None:
+        return _case_service_singleton
+    with _CASE_SERVICE_LOCK:
+        if _case_service_singleton is None:
+            _case_service_singleton = build_case_service(_sb_singleton)
+    return _case_service_singleton
 
 
 _cors_origins_raw = os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000")
@@ -1411,6 +1443,44 @@ async def rag_chat_stream(payload: RagChatRequest, request: Request) -> Streamin
     )
 
 
+# ── Freshdesk webhook helpers ─────────────────────────────────────────────────
+
+async def _post_escalation_tcp_note(
+    case: Any,
+    cs: Any,
+    ticket_id: str,
+    reply_client: Any,
+) -> None:
+    """Post a Transfer Context Payload as a Freshdesk private note. Never raises.
+
+    Called whenever a case enters ESCALATED state so the receiving agent has
+    full diagnostic context without asking for it again.
+    """
+    if reply_client is None:
+        LOGGER.warning(
+            "case_engine.tcp_no_client ticket=%s — FD credentials not configured, skipping TCP note",
+            ticket_id,
+        )
+        return
+    try:
+        tcp  = await asyncio.to_thread(cs.build_transfer_context, case)
+        html = tcp.to_html_note()
+        await asyncio.to_thread(reply_client.post_note, ticket_id, html, private=True)
+        await asyncio.to_thread(
+            cs.record_note_posted, case,
+            note_type="transfer_context", confidence="escalated",
+        )
+        LOGGER.info(
+            "case_engine.tcp_posted ticket=%s case=%s state=%s",
+            ticket_id, case.case_id, case.current_state.value,
+        )
+    except Exception as exc:
+        LOGGER.warning(
+            "case_engine.tcp_post_failed ticket=%s case=%s error=%s",
+            ticket_id, getattr(case, "case_id", "unknown"), exc,
+        )
+
+
 # ── Freshdesk webhook ─────────────────────────────────────────────────────────
 
 @app.post("/freshdesk/webhook")
@@ -1488,6 +1558,44 @@ async def freshdesk_webhook(request: Request) -> dict[str, Any]:
         LOGGER.warning("freshdesk_webhook: empty_query ticket=%s", ticket_id)
         return {"status": "skipped", "reason": "empty_query", "ticket_id": ticket_id}
 
+    # ── Sprint 1.1: Aadhaar masking at ingress (RBI V-CIP requirement) ───────
+    query_text = mask_aadhaar(query_text)
+
+    # ── Sprint 1.1: Initialise FreshdeskReplyClient early for TCP note posting ─
+    _reply_client = None
+    if app_settings.freshdesk_domain and app_settings.freshdesk_api_key:
+        _reply_client = FreshdeskReplyClient(
+            domain=app_settings.freshdesk_domain,
+            api_key=app_settings.freshdesk_api_key,
+        )
+
+    # ── Sprint 1: Open/classify case (Phase 1 safety: errors are isolated) ───
+    _case = None
+    _tcp_posted = False
+    try:
+        _cs = _get_case_service()
+        _case = await asyncio.to_thread(_cs.open_case, ticket_id, client)
+        await asyncio.to_thread(_cs.classify_case, _case, query_text)
+        LOGGER.info(
+            "case_engine ticket=%s case=%s state=%s topic=%s",
+            ticket_id, _case.case_id, _case.current_state.value, _case.topic,
+        )
+    except Exception as _ce_exc:
+        LOGGER.warning(
+            "case_engine.open_failed ticket=%s error=%s — Phase 1 continues",
+            ticket_id, _ce_exc,
+        )
+
+    # ── Sprint 1.1: Post TCP note if classification escalated the case ────────
+    if _case is not None and _case.current_state == CaseState.ESCALATED and not _tcp_posted:
+        try:
+            await _post_escalation_tcp_note(_case, _get_case_service(), ticket_id, _reply_client)
+            _tcp_posted = True
+        except Exception as _tcp_exc:
+            LOGGER.warning(
+                "case_engine.tcp_outer_failed ticket=%s error=%s", ticket_id, _tcp_exc,
+            )
+
     # ── Run RAG pipeline ──────────────────────────────────────────────────────
     rag_settings = get_rag_settings()
     openai_api_key = os.getenv("OPENAI_API_KEY", app_settings.chat_api_key).strip()
@@ -1516,6 +1624,36 @@ async def freshdesk_webhook(request: Request) -> dict[str, Any]:
             status_code=502,
             detail={"status": "rag_error", "error": str(exc), "ticket_id": ticket_id},
         ) from exc
+
+    # ── Sprint 1: Evaluate RAG result ─────────────────────────────────────────
+    if _case is not None:
+        try:
+            _cs = _get_case_service()
+            await asyncio.to_thread(
+                _cs.evaluate_rag_result,
+                _case,
+                match_type=result.diagnostics.get("match_type", "unknown"),
+                confidence=str(result.confidence),
+                requires_human=result.requires_human,
+                chunks_count=len(result.chunks),
+                ticket_text=query_text,
+                cited_sop_ids=result.citations or [],
+            )
+        except Exception as _ce_exc:
+            LOGGER.warning(
+                "case_engine.evaluate_failed ticket=%s error=%s — Phase 1 continues",
+                ticket_id, _ce_exc,
+            )
+
+    # ── Sprint 1.1: Post TCP note if RAG evaluation escalated the case ───────
+    if _case is not None and _case.current_state == CaseState.ESCALATED and not _tcp_posted:
+        try:
+            await _post_escalation_tcp_note(_case, _get_case_service(), ticket_id, _reply_client)
+            _tcp_posted = True
+        except Exception as _tcp_exc:
+            LOGGER.warning(
+                "case_engine.tcp_outer_failed ticket=%s error=%s", ticket_id, _tcp_exc,
+            )
 
     # ── Confidence gate ───────────────────────────────────────────────────────
     if result.requires_human:
@@ -1551,7 +1689,8 @@ async def freshdesk_webhook(request: Request) -> dict[str, Any]:
             detail={"status": "config_error", "error": "Freshdesk credentials not configured"},
         )
 
-    reply_client = FreshdeskReplyClient(
+    # Reuse the client created earlier for TCP posting (avoids duplicate connection)
+    reply_client = _reply_client or FreshdeskReplyClient(
         domain=app_settings.freshdesk_domain,
         api_key=app_settings.freshdesk_api_key,
     )
@@ -1582,6 +1721,25 @@ async def freshdesk_webhook(request: Request) -> dict[str, Any]:
         "freshdesk_webhook: action=%s ticket=%s client=%s confidence=%s chunks=%d",
         action, ticket_id, client, result.confidence, len(result.chunks),
     )
+
+    # ── Sprint 1: Audit note posting and resolve case ──────────────────────────
+    if _case is not None:
+        try:
+            _cs = _get_case_service()
+            await asyncio.to_thread(
+                _cs.record_note_posted, _case,
+                note_type=action, confidence=str(result.confidence),
+            )
+            await asyncio.to_thread(_cs.resolve_case, _case, reason="freshdesk_note_posted")
+            LOGGER.info(
+                "case_engine.resolved ticket=%s case=%s state=%s",
+                ticket_id, _case.case_id, _case.current_state.value,
+            )
+        except Exception as _ce_exc:
+            LOGGER.warning(
+                "case_engine.resolve_failed ticket=%s error=%s",
+                ticket_id, _ce_exc,
+            )
 
     return {
         "status": "ok",

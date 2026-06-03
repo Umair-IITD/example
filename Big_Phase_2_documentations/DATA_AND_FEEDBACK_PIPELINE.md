@@ -1,4 +1,6 @@
-# Data and Feedback Pipeline — Big Phase 2
+# Data and Feedback Pipeline — Phase 2 (Scoped to Case-Level Feedback Signals)
+
+> **Scope note (updated 2026-06-01):** This document is now scoped to case-level feedback signals only. Session-level memory, episodic embeddings, and customer profile vectorization described in earlier drafts have been removed from scope. See `06_MEMORY_AND_CONTEXT_MODEL.md` for the authoritative memory design and `09_OPERATIONAL_ANALYTICS_AND_EVALUATION.md` for the evaluation and calibration pipeline.
 
 ## 1. Why Feedback Is the Core Asset
 
@@ -219,7 +221,7 @@ After review, approved corrections form the annotation dataset:
 These annotations are stored in `evaluation/annotated_corrections.jsonl` and used for:
 1. Gold dataset expansion (add to `evaluation/gold_dataset.json`)
 2. Retrieval quality evaluation (did the system retrieve `sop_otp_delivery_v2.md`?)
-3. Future fine-tuning training data (Phase 2D/Far)
+3. Future fine-tuning training data (Level 3 / offline only, human-reviewed)
 
 ---
 
@@ -227,7 +229,7 @@ These annotations are stored in `evaluation/annotated_corrections.jsonl` and use
 
 ### 5.1 Per-Query Metrics (collected in real-time)
 
-Already designed in `PHASE_2A_INTELLIGENCE_LAYER.md` (`retrieval_quality_log` table). This section covers analytics built on top.
+The `retrieval_quality_log` table schema is defined in `09_OPERATIONAL_ANALYTICS_AND_EVALUATION.md`. This section covers analytics built on top.
 
 ### 5.2 Retrieval Quality Dashboard Queries
 
@@ -372,7 +374,7 @@ def evaluate_against_gold_dataset(gold_dataset: list[GoldItem]) -> GoldEvalResul
     )
 ```
 
-A CI step (Phase 2A) runs this weekly and fails if any metric drops >5% from the previous week's baseline.
+A CI step (Level 1, weekly calibration review) runs this check and fails if any metric drops >5% from the previous week's baseline.
 
 ---
 

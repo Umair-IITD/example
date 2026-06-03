@@ -35,7 +35,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Compile-check all Python modules
-        run: python -m compileall -q app/ rag_engine/ retrieval/ dataset_pipeline/ scripts/ observability/ 2>&1
+        run: python -m compileall -q app/ rag_engine/ case_engine/ retrieval/ dataset_pipeline/ scripts/ observability/ 2>&1
 
       - name: Validate docker-compose config
         working-directory: ${{ github.workspace }}
@@ -45,6 +45,6 @@ jobs:
         run: python scripts/validate_response_governance.py
 
       - name: Run pytest (unit tests)
-        run: pytest tests/ -q --tb=short 2>&1 || true
-        # pytest tests may require env vars not present in CI — failures are non-blocking
-        # until env injection is wired. Remove '|| true' after CI secrets are configured.
+        run: pytest tests/ -q --tb=short
+        # Live DB tests are skip-guarded: @pytest.mark.skipif(not os.getenv("SUPABASE_URL"), ...)
+        # Unit tests (mocked) run without any env vars and must pass.
