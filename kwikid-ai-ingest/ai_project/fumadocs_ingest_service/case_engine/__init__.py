@@ -73,6 +73,35 @@ from case_engine.action_runtime import (
     EXECUTION_TIMEOUT_DEFAULT,
 )
 
+# Sprint 2.3: Provider Abstraction Layer
+from case_engine.provider_models import (
+    ProviderCapability,
+    ProviderRequest,
+    ProviderResponse,
+    ProviderHealth,
+    ProviderMetadata,
+)
+from case_engine.provider_exceptions import (
+    ProviderError,
+    ProviderTransientError,
+    ProviderPermanentError,
+    ProviderUnavailableError,
+    ProviderTimeoutError,
+    ProviderRateLimitError,
+    ProviderAuthenticationError,
+    ProviderAuthorizationError,
+    ProviderValidationError,
+    ProviderCapabilityError,
+    ProviderExecutionError,
+)
+from case_engine.provider_interface import Provider
+from case_engine.provider_registry import (
+    ProviderRegistry,
+    ProviderRegistrationError,
+    UnknownProviderError,
+)
+from case_engine.provider_router import ProviderRouter
+
 __all__ = [
     # Sprint 1: Case Foundation
     "CaseState",
@@ -124,4 +153,26 @@ __all__ = [
     "ActionRuntime",
     "build_action_runtime",
     "EXECUTION_TIMEOUT_DEFAULT",
+    # Sprint 2.3: Provider Abstraction Layer
+    "ProviderCapability",
+    "ProviderRequest",
+    "ProviderResponse",
+    "ProviderHealth",
+    "ProviderMetadata",
+    "ProviderError",
+    "ProviderTransientError",
+    "ProviderPermanentError",
+    "ProviderUnavailableError",
+    "ProviderTimeoutError",
+    "ProviderRateLimitError",
+    "ProviderAuthenticationError",
+    "ProviderAuthorizationError",
+    "ProviderValidationError",
+    "ProviderCapabilityError",
+    "ProviderExecutionError",
+    "Provider",
+    "ProviderRegistry",
+    "ProviderRegistrationError",
+    "UnknownProviderError",
+    "ProviderRouter",
 ]
