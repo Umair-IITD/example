@@ -214,6 +214,33 @@ class ActionRepository:
             )
             return []
 
+    def list_rolling_back_actions(self, client: str | None = None) -> list[ActionRequest]:
+        """
+        Return ROLLING_BACK actions that have a linked compensation (rollback_action_id set).
+
+        Used by ActionWorker.tick_rollbacks() to find originals whose compensation
+        actions are ready to execute. Optionally filtered by client.
+        """
+        if self._sb is None:
+            return []
+        try:
+            query = (
+                self._sb
+                .table(_ACTIONS_TABLE)
+                .select("*")
+                .eq("current_state", ActionState.ROLLING_BACK.value)
+                .not_.is_("rollback_action_id", "null")
+            )
+            if client is not None:
+                query = query.eq("client", client)
+            result = query.order("proposed_at", desc=False).execute()
+            return [ActionRequest.from_db_row(r) for r in (result.data or [])]
+        except Exception as exc:
+            LOGGER.error(
+                "action_repo.list_rolling_back_actions failed client=%s error=%s", client, exc,
+            )
+            return []
+
     def list_expired_actions(self, client: str | None = None) -> list[ActionRequest]:
         """
         Return AWAITING_APPROVAL or APPROVED actions whose expires_at is in the past.

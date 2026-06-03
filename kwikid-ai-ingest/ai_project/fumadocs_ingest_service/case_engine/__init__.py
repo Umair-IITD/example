@@ -1,5 +1,5 @@
 """
-case_engine — Phase 2 Case Foundation Layer (Sprint 1 + Sprint 2.1 + Sprint 2.2)
+case_engine — Phase 2 Case Foundation Layer (Sprint 1 + Sprint 2.1 + Sprint 2.2 + Sprint 2.3)
 
 Public API:
     CaseState         — state enum
@@ -22,6 +22,14 @@ Sprint 2.2 — Execution Runtime:
     ActionExecutor — ABC all provider executors must implement
     ActionExecutorRegistry, ExecutorRegistrationError, UnknownExecutorError — executor routing
     ActionRuntime, build_action_runtime, EXECUTION_TIMEOUT_DEFAULT — orchestrator + factory
+
+Sprint 2.3 — Provider Abstraction Layer:
+    ProviderCapability — capability enum (EXECUTE, ROLLBACK, IDEMPOTENT, HEALTH_CHECK)
+    ProviderRequest, ProviderResponse, ProviderHealth, ProviderMetadata — provider models
+    ProviderError — base exception; ProviderTransientError / ProviderPermanentError branches
+    Provider — ABC all provider implementations must satisfy
+    ProviderRegistry, ProviderRegistrationError, UnknownProviderError — provider lookup table
+    ProviderRouter — executor → provider dispatch
 """
 from case_engine.case_state import CaseState, ALLOWED_TRANSITIONS, TERMINAL_STATES
 from case_engine.models import (
