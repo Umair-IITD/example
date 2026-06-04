@@ -89,7 +89,7 @@ class FakeRepository(ActionRepository):
         self._store[action.action_id] = action
         return action
 
-    def update_action(self, action: ActionRequest) -> bool:
+    def update_action(self, action: ActionRequest, *, expected_state=None) -> bool:
         self._store[action.action_id] = action
         return True
 
@@ -405,13 +405,13 @@ class TestExecuteActionRetryableFailure:
         stored = repo.get_action(action.action_id)
         assert stored.current_state == ActionState.APPROVED
 
-    def test_action_stays_failed_at_max_attempts(self) -> None:
+    def test_action_dead_lettered_at_max_attempts(self) -> None:
         runtime, repo, _ = _make_runtime(executor_mode="retryable")
         action = _make_approved_action(max_attempts=1)
         repo.put(action)
         runtime.execute_action(action.action_id, executor_id="worker-1")
         stored = repo.get_action(action.action_id)
-        assert stored.current_state == ActionState.FAILED
+        assert stored.current_state == ActionState.DEAD_LETTER  # Sprint 2.10
 
     def test_failure_code_persisted(self) -> None:
         runtime, repo, _ = _make_runtime(executor_mode="retryable")
@@ -459,13 +459,13 @@ class TestExecuteActionPermanentFailure:
         result = runtime.execute_action(action.action_id, executor_id="worker-1")
         assert result.retryable is False
 
-    def test_action_stays_failed_regardless_of_budget(self) -> None:
+    def test_action_dead_lettered_on_permanent_failure(self) -> None:
         runtime, repo, _ = _make_runtime(executor_mode="permanent")
         action = _make_approved_action(max_attempts=5)
         repo.put(action)
         runtime.execute_action(action.action_id, executor_id="worker-1")
         stored = repo.get_action(action.action_id)
-        assert stored.current_state == ActionState.FAILED
+        assert stored.current_state == ActionState.DEAD_LETTER  # permanent=True → DEAD_LETTER
 
     def test_error_code_from_executor(self) -> None:
         runtime, repo, _ = _make_runtime(executor_mode="permanent")
@@ -630,10 +630,10 @@ class TestExecuteRollbackFailure:
         result = runtime.execute_rollback(original.action_id, executor_id="worker-1")
         assert result.retryable is False
 
-    def test_compensation_transitions_to_failed(self) -> None:
+    def test_compensation_transitions_to_dead_letter(self) -> None:
         runtime, repo, spy, original, comp = self._setup()
         runtime.execute_rollback(original.action_id, executor_id="worker-1")
-        assert repo.get_action(comp.action_id).current_state == ActionState.FAILED
+        assert repo.get_action(comp.action_id).current_state == ActionState.DEAD_LETTER  # permanent rollback failure
 
     def test_original_transitions_to_rollback_failed(self) -> None:
         runtime, repo, spy, original, comp = self._setup()

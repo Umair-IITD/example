@@ -78,6 +78,7 @@ _DB_STATES: frozenset[str] = frozenset({
     "ROLLING_BACK",
     "ROLLED_BACK",
     "ROLLBACK_FAILED",
+    "DEAD_LETTER",          # Sprint 2.10: terminal state for exhausted/permanent failures
 })
 
 # agt_from_state_check / agt_to_state_check constraint values
@@ -123,6 +124,8 @@ _AG_COLUMNS: frozenset[str] = frozenset({
     "idempotency_key",
     # Timestamps
     "created_at", "updated_at",
+    # Dead Letter (Sprint 2.10)
+    "dead_lettered_at",              # set when action transitions to DEAD_LETTER
 })
 
 # Expected columns in action_gateway_transitions (target schema)
@@ -195,7 +198,7 @@ class TestStateConstantCoverage:
         assert _DB_TRANSITION_STATES == _DB_STATES
 
     def test_db_state_count(self):
-        assert len(_DB_STATES) == 12
+        assert len(_DB_STATES) == 13
 
     def test_all_terminal_states_in_db(self):
         from case_engine.action_state import TERMINAL_ACTION_STATES
@@ -243,7 +246,7 @@ class TestDBColumnContract:
     """Verify expected column counts and presence in the schema contract."""
 
     def test_action_gateway_column_count(self):
-        assert len(_AG_COLUMNS) == 34
+        assert len(_AG_COLUMNS) == 35
 
     def test_action_gateway_transitions_column_count(self):
         assert len(_AGT_COLUMNS) == 11
@@ -523,9 +526,17 @@ class TestMigrationFileContract:
         assert "ag_agent_select" in sql
 
     def test_migration_contains_all_state_values(self):
-        sql = self._read_sql()
+        # States may be defined across multiple migration files (S2_003 adds DEAD_LETTER).
+        import pathlib
+        sql_dir = pathlib.Path(__file__).parent.parent / "sql" / "sprint2_migrations"
+        combined_sql = self._read_sql()
+        s2_003 = sql_dir / "S2_003_dead_letter_and_audit_events.sql"
+        if s2_003.exists():
+            combined_sql += s2_003.read_text(encoding="utf-8")
         for state in _DB_STATES:
-            assert f"'{state}'" in sql, f"State '{state}' missing from migration SQL"
+            assert f"'{state}'" in combined_sql, (
+                f"State '{state}' missing from all sprint2 migration SQL files"
+            )
 
     def test_migration_contains_all_risk_levels(self):
         sql = self._read_sql()

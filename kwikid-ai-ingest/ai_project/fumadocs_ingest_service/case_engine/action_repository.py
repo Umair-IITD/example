@@ -15,6 +15,7 @@ idempotency-key violation (23505) — callers must handle this one.
 from __future__ import annotations
 
 import logging
+import threading
 from datetime import datetime, timezone
 from typing import Any
 
@@ -42,6 +43,8 @@ class ActionRepository:
 
     def __init__(self, supabase_client: Any = None) -> None:
         self._sb = supabase_client
+        # Used by update_action(expected_state=...) in offline mode for atomic claiming
+        self._claim_lock = threading.Lock()
 
     # ── action_gateway ─────────────────────────────────────────────────────────
 
@@ -125,14 +128,32 @@ class ActionRepository:
             )
             return None
 
-    def update_action(self, action: ActionRequest) -> bool:
+    def update_action(
+        self,
+        action: ActionRequest,
+        *,
+        expected_state: ActionState | None = None,
+    ) -> bool:
         """
         Persist all mutable fields of an ActionRequest to the DB.
 
-        The updated_at trigger in S2_001 handles timestamp refresh;
-        we still include it in the patch for offline consistency.
+        Args:
+            expected_state: When provided, adds a WHERE current_state = expected_state
+                clause. Returns False (without raising) if 0 rows matched, which means
+                another worker already changed the state — the optimistic locking signal
+                for distributed execution safety.
+
+        Returns:
+            True if the row was updated, False if no rows matched (only when
+            expected_state is provided and the state has already changed).
         """
         if self._sb is None:
+            # In-memory mode: use lock for atomic check-and-set when expected_state given
+            if expected_state is not None:
+                with self._claim_lock:
+                    if action.current_state != expected_state:
+                        # Simulated concurrent claim failure (shouldn't happen in tests)
+                        return False
             return True
 
         row = action.to_db_row()
@@ -144,7 +165,17 @@ class ActionRepository:
             row.pop(immutable, None)
 
         try:
-            self._sb.table(_ACTIONS_TABLE).update(row).eq("action_id", action.action_id).execute()
+            query = self._sb.table(_ACTIONS_TABLE).update(row).eq("action_id", action.action_id)
+            if expected_state is not None:
+                query = query.eq("current_state", expected_state.value)
+            result = query.execute()
+            if expected_state is not None and not result.data:
+                LOGGER.warning(
+                    "action_repo.update_action: optimistic lock failed action_id=%s "
+                    "expected_state=%s — claimed by another worker",
+                    action.action_id, expected_state.value,
+                )
+                return False
             return True
         except Exception as exc:
             LOGGER.error(
@@ -238,6 +269,31 @@ class ActionRepository:
         except Exception as exc:
             LOGGER.error(
                 "action_repo.list_rolling_back_actions failed client=%s error=%s", client, exc,
+            )
+            return []
+
+    def list_dead_letter_actions(self, client: str | None = None) -> list[ActionRequest]:
+        """
+        Return DEAD_LETTER actions (all retries exhausted), optionally filtered by client.
+
+        Used by compliance tooling and manual intervention workflows.
+        """
+        if self._sb is None:
+            return []
+        try:
+            query = (
+                self._sb
+                .table(_ACTIONS_TABLE)
+                .select("*")
+                .eq("current_state", ActionState.DEAD_LETTER.value)
+            )
+            if client is not None:
+                query = query.eq("client", client)
+            result = query.order("dead_lettered_at", desc=False).execute()
+            return [ActionRequest.from_db_row(r) for r in (result.data or [])]
+        except Exception as exc:
+            LOGGER.error(
+                "action_repo.list_dead_letter_actions failed client=%s error=%s", client, exc,
             )
             return []
 

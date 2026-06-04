@@ -87,14 +87,25 @@ class TicketChunker:
         max_input_tokens: int = 7000,
         embedding_model: str = "text-embedding-3-small",
     ) -> None:
-        self._max_chunk_words    = max_chunk_words
-        self._overlap_words      = overlap_words
+        self._max_chunk_words      = max_chunk_words
+        self._overlap_words        = overlap_words
         self._min_query_body_chars = min_query_body_chars
-        self._index_version      = index_version
-        self._chunk_target_tokens = chunk_target_tokens
-        self._chunk_overlap_tokens = chunk_overlap_tokens
-        self._max_input_tokens   = max_input_tokens
-        self._embedding_model    = embedding_model
+        self._index_version        = index_version
+        self._max_input_tokens     = max_input_tokens
+        self._embedding_model      = embedding_model
+
+        # When max_chunk_words is explicitly set smaller than the default (400),
+        # derive a stricter token target so the word-based limit is honored
+        # regardless of whether tiktoken is available.
+        _DEFAULT_MAX_CHUNK_WORDS = 400
+        if max_chunk_words < _DEFAULT_MAX_CHUNK_WORDS:
+            word_derived_tokens = max(1, int(max_chunk_words * 1.5))
+            self._chunk_target_tokens  = min(chunk_target_tokens, word_derived_tokens)
+            word_derived_overlap = max(0, int(overlap_words * 1.5))
+            self._chunk_overlap_tokens = min(chunk_overlap_tokens, word_derived_overlap)
+        else:
+            self._chunk_target_tokens  = chunk_target_tokens
+            self._chunk_overlap_tokens = chunk_overlap_tokens
 
     def chunk(
         self,

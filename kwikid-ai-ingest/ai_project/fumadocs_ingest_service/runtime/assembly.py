@@ -2,6 +2,7 @@
 runtime/assembly.py
 
 Sprint 2.6: Production runtime assembly.
+Sprint 2.10: Added MetricsService and audit factory wiring.
 
 build_production_runtime() is the single composition point.
 Application startup calls it once and receives a fully-wired ProductionRuntime.
@@ -16,17 +17,23 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import Any
 
+from audit.factory import build_audit_repository
+from audit.logger import AuditLogger
+from audit.repository import AuditRepository
+from audit.service import AuditService
 from case_engine.action_gateway import ActionGateway
 from case_engine.action_repository import ActionRepository
 from case_engine.action_runtime import ActionRuntime, EXECUTION_TIMEOUT_DEFAULT
 from case_engine.executor_registry import ActionExecutorRegistry
 from case_engine.provider_registry import ProviderRegistry
 from case_engine.provider_router import ProviderRouter
+from case_engine.sla_watchdog import SLAWatchdog
 from executors import (
     AddTicketNoteExecutor,
     IdentityResetOtpExecutor,
     UpdateTicketStatusExecutor,
 )
+from metrics import MetricsCollector, MetricsService
 from runtime.health import HealthService
 from worker.action_worker import ActionWorker
 
@@ -42,6 +49,7 @@ class ProductionRuntime:
     Access pattern:
         stack = build_production_runtime(...)
         rollbacks, forwards = stack.worker.process(client="unity_bank")
+        result = stack.watchdog.run(client="unity_bank")
     """
     runtime: ActionRuntime
     gateway: ActionGateway
@@ -51,6 +59,11 @@ class ProductionRuntime:
     router: ProviderRouter
     worker: ActionWorker
     health: HealthService
+    watchdog: SLAWatchdog
+    audit_repository: AuditRepository
+    audit_service: AuditService
+    audit_logger: AuditLogger
+    metrics_service: MetricsService
 
 
 def build_production_runtime(
@@ -82,9 +95,18 @@ def build_production_runtime(
         ProviderRegistrationError:   provider already registered (programmer error).
         ExecutorRegistrationError:   executor duplicate detected (programmer error).
     """
+    # Metrics stack — wired into gateway, runtime, and watchdog
+    metrics_collector = MetricsCollector()
+    metrics_service = MetricsService(collector=metrics_collector)
+
     # Single shared repository — all components use the same instance
     repository = ActionRepository(supabase_client=supabase_client)
-    gateway = ActionGateway(repository=repository)
+    gateway = ActionGateway(repository=repository, metrics_service=metrics_service)
+
+    # Audit stack — backend selected via AUDIT_BACKEND env var
+    audit_repository = build_audit_repository(supabase_client)
+    audit_service = AuditService(repository=audit_repository)
+    audit_logger = AuditLogger(repository=audit_repository)
 
     # Provider layer
     provider_registry = ProviderRegistry()
@@ -104,6 +126,8 @@ def build_production_runtime(
         repository=repository,
         registry=executor_registry,
         execution_timeout=execution_timeout,
+        audit_service=audit_service,
+        metrics_service=metrics_service,
     )
 
     worker = ActionWorker(
@@ -120,6 +144,13 @@ def build_production_runtime(
         worker=worker,
     )
 
+    watchdog = SLAWatchdog(
+        gateway=gateway,
+        repository=repository,
+        audit_service=audit_service,
+        metrics_service=metrics_service,
+    )
+
     return ProductionRuntime(
         runtime=runtime,
         gateway=gateway,
@@ -129,6 +160,11 @@ def build_production_runtime(
         router=router,
         worker=worker,
         health=health,
+        watchdog=watchdog,
+        audit_repository=audit_repository,
+        audit_service=audit_service,
+        audit_logger=audit_logger,
+        metrics_service=metrics_service,
     )
 
 

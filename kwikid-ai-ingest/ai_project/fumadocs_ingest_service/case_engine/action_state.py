@@ -23,7 +23,8 @@ class ActionState(str, Enum):
     """
     Action request lifecycle states.
 
-    Matches the current_state CHECK constraint in S2_001_action_requests.sql.
+    Matches the current_state CHECK constraint in S2_001_action_gateway.sql
+    (extended by S2_003_dead_letter_and_audit_events.sql with DEAD_LETTER).
     """
     PROPOSED          = "PROPOSED"
     AWAITING_APPROVAL = "AWAITING_APPROVAL"
@@ -37,6 +38,7 @@ class ActionState(str, Enum):
     ROLLING_BACK      = "ROLLING_BACK"
     ROLLED_BACK       = "ROLLED_BACK"
     ROLLBACK_FAILED   = "ROLLBACK_FAILED"
+    DEAD_LETTER       = "DEAD_LETTER"
 
 
 class ActionRiskLevel(str, Enum):
@@ -77,10 +79,12 @@ ALLOWED_ACTION_TRANSITIONS: dict[ActionState, frozenset[ActionState]] = {
     }),
     ActionState.FAILED: frozenset({
         ActionState.APPROVED,           # retry: service checks attempt < max_attempts
+        ActionState.DEAD_LETTER,        # exhausted all retries — permanent failure
     }),
     ActionState.TIMED_OUT: frozenset({
         ActionState.APPROVED,           # retry after timeout
         ActionState.FAILED,             # give up after max retries
+        ActionState.DEAD_LETTER,        # exhausted all retries after timeout
     }),
     ActionState.ROLLING_BACK: frozenset({
         ActionState.ROLLED_BACK,        # compensation succeeded
@@ -91,6 +95,7 @@ ALLOWED_ACTION_TRANSITIONS: dict[ActionState, frozenset[ActionState]] = {
     ActionState.EXPIRED:         frozenset(),
     ActionState.ROLLED_BACK:     frozenset(),
     ActionState.ROLLBACK_FAILED: frozenset(),
+    ActionState.DEAD_LETTER:     frozenset(),
 }
 
 TERMINAL_ACTION_STATES: frozenset[ActionState] = frozenset({
@@ -98,6 +103,7 @@ TERMINAL_ACTION_STATES: frozenset[ActionState] = frozenset({
     ActionState.EXPIRED,
     ActionState.ROLLED_BACK,
     ActionState.ROLLBACK_FAILED,
+    ActionState.DEAD_LETTER,
 })
 
 # EXECUTED is pseudo-terminal: REVERSIBLE actions may transition to ROLLING_BACK.

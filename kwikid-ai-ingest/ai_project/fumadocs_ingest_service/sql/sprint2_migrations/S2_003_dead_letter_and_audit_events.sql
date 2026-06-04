@@ -1,0 +1,261 @@
+-- S2_003_dead_letter_and_audit_events.sql
+-- Sprint 2.10: Dead-Letter Queue & Persistent Audit Events
+--
+-- ============================================================================
+-- WHAT THIS MIGRATION DOES
+-- ============================================================================
+--
+-- 1. Extends the action_gateway table to support the DEAD_LETTER state
+--    (adds dead_lettered_at column, updates CHECK constraints).
+--
+-- 2. Creates the audit_events table for persistent audit storage,
+--    supporting AUDIT_BACKEND=supabase (SupabaseAuditRepository).
+--
+-- ============================================================================
+-- PREREQUISITES
+-- ============================================================================
+-- S2_001_action_gateway.sql must be applied first.
+-- Apply via Supabase SQL editor (paste entire file, run as one transaction).
+--
+-- ============================================================================
+-- DEAD_LETTER STATE
+-- ============================================================================
+-- DEAD_LETTER is the terminal state for actions that exhausted all retry
+-- attempts or received a permanent failure. It replaces the ambiguous FAILED
+-- terminal (FAILED was previously both "may retry" and "exhausted").
+--
+-- Transition path:
+--   EXECUTING → FAILED → DEAD_LETTER  (when execution_attempt >= max_attempts)
+--   EXECUTING → FAILED → DEAD_LETTER  (when permanent=True)
+--   TIMED_OUT → FAILED → DEAD_LETTER  (when execution_attempt >= max_attempts)
+--
+-- DEAD_LETTER requires human intervention to resolve. The action is preserved
+-- as a compliance artefact — never deleted.
+-- ============================================================================
+
+
+-- ─── Step 1: Add dead_lettered_at column to action_gateway ───────────────────
+
+ALTER TABLE action_gateway
+    ADD COLUMN IF NOT EXISTS dead_lettered_at TIMESTAMPTZ;
+
+COMMENT ON COLUMN action_gateway.dead_lettered_at IS
+    'Sprint 2.10: Set when action transitions to DEAD_LETTER (all retries '
+    'exhausted or permanent failure). NULL for all other states. '
+    'Enables direct dead-letter time-window queries without scanning transitions.';
+
+
+-- ─── Step 2: Update CHECK constraints to include DEAD_LETTER ─────────────────
+-- PostgreSQL requires DROP + CREATE for CHECK constraint modification.
+-- Both action_gateway (state) and action_gateway_transitions (from/to state)
+-- must be updated.
+
+ALTER TABLE action_gateway
+    DROP CONSTRAINT IF EXISTS ag_state_check;
+
+ALTER TABLE action_gateway
+    ADD CONSTRAINT ag_state_check CHECK (
+        current_state IN (
+            'PROPOSED',
+            'AWAITING_APPROVAL',
+            'APPROVED',
+            'REJECTED',
+            'EXPIRED',
+            'EXECUTING',
+            'EXECUTED',
+            'FAILED',
+            'TIMED_OUT',
+            'ROLLING_BACK',
+            'ROLLED_BACK',
+            'ROLLBACK_FAILED',
+            'DEAD_LETTER'
+        )
+    );
+
+ALTER TABLE action_gateway_transitions
+    DROP CONSTRAINT IF EXISTS agt_from_state_check;
+
+ALTER TABLE action_gateway_transitions
+    ADD CONSTRAINT agt_from_state_check CHECK (
+        from_state IN (
+            'PROPOSED', 'AWAITING_APPROVAL', 'APPROVED',
+            'REJECTED', 'EXPIRED',
+            'EXECUTING', 'EXECUTED', 'FAILED', 'TIMED_OUT',
+            'ROLLING_BACK', 'ROLLED_BACK', 'ROLLBACK_FAILED',
+            'DEAD_LETTER'
+        )
+    );
+
+ALTER TABLE action_gateway_transitions
+    DROP CONSTRAINT IF EXISTS agt_to_state_check;
+
+ALTER TABLE action_gateway_transitions
+    ADD CONSTRAINT agt_to_state_check CHECK (
+        to_state IN (
+            'PROPOSED', 'AWAITING_APPROVAL', 'APPROVED',
+            'REJECTED', 'EXPIRED',
+            'EXECUTING', 'EXECUTED', 'FAILED', 'TIMED_OUT',
+            'ROLLING_BACK', 'ROLLED_BACK', 'ROLLBACK_FAILED',
+            'DEAD_LETTER'
+        )
+    );
+
+
+-- ─── Step 3: Add partial index for dead-letter queue ─────────────────────────
+
+CREATE INDEX IF NOT EXISTS idx_ag_dead_letter
+    ON action_gateway (client, dead_lettered_at ASC)
+    WHERE current_state = 'DEAD_LETTER';
+
+COMMENT ON INDEX idx_ag_dead_letter IS
+    'Sprint 2.10: Per-client dead-letter queue scan. Ordered by dead_lettered_at '
+    'ASC (oldest failures first) for intervention prioritisation.';
+
+
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- TABLE: audit_events
+-- ═══════════════════════════════════════════════════════════════════════════════
+--
+-- Persistent store for action gateway audit events.
+-- Used by SupabaseAuditRepository (AUDIT_BACKEND=supabase).
+--
+-- Append-only: no UPDATE or DELETE. Every event written here is a permanent
+-- compliance record. Archive old events to cold storage rather than deleting.
+--
+-- Columns mirror the AuditEvent dataclass in audit/models.py:
+--   event_id     — UUID PK (generated by Python, not DB default, for idempotency)
+--   action_id    — UUID of the action that triggered this event
+--   case_id      — denormalized case UUID (may be empty string for legacy events)
+--   client       — tenant slug for multi-tenant queries
+--   event_type   — AuditEventType value string
+--   actor        — who/what caused the event
+--   timestamp    — when the event occurred (UTC)
+--   metadata_json — arbitrary event context (action_type, failure_code, etc.)
+--
+-- ═══════════════════════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS audit_events (
+
+    event_id        UUID        PRIMARY KEY,
+
+    action_id       UUID        NOT NULL,
+    case_id         TEXT        NOT NULL DEFAULT '',
+    client          TEXT        NOT NULL DEFAULT '',
+
+    event_type      TEXT        NOT NULL,
+    actor           TEXT        NOT NULL,
+    timestamp       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    metadata_json   JSONB       NOT NULL DEFAULT '{}'::jsonb,
+
+    CONSTRAINT ae_event_type_check CHECK (
+        event_type IN (
+            'ACTION_APPROVED',
+            'ACTION_REJECTED',
+            'ACTION_EXPIRED',
+            'ACTION_EXECUTION_STARTED',
+            'ACTION_EXECUTED',
+            'ACTION_FAILED',
+            'ACTION_ROLLED_BACK',
+            'ACTION_ROLLBACK_FAILED'
+        )
+    )
+);
+
+
+-- ─── Append-only enforcement ──────────────────────────────────────────────────
+-- Mirrors the pattern from action_gateway_transitions.
+
+CREATE RULE no_update_audit_events AS
+    ON UPDATE TO audit_events DO INSTEAD NOTHING;
+
+CREATE RULE no_delete_audit_events AS
+    ON DELETE TO audit_events DO INSTEAD NOTHING;
+
+
+-- ─── Indexes: audit_events ────────────────────────────────────────────────────
+
+-- Primary query: "all audit events for action X in chronological order"
+CREATE INDEX IF NOT EXISTS idx_ae_action_id_time
+    ON audit_events (action_id, timestamp ASC);
+
+-- Case-level audit timeline
+CREATE INDEX IF NOT EXISTS idx_ae_case_id_time
+    ON audit_events (case_id, timestamp ASC)
+    WHERE case_id != '';
+
+-- Per-client compliance queries with pagination (sorted newest last)
+CREATE INDEX IF NOT EXISTS idx_ae_client_time
+    ON audit_events (client, timestamp ASC)
+    WHERE client != '';
+
+-- Event type filter for dashboards: "how many ACTION_FAILED this week?"
+CREATE INDEX IF NOT EXISTS idx_ae_event_type_time
+    ON audit_events (event_type, timestamp DESC);
+
+-- Global timeline — cross-client SOC audit
+CREATE INDEX IF NOT EXISTS idx_ae_timestamp
+    ON audit_events (timestamp DESC);
+
+COMMENT ON TABLE audit_events IS
+    'Sprint 2.10: Persistent audit event store for action gateway lifecycle events. '
+    'Append-only (RULE-enforced). Used by SupabaseAuditRepository when '
+    'AUDIT_BACKEND=supabase. Mirrors InMemoryAuditRepository semantics with '
+    'DB-level persistence for process-restart survival.';
+
+
+-- ─── Row-level security: audit_events ────────────────────────────────────────
+-- service_role: full access (the AI ingest service).
+-- authenticated: read-only access to their client's events.
+-- anon: deny all.
+
+ALTER TABLE audit_events ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS ae_deny_anon ON audit_events;
+CREATE POLICY ae_deny_anon
+    ON audit_events
+    AS RESTRICTIVE
+    FOR ALL
+    TO anon
+    USING (false);
+
+DROP POLICY IF EXISTS ae_agent_select ON audit_events;
+CREATE POLICY ae_agent_select
+    ON audit_events
+    AS PERMISSIVE
+    FOR SELECT
+    TO authenticated
+    USING (
+        client = COALESCE(
+            auth.jwt() -> 'user_metadata' ->> 'client',
+            auth.jwt() -> 'app_metadata' ->> 'client'
+        )
+    );
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- VERIFICATION QUERIES
+-- ════════════════════════════════════════════════════════════════════
+--
+-- V1: Confirm dead_lettered_at column exists
+-- SELECT column_name FROM information_schema.columns
+-- WHERE table_name = 'action_gateway' AND column_name = 'dead_lettered_at';
+-- Expected: 1 row
+--
+-- V2: Confirm DEAD_LETTER in state CHECK constraint
+-- SELECT pg_get_constraintdef(oid) FROM pg_constraint
+-- WHERE conname = 'ag_state_check';
+-- Expected: includes 'DEAD_LETTER'
+--
+-- V3: Confirm audit_events table exists
+-- SELECT table_name FROM information_schema.tables
+-- WHERE table_schema = 'public' AND table_name = 'audit_events';
+-- Expected: 1 row
+--
+-- V4: Confirm audit_events indexes (5 expected)
+-- SELECT COUNT(*) FROM pg_indexes WHERE tablename = 'audit_events';
+-- Expected: 5
+--
+-- V5: Confirm append-only RULES
+-- SELECT rulename FROM pg_rules WHERE tablename = 'audit_events'
+-- ORDER BY rulename;
+-- Expected: no_delete_audit_events, no_update_audit_events

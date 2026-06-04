@@ -56,20 +56,21 @@ from rag_engine.schemas.ticket_document import RagTicketDocument, TicketSourceRo
 LOGGER = logging.getLogger(__name__)
 
 
-def _deterministic_document_id(ticket_id: str) -> str:
+def _deterministic_document_id(ticket_id: str, index_version: str = "v1") -> str:
     """
-    Version-agnostic UUID5 document ID.
+    Version-scoped UUID5 document ID.
 
     Used ONLY for tickets not yet present in rag_ticket_documents.
     For tickets that already have a canonical document row, the DB-fetched
     id is used directly — see _fetch_existing_document_ids.
 
-    The seed deliberately omits index_version: documents are shared across
-    all ingestion versions; their identity is the ticket, not the run version.
+    Including index_version in the seed ensures different ingestion versions
+    produce distinct document rows, consistent with the chunk ID scheme
+    (freshdesk:{ticket_id}:{chunk_index}:{index_version}).
     """
     return str(uuid.uuid5(
         uuid.NAMESPACE_URL,
-        f"freshdesk:doc:{ticket_id}",
+        f"freshdesk:doc:{ticket_id}:{index_version}",
     ))
 
 

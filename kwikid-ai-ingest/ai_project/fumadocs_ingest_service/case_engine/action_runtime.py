@@ -31,6 +31,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+from audit.models import AuditEvent, AuditEventType
 from case_engine.action_executor import (
     ActionExecutor,
     ExecutionContext,
@@ -78,11 +79,15 @@ class ActionRuntime:
         repository: ActionRepository,
         registry: ActionExecutorRegistry,
         execution_timeout: timedelta = EXECUTION_TIMEOUT_DEFAULT,
+        audit_service: Any = None,
+        metrics_service: Any = None,
     ) -> None:
         self._gateway = gateway
         self._repo    = repository
         self._registry = registry
         self._timeout  = execution_timeout
+        self._audit    = audit_service
+        self._metrics  = metrics_service
 
     # ── Forward execution ──────────────────────────────────────────────────────
 
@@ -183,6 +188,18 @@ class ActionRuntime:
             )
 
         context = self._build_context(action)
+        self._emit(AuditEvent(
+            action_id=action.action_id,
+            case_id=action.case_id,
+            client=action.client,
+            event_type=AuditEventType.ACTION_EXECUTION_STARTED,
+            actor=f"executor:{executor_id}",
+            metadata={
+                "action_type": action.action_type,
+                "action_namespace": action.action_namespace,
+                "attempt": action.execution_attempt,
+            },
+        ))
         return self._run_executor(executor, action, context)
 
     # ── Rollback execution ─────────────────────────────────────────────────────
@@ -289,6 +306,19 @@ class ActionRuntime:
 
     # ── Internal helpers ───────────────────────────────────────────────────────
 
+    def _emit(self, event: "AuditEvent") -> None:
+        """Fire-and-forget audit emission. Never raises."""
+        if self._audit is not None:
+            self._audit.emit(event)
+
+    def _record_metric(self, method_name: str, **kwargs: Any) -> None:
+        """Fire-and-forget metrics recording. Never raises."""
+        if self._metrics is not None:
+            try:
+                getattr(self._metrics, method_name)(**kwargs)
+            except Exception:
+                pass
+
     def _build_context(self, action: ActionRequest) -> ExecutionContext:
         """Build an ExecutionContext for a single execution attempt."""
         return ExecutionContext(
@@ -356,6 +386,19 @@ class ActionRuntime:
                 "action_runtime: succeeded action_id=%s attempt=%d latency_ms=%d",
                 action.action_id, action.execution_attempt, latency_ms,
             )
+            self._emit(AuditEvent(
+                action_id=action.action_id,
+                case_id=action.case_id,
+                client=action.client,
+                event_type=AuditEventType.ACTION_EXECUTED,
+                actor=f"executor:{action.executor_id or 'unknown'}",
+                metadata={
+                    "action_type": action.action_type,
+                    "attempt": action.execution_attempt,
+                    "latency_ms": latency_ms,
+                },
+            ))
+            self._record_metric("record_action_executed", latency_ms=float(latency_ms))
             return result
 
         except PermanentExecutionError as exc:
@@ -370,6 +413,20 @@ class ActionRuntime:
                 reason=str(exc),
                 permanent=True,
             )
+            self._emit(AuditEvent(
+                action_id=action.action_id,
+                case_id=action.case_id,
+                client=action.client,
+                event_type=AuditEventType.ACTION_FAILED,
+                actor=f"executor:{action.executor_id or 'unknown'}",
+                metadata={
+                    "action_type": action.action_type,
+                    "failure_code": exc.failure_code,
+                    "permanent": True,
+                    "attempt": action.execution_attempt,
+                },
+            ))
+            self._record_metric("record_action_failed")
             return ExecutionResult(
                 success=False,
                 latency_ms=latency_ms,
@@ -390,6 +447,20 @@ class ActionRuntime:
                 reason=str(exc),
                 permanent=False,
             )
+            self._emit(AuditEvent(
+                action_id=action.action_id,
+                case_id=action.case_id,
+                client=action.client,
+                event_type=AuditEventType.ACTION_FAILED,
+                actor=f"executor:{action.executor_id or 'unknown'}",
+                metadata={
+                    "action_type": action.action_type,
+                    "failure_code": exc.failure_code,
+                    "permanent": False,
+                    "attempt": action.execution_attempt,
+                },
+            ))
+            self._record_metric("record_action_failed")
             return ExecutionResult(
                 success=False,
                 latency_ms=latency_ms,
@@ -410,6 +481,20 @@ class ActionRuntime:
                 reason=str(exc),
                 permanent=False,
             )
+            self._emit(AuditEvent(
+                action_id=action.action_id,
+                case_id=action.case_id,
+                client=action.client,
+                event_type=AuditEventType.ACTION_FAILED,
+                actor=f"executor:{action.executor_id or 'unknown'}",
+                metadata={
+                    "action_type": action.action_type,
+                    "failure_code": "UNEXPECTED_ERROR",
+                    "permanent": False,
+                    "attempt": action.execution_attempt,
+                },
+            ))
+            self._record_metric("record_action_failed")
             return ExecutionResult(
                 success=False,
                 latency_ms=latency_ms,
@@ -450,6 +535,19 @@ class ActionRuntime:
                 "action_runtime: rollback succeeded original=%s compensation=%s latency_ms=%d",
                 original.action_id, compensation.action_id, latency_ms,
             )
+            self._emit(AuditEvent(
+                action_id=original.action_id,
+                case_id=original.case_id,
+                client=original.client,
+                event_type=AuditEventType.ACTION_ROLLED_BACK,
+                actor=f"executor:{compensation.executor_id or 'unknown'}",
+                metadata={
+                    "action_type": original.action_type,
+                    "compensation_action_id": compensation.action_id,
+                    "latency_ms": latency_ms,
+                },
+            ))
+            self._record_metric("record_action_rolled_back", latency_ms=float(latency_ms))
             return result
 
         except Exception as exc:
@@ -467,6 +565,20 @@ class ActionRuntime:
                 permanent=True,
             )
             self._gateway.record_rollback_failure(original, reason=reason)
+            self._emit(AuditEvent(
+                action_id=original.action_id,
+                case_id=original.case_id,
+                client=original.client,
+                event_type=AuditEventType.ACTION_ROLLBACK_FAILED,
+                actor=f"executor:{compensation.executor_id or 'unknown'}",
+                metadata={
+                    "action_type": original.action_type,
+                    "failure_code": failure_code,
+                    "reason": reason,
+                    "compensation_action_id": compensation.action_id,
+                },
+            ))
+            self._record_metric("record_action_rollback_failed")
             return ExecutionResult(
                 success=False,
                 latency_ms=latency_ms,

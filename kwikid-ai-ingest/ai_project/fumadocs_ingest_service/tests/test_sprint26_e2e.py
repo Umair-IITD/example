@@ -106,7 +106,7 @@ class _FakeRepository(ActionRepository):
         self._store[action.action_id] = action
         return action
 
-    def update_action(self, action: ActionRequest) -> bool:
+    def update_action(self, action: ActionRequest, *, expected_state=None) -> bool:
         self._store[action.action_id] = action
         return True
 
@@ -781,7 +781,7 @@ class TestScenario2TransientRetrySuccess:
         stack.worker.tick(_CLIENT)  # attempt 3 — terminal
 
         stored = stack.repo.get_action(action.action_id)
-        assert stored.current_state == ActionState.FAILED
+        assert stored.current_state == ActionState.DEAD_LETTER  # Sprint 2.10: exhausted
         # No more APPROVED actions
         assert stack.repo.list_approved_actions(_CLIENT) == []
 
@@ -804,7 +804,7 @@ class TestScenario3PermanentFailure:
 
         assert result.results[0].success is False
         stored = stack.repo.get_action(action.action_id)
-        assert stored.current_state == ActionState.FAILED
+        assert stored.current_state == ActionState.DEAD_LETTER  # Sprint 2.10
 
     def test_permanent_error_not_retryable(self) -> None:
         stub = _StubProvider()
@@ -828,7 +828,7 @@ class TestScenario3PermanentFailure:
 
         assert stack.repo.list_approved_actions(_CLIENT) == []
         stored = stack.repo.get_action(action.action_id)
-        assert stored.current_state == ActionState.FAILED
+        assert stored.current_state == ActionState.DEAD_LETTER  # Sprint 2.10
 
     def test_irreversible_action_terminal_on_first_failure(self) -> None:
         stub = _StubProvider()
@@ -844,9 +844,9 @@ class TestScenario3PermanentFailure:
 
         result = stack.worker.tick(_CLIENT)
 
-        # Even though it's a transient error, max_attempts=1 → no retry
+        # Even though it's a transient error, max_attempts=1 → no retry → DEAD_LETTER
         stored = stack.repo.get_action(action.action_id)
-        assert stored.current_state == ActionState.FAILED
+        assert stored.current_state == ActionState.DEAD_LETTER  # Sprint 2.10
         assert result.results[0].success is False
 
     def test_failure_code_preserved_in_result(self) -> None:

@@ -133,6 +133,9 @@ class ActionRequest:
     rollback_action_id:  str | None   = None
     rollback_completed_at: datetime | None = None  # set when compensation EXECUTED
 
+    # Dead letter — set when all retries exhausted
+    dead_lettered_at:    datetime | None = None
+
     # Timestamps
     created_at:          datetime     = field(default_factory=_now)
     updated_at:          datetime     = field(default_factory=_now)
@@ -198,6 +201,7 @@ class ActionRequest:
             "is_rolled_back":         self.is_rolled_back,
             "rollback_action_id":     self.rollback_action_id,
             "rollback_completed_at":  _iso(self.rollback_completed_at),
+            "dead_lettered_at":       _iso(self.dead_lettered_at),
             "created_at":             _iso(self.created_at),
             "updated_at":             _iso(self.updated_at),
         }
@@ -240,6 +244,7 @@ class ActionRequest:
             is_rolled_back=row.get("is_rolled_back", False),
             rollback_action_id=row.get("rollback_action_id"),
             rollback_completed_at=_dt(row.get("rollback_completed_at")),
+            dead_lettered_at=_dt(row.get("dead_lettered_at")),
             created_at=_dt(row.get("created_at")) or _now(),
             updated_at=_dt(row.get("updated_at")) or _now(),
         )

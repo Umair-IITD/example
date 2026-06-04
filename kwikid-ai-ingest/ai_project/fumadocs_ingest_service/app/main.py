@@ -8,15 +8,28 @@ import os
 import time
 import uuid
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import APIRouter, FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field, field_validator
 
+from api.middleware.request_id import RequestIdMiddleware
+from api.routes import (
+    actions as _gw_actions,
+    admin as _gw_admin,
+    audit as _gw_audit,
+    health as _gw_health,
+    metrics as _gw_metrics,
+    watchdog as _gw_watchdog,
+    webhook as _gw_webhook,
+    worker as _gw_worker,
+)
 from app.security import (
+    _GATEWAY_PREFIXES,
     api_key_auth_middleware,
     initialize as security_initialize,
     load_api_keys,
@@ -27,6 +40,7 @@ from app.rate_limiter import get_limiters, pick_limiter
 from observability import logger, tracer, ChunkMetadata, LLMResponseMetadata
 from observability.metrics import (
     ActiveRequestContext,
+    force_initialize as _metrics_force_initialize,
     get_metrics_response,
     record_rate_limit_rejection,
     record_request,
@@ -78,10 +92,8 @@ from app.pii_masking import mask_aadhaar
 
 
 _LOGGER_PRE = logging.getLogger(__name__)
+LOGGER = _LOGGER_PRE
 
-_PROMETHEUS_ENABLED = os.getenv("PROMETHEUS_ENABLED", "false").strip().lower() in {
-    "1", "true", "yes", "on"
-}
 _B1_HYBRID_ENABLED = os.getenv("B1_HYBRID_RETRIEVAL_ENABLED", "false").strip().lower() in {
     "1", "true", "yes", "on"
 }
@@ -125,187 +137,256 @@ _EMBED_CACHE_LOCK = _threading.Lock()
 _EMBED_LRU_CACHE: _collections.OrderedDict = _collections.OrderedDict()  # type: ignore[type-arg]
 _EMBED_CACHE_MAX = 256
 
+# Module-level APIRouter for all RAG routes.
+# Routes are defined below using @_rag_router decorators.
+# create_app() includes this router on the FastAPI instance.
+_rag_router = APIRouter()
 
-@asynccontextmanager
-async def lifespan(_app: FastAPI):
-    """Startup: validate security config, init rate limiters, warn on misconfig."""
-    # ── Security validation ────────────────────────────────────────────────────
-    api_keys = load_api_keys()
-    openai_key = os.getenv("OPENAI_API_KEY", "").strip()
-    errors = validate_startup_security(api_keys, openai_key)
-    if errors:
-        for msg in errors:
-            _LOGGER_PRE.critical("STARTUP_SECURITY_ERROR: %s", msg)
-        raise RuntimeError(
-            f"Security configuration error — service refuses to start: {errors[0]}"
-        )
-    security_initialize(api_keys)
-    _LOGGER_PRE.info("security_initialized api_keys_count=%d", len(api_keys))
 
-    # ── Webhook HMAC enforcement ───────────────────────────────────────────────
-    webhook_enabled = os.getenv("FRESHDESK_WEBHOOK_ENABLED", "false").strip().lower() in {
-        "1", "true", "yes", "on"
-    }
-    webhook_secret = os.getenv("FRESHDESK_WEBHOOK_SECRET", "").strip()
-    enforce_hmac = os.getenv("FRESHDESK_WEBHOOK_ENFORCE_HMAC", "false").strip().lower() in {
-        "1", "true", "yes", "on"
-    }
+# ── Gateway stack builder ─────────────────────────────────────────────────────
 
-    if webhook_enabled and not webhook_secret:
-        if enforce_hmac:
-            _LOGGER_PRE.critical(
-                "STARTUP_SECURITY_ERROR: FRESHDESK_WEBHOOK_ENFORCE_HMAC=true but "
-                "FRESHDESK_WEBHOOK_SECRET is not set. Service refuses to start. "
-                "Set FRESHDESK_WEBHOOK_SECRET or set FRESHDESK_WEBHOOK_ENFORCE_HMAC=false."
+def _build_gateway_stack_from_env(supabase_client: Any = None) -> Any:
+    """Build ProductionRuntime for the action gateway, reusing the RAG Supabase singleton."""
+    from runtime.assembly import build_production_runtime
+    from freshdesk.freshdesk_models import FreshdeskConfig
+    freshdesk_config = None
+    domain = os.environ.get("FRESHDESK_DOMAIN", "").strip()
+    api_key = os.environ.get("FRESHDESK_API_KEY", "").strip()
+    if domain and api_key:
+        try:
+            freshdesk_config = FreshdeskConfig(domain=domain, api_key=api_key)
+        except Exception as exc:
+            _LOGGER_PRE.warning("app.main: Freshdesk config invalid — offline mode: %s", exc)
+    return build_production_runtime(
+        freshdesk_config=freshdesk_config,
+        supabase_client=supabase_client,
+    )
+
+
+# ── Lifespan factory ─────────────────────────────────────────────────────────
+
+def _build_lifespan(*, skip_config_validation: bool = False):
+    """Return a lifespan context manager closed over skip_config_validation."""
+
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI):
+        global _sb_singleton, _embedder_singleton, _generator_singleton, _case_service_singleton
+
+        if not skip_config_validation:
+            # ── Security validation ───────────────────────────────────────────
+            api_keys = load_api_keys()
+            openai_key = os.getenv("OPENAI_API_KEY", "").strip()
+            errors = validate_startup_security(api_keys, openai_key)
+            if errors:
+                for msg in errors:
+                    _LOGGER_PRE.critical("STARTUP_SECURITY_ERROR: %s", msg)
+                raise RuntimeError(
+                    f"Security configuration error — service refuses to start: {errors[0]}"
+                )
+            security_initialize(api_keys)
+            _LOGGER_PRE.info("security_initialized api_keys_count=%d", len(api_keys))
+
+            # ── Webhook HMAC enforcement ──────────────────────────────────────
+            webhook_enabled = os.getenv("FRESHDESK_WEBHOOK_ENABLED", "false").strip().lower() in {
+                "1", "true", "yes", "on"
+            }
+            webhook_secret = os.getenv("FRESHDESK_WEBHOOK_SECRET", "").strip()
+            enforce_hmac = os.getenv("FRESHDESK_WEBHOOK_ENFORCE_HMAC", "false").strip().lower() in {
+                "1", "true", "yes", "on"
+            }
+
+            if webhook_enabled and not webhook_secret:
+                if enforce_hmac:
+                    _LOGGER_PRE.critical(
+                        "STARTUP_SECURITY_ERROR: FRESHDESK_WEBHOOK_ENFORCE_HMAC=true but "
+                        "FRESHDESK_WEBHOOK_SECRET is not set. Service refuses to start. "
+                        "Set FRESHDESK_WEBHOOK_SECRET or set FRESHDESK_WEBHOOK_ENFORCE_HMAC=false."
+                    )
+                    raise RuntimeError(
+                        "FRESHDESK_WEBHOOK_ENFORCE_HMAC=true requires FRESHDESK_WEBHOOK_SECRET."
+                    )
+                _LOGGER_PRE.warning(
+                    "SECURITY_WARNING: FRESHDESK_WEBHOOK_ENABLED=true but FRESHDESK_WEBHOOK_SECRET "
+                    "is not set. The webhook endpoint accepts requests from any caller. "
+                    "Set FRESHDESK_WEBHOOK_SECRET to enable HMAC-SHA256 validation, or set "
+                    "FRESHDESK_WEBHOOK_ENFORCE_HMAC=true to make this a startup error."
+                )
+
+            # ── CORS origin validation ────────────────────────────────────────
+            cors_origins = [
+                o.strip()
+                for o in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",")
+                if o.strip()
+            ]
+            _bad_origins = [
+                o for o in cors_origins if not o.startswith(("http://", "https://"))
+            ]
+            if _bad_origins:
+                raise RuntimeError(
+                    f"CORS_ALLOWED_ORIGINS contains non-HTTP origins "
+                    f"(data:, javascript:, etc. are unsafe): {_bad_origins}"
+                )
+            if not cors_origins:
+                _LOGGER_PRE.info(
+                    "cors_origins: using default localhost-only origins (dev mode)"
+                )
+
+        # ── Rate limiters ─────────────────────────────────────────────────────
+        try:
+            limiters = get_limiters()
+            _LOGGER_PRE.info(
+                "rate_limiters_initialized backends=%s",
+                {name: lim.backend_type for name, lim in limiters.items()},
             )
-            raise RuntimeError(
-                "FRESHDESK_WEBHOOK_ENFORCE_HMAC=true requires FRESHDESK_WEBHOOK_SECRET."
+        except Exception as exc:
+            _LOGGER_PRE.warning(
+                "rate_limiter_init_failed %s — in-process fallback will be used", exc
             )
-        _LOGGER_PRE.warning(
-            "SECURITY_WARNING: FRESHDESK_WEBHOOK_ENABLED=true but FRESHDESK_WEBHOOK_SECRET "
-            "is not set. The webhook endpoint accepts requests from any caller. "
-            "Set FRESHDESK_WEBHOOK_SECRET to enable HMAC-SHA256 validation, or set "
-            "FRESHDESK_WEBHOOK_ENFORCE_HMAC=true to make this a startup error."
-        )
 
-    # ── CORS ──────────────────────────────────────────────────────────────────
-    cors_origins = [o.strip() for o in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",") if o.strip()]
-    _bad_origins = [o for o in cors_origins if not o.startswith(("http://", "https://"))]
-    if _bad_origins:
-        raise RuntimeError(
-            f"CORS_ALLOWED_ORIGINS contains non-HTTP origins (data:, javascript:, etc. are unsafe): {_bad_origins}"
-        )
-    if not cors_origins:
-        _LOGGER_PRE.info("cors_origins: using default localhost-only origins (dev mode)")
-
-    # ── Rate limiters ─────────────────────────────────────────────────────────
-    try:
-        limiters = get_limiters()
+        # ── Hybrid retrieval mode ─────────────────────────────────────────────
         _LOGGER_PRE.info(
-            "rate_limiters_initialized backends=%s",
-            {name: lim.backend_type for name, lim in limiters.items()},
-        )
-    except Exception as exc:
-        _LOGGER_PRE.warning(
-            "rate_limiter_init_failed %s — in-process fallback will be used", exc
+            "retrieval_mode=%s",
+            "hybrid (HybridTicketRetriever)" if _B1_HYBRID_ENABLED else "semantic_only (TicketRetriever)",
         )
 
-    # ── Hybrid retrieval mode ─────────────────────────────────────────────────
-    _LOGGER_PRE.info(
-        "retrieval_mode=%s",
-        "hybrid (HybridTicketRetriever)" if _B1_HYBRID_ENABLED else "semantic_only (TicketRetriever)",
-    )
-
-    # ── Active index version (single source of truth for retrieval) ───────────
-    # ACTIVE_INDEX_VERSION controls which chunk version is served at query time.
-    # B1_INDEX_VERSION controls which version new data is written as (ingestion).
-    # These should match after migration is validated; they can differ during rollout.
-    _active_ver = os.getenv("ACTIVE_INDEX_VERSION", "v1")
-    _hnsw_v2_on = os.getenv("B1_HNSW_V2_ENABLED", "false").strip().lower() in {
-        "1", "true", "yes", "on"
-    }
-    _LOGGER_PRE.info(
-        "[CONFIG] ACTIVE_INDEX_VERSION=%s B1_INDEX_VERSION=%s DEBUG_RAG=%s hybrid=%s hnsw_v2=%s",
-        _active_ver,
-        os.getenv("B1_INDEX_VERSION", "v1"),
-        os.getenv("DEBUG_RAG", "false"),
-        os.getenv("B1_HYBRID_RETRIEVAL_ENABLED", "false"),
-        os.getenv("B1_HNSW_V2_ENABLED", "false"),
-    )
-    # When ACTIVE_INDEX_VERSION is still "v1" (the default) but HNSW v2 optimisations
-    # are enabled, the partial HNSW indexes built for v2 data (B1_011) never activate.
-    # Queries run against v1 rows, hit the global HNSW index, and emit post-scan
-    # filtering. API diagnostics also report index_version="v1" even when
-    # v2_hnsw_used=true, because the v2 SQL functions are called with index_version="v1".
-    # Fix: set ACTIVE_INDEX_VERSION=v2 in .env once v2 ingest is confirmed stable.
-    if _active_ver == "v1" and (_B1_HYBRID_ENABLED or _hnsw_v2_on):
-        _LOGGER_PRE.warning(
-            "CONFIG_MISMATCH: ACTIVE_INDEX_VERSION=v1 (default) but "
-            "B1_HYBRID_RETRIEVAL_ENABLED=%s / B1_HNSW_V2_ENABLED=%s. "
-            "Partial HNSW indexes for v2 (B1_011/B1_012) cannot activate while v1 is queried. "
-            "Set ACTIVE_INDEX_VERSION=v2 in .env to enable partial index optimisation, "
-            "OR apply B1_012 Section 4 to create v1 partial indexes for the current data version.",
+        # ── Active index version ──────────────────────────────────────────────
+        _active_ver = os.getenv("ACTIVE_INDEX_VERSION", "v1")
+        _hnsw_v2_on = os.getenv("B1_HNSW_V2_ENABLED", "false").strip().lower() in {
+            "1", "true", "yes", "on"
+        }
+        _LOGGER_PRE.info(
+            "[CONFIG] ACTIVE_INDEX_VERSION=%s B1_INDEX_VERSION=%s DEBUG_RAG=%s hybrid=%s hnsw_v2=%s",
+            _active_ver,
+            os.getenv("B1_INDEX_VERSION", "v1"),
+            os.getenv("DEBUG_RAG", "false"),
             os.getenv("B1_HYBRID_RETRIEVAL_ENABLED", "false"),
             os.getenv("B1_HNSW_V2_ENABLED", "false"),
         )
+        if _active_ver == "v1" and (_B1_HYBRID_ENABLED or _hnsw_v2_on):
+            _LOGGER_PRE.warning(
+                "CONFIG_MISMATCH: ACTIVE_INDEX_VERSION=v1 (default) but "
+                "B1_HYBRID_RETRIEVAL_ENABLED=%s / B1_HNSW_V2_ENABLED=%s. "
+                "Partial HNSW indexes for v2 (B1_011/B1_012) cannot activate while v1 is queried. "
+                "Set ACTIVE_INDEX_VERSION=v2 in .env to enable partial index optimisation, "
+                "OR apply B1_012 Section 4 to create v1 partial indexes for the current data version.",
+                os.getenv("B1_HYBRID_RETRIEVAL_ENABLED", "false"),
+                os.getenv("B1_HNSW_V2_ENABLED", "false"),
+            )
 
-    # ── SPRINT0_FIX_SINGLETON: pre-warm singletons ────────────────────────────
-    # Running here (single-threaded startup) means the first /rag/chat request
-    # sees warm TCP connections — no cold-start penalty.
-    global _sb_singleton, _embedder_singleton, _generator_singleton
-    try:
-        _pre_settings = get_settings()
-        _pre_rag = get_rag_settings()
-        _pre_key = os.getenv("OPENAI_API_KEY", _pre_settings.chat_api_key).strip()
-        _sb_singleton = create_client(_pre_settings.supabase_url, _pre_settings.supabase_key)
-        _embedder_singleton = OpenAIEmbeddingProvider(
-            api_key=_pre_key,
-            model=_pre_rag.embedding_model,
-            base_url=os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1"),
-            dimensions=_pre_rag.embedding_dimensions,
-            max_retries=_pre_rag.embedding_max_retries,
-            retry_base_delay_s=_pre_rag.embedding_retry_base_delay_s,
-            retry_max_delay_s=_pre_rag.embedding_retry_max_delay_s,
-            connect_timeout_s=_pre_rag.embedding_connect_timeout_s,
-            read_timeout_s=_pre_rag.embedding_read_timeout_s,
-            write_timeout_s=_pre_rag.embedding_write_timeout_s,
-            pool_timeout_s=_pre_rag.embedding_pool_timeout_s,
-        )
-        # Pre-warm the ChatGenerator singleton — creates B1LLMClient with its
-        # persistent httpx.Client so the first /rag/chat request reuses the
-        # already-open TCP connection to the OpenAI chat completions endpoint.
-        _, _generator_singleton, _ = _build_chat_generator(_pre_settings, _pre_rag, _pre_key)
-        _LOGGER_PRE.info(
-            "sprint0_singleton_warmed supabase=ok embedder=ok generator=ok model=%s",
-            _pre_rag.embedding_model,
-        )
-    except Exception as _exc:  # noqa: BLE001
-        _LOGGER_PRE.warning(
-            "sprint0_singleton_warmup_failed error=%s — cold start will occur on first request",
-            _exc,
-        )
-
-    # ── Sprint 1: Pre-warm CaseService singleton ──────────────────────────────
-    global _case_service_singleton
-    try:
-        _case_service_singleton = build_case_service(_sb_singleton)
-        _LOGGER_PRE.info("sprint1_case_service_warmed supabase_backed=%s", _sb_singleton is not None)
-    except Exception as _exc:  # noqa: BLE001
-        _LOGGER_PRE.warning(
-            "sprint1_case_service_warmup_failed error=%s — offline mode will be used", _exc
-        )
-
-    yield
-
-    # ── SPRINT0_FIX_SINGLETON: graceful shutdown ───────────────────────────────
-    if _generator_singleton is not None:
+        # ── Prometheus metrics: eager init with explicit settings value ───────
+        # Bypass os.getenv() timing by reading the already-parsed settings flag.
+        # This also bypasses any load_dotenv(override=False) shadowing issue where
+        # a system env var set before load_dotenv() would hide the .env value.
         try:
-            _generator_singleton._llm.close()
-            _LOGGER_PRE.info("sprint0_singleton_shutdown llm_client=closed")
-        except Exception:  # noqa: BLE001
-            pass
-    if _embedder_singleton is not None:
+            _metrics_settings = get_settings()
+            _metrics_force_initialize(enabled=_metrics_settings.prometheus_enabled)
+            _LOGGER_PRE.info(
+                "prometheus_metrics_init prometheus_enabled=%s",
+                _metrics_settings.prometheus_enabled,
+            )
+        except Exception as _prom_exc:
+            _LOGGER_PRE.warning(
+                "prometheus_metrics_init_failed error=%s — lazy init at first request will be used",
+                _prom_exc,
+            )
+
+        # ── SPRINT0_FIX_SINGLETON: pre-warm singletons ────────────────────────
         try:
-            _embedder_singleton.close()
-            _LOGGER_PRE.info("sprint0_singleton_shutdown embedder=closed")
-        except Exception:  # noqa: BLE001
-            pass
-    _LOGGER_PRE.info("service_shutdown")
+            _pre_settings = get_settings()
+            _pre_rag = get_rag_settings()
+            _pre_key = os.getenv("OPENAI_API_KEY", _pre_settings.chat_api_key).strip()
+            _sb_singleton = create_client(_pre_settings.supabase_url, _pre_settings.supabase_key)
+            _embedder_singleton = OpenAIEmbeddingProvider(
+                api_key=_pre_key,
+                model=_pre_rag.embedding_model,
+                base_url=os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1"),
+                dimensions=_pre_rag.embedding_dimensions,
+                max_retries=_pre_rag.embedding_max_retries,
+                retry_base_delay_s=_pre_rag.embedding_retry_base_delay_s,
+                retry_max_delay_s=_pre_rag.embedding_retry_max_delay_s,
+                connect_timeout_s=_pre_rag.embedding_connect_timeout_s,
+                read_timeout_s=_pre_rag.embedding_read_timeout_s,
+                write_timeout_s=_pre_rag.embedding_write_timeout_s,
+                pool_timeout_s=_pre_rag.embedding_pool_timeout_s,
+            )
+            _, _generator_singleton, _ = _build_chat_generator(_pre_settings, _pre_rag, _pre_key)
+            _LOGGER_PRE.info(
+                "sprint0_singleton_warmed supabase=ok embedder=ok generator=ok model=%s",
+                _pre_rag.embedding_model,
+            )
+        except Exception as _exc:  # noqa: BLE001
+            _LOGGER_PRE.warning(
+                "sprint0_singleton_warmup_failed error=%s — cold start will occur on first request",
+                _exc,
+            )
 
+        # ── Sprint 1: Pre-warm CaseService singleton ──────────────────────────
+        try:
+            _case_service_singleton = build_case_service(_sb_singleton)
+            _LOGGER_PRE.info(
+                "sprint1_case_service_warmed supabase_backed=%s", _sb_singleton is not None
+            )
+        except Exception as _exc:  # noqa: BLE001
+            _LOGGER_PRE.warning(
+                "sprint1_case_service_warmup_failed error=%s — offline mode will be used", _exc
+            )
 
-_docs_enabled = os.getenv("FASTAPI_DOCS_ENABLED", "false").strip().lower() in {
-    "1", "true", "yes", "on"
-}
+        # ── Action gateway state setup ────────────────────────────────────────
+        # Gateway routes use request.app.state.stack / .audit_logger / .authenticator.
+        # If values were injected via create_app() (tests), use them as-is.
+        # In production, build from environment, reusing the Supabase singleton.
+        try:
+            if _app.state.stack is None:
+                _app.state.stack = _build_gateway_stack_from_env(_sb_singleton)
+            if _app.state.processor is None:
+                from webhook.freshdesk_processor import build_freshdesk_processor  # noqa: PLC0415
+                _app.state.processor = build_freshdesk_processor()
+            if _app.state.authenticator is None:
+                from security.config import build_authenticator_from_env  # noqa: PLC0415
+                _app.state.authenticator = build_authenticator_from_env()
+            if _app.state.audit_logger is None and _app.state.audit_service is None:
+                from audit.logger import AuditLogger  # noqa: PLC0415
+                from audit.service import AuditService  # noqa: PLC0415
+                from audit.repository import InMemoryAuditRepository  # noqa: PLC0415
+                _repo = InMemoryAuditRepository()
+                _app.state.audit_logger = AuditLogger(repository=_repo)
+                _app.state.audit_service = AuditService(repository=_repo)
+            elif _app.state.audit_logger is not None and _app.state.audit_service is None:
+                from audit.service import AuditService  # noqa: PLC0415
+                _app.state.audit_service = AuditService(
+                    repository=_app.state.audit_logger.repository
+                )
+            elif _app.state.audit_service is not None and _app.state.audit_logger is None:
+                from audit.logger import AuditLogger  # noqa: PLC0415
+                _app.state.audit_logger = AuditLogger(
+                    repository=_app.state.audit_service._repo
+                )
+            if _app.state.metrics_service is None and _app.state.stack is not None:
+                _app.state.metrics_service = getattr(_app.state.stack, "metrics_service", None)
+            _LOGGER_PRE.info("action_gateway_initialized")
+        except Exception as _gw_exc:  # noqa: BLE001
+            _LOGGER_PRE.warning(
+                "action_gateway_init_failed error=%s — gateway routes will return 503", _gw_exc
+            )
 
-app = FastAPI(
-    title="Fuma Docs Ingestion Service",
-    version="1.0.0",
-    lifespan=lifespan,
-    docs_url="/docs" if _docs_enabled else None,
-    redoc_url="/redoc" if _docs_enabled else None,
-    openapi_url="/openapi.json" if _docs_enabled else None,
-)
-LOGGER = logging.getLogger(__name__)
+        yield
+
+        # ── SPRINT0_FIX_SINGLETON: graceful shutdown ───────────────────────────
+        if _generator_singleton is not None:
+            try:
+                _generator_singleton._llm.close()
+                _LOGGER_PRE.info("sprint0_singleton_shutdown llm_client=closed")
+            except Exception:  # noqa: BLE001
+                pass
+        if _embedder_singleton is not None:
+            try:
+                _embedder_singleton.close()
+                _LOGGER_PRE.info("sprint0_singleton_shutdown embedder=closed")
+            except Exception:  # noqa: BLE001
+                pass
+        _LOGGER_PRE.info("service_shutdown")
+
+    return lifespan
 
 
 # ── SPRINT0_FIX_SINGLETON — helper class and getters ─────────────────────────
@@ -467,20 +548,10 @@ def _get_case_service() -> CaseService:
     return _case_service_singleton
 
 
-_cors_origins_raw = os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000")
-_cors_origins = [o.strip() for o in _cors_origins_raw.split(",") if o.strip()]
+# ── Standalone middleware dispatch functions ──────────────────────────────────
+# Defined outside create_app() so they can be registered via app.middleware("http")(fn).
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=_cors_origins,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
-    allow_headers=["Content-Type", "X-API-Key", "X-Webhook-Token", "Authorization"],
-)
-
-
-@app.middleware("http")
-async def log_requests(request: Request, call_next):
+async def _log_requests_dispatch(request: Request, call_next):
     start_time = time.time()
     path = request.url.path
     try:
@@ -517,13 +588,26 @@ async def log_requests(request: Request, call_next):
         raise
 
 
-# Security middleware is registered AFTER log_requests so it is outermost
-# (Starlette LIFO: last registered = first to process inbound requests).
-app.middleware("http")(api_key_auth_middleware)
+async def _http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
+    """Path-aware HTTPException handler.
+
+    Gateway routes (/actions, /worker, /watchdog, /audit, /admin, /webhook) use
+    {"error": {"code": ..., "message": ...}} response format.  RAG routes keep
+    FastAPI's default {"detail": ...} format so existing test assertions are unchanged.
+    """
+    path = request.url.path
+    if any(path.startswith(p) for p in _GATEWAY_PREFIXES):
+        detail = exc.detail
+        if isinstance(detail, dict) and "error" in detail:
+            body = detail
+        else:
+            body = {"error": {"code": "HTTP_ERROR", "message": str(detail)}}
+        return JSONResponse(status_code=exc.status_code, content=body)
+    # RAG routes: standard FastAPI {"detail": ...} format
+    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
 
 
-@app.exception_handler(Exception)
-async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+async def _unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     LOGGER.exception(
         "unhandled_exception method=%s path=%s type=%s",
         request.method, request.url.path, type(exc).__name__,
@@ -534,8 +618,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONR
     )
 
 
-@app.exception_handler(RequestValidationError)
-async def validation_exception_handler(
+async def _validation_exception_handler(
     request: Request, exc: RequestValidationError
 ) -> JSONResponse:
     return JSONResponse(
@@ -546,6 +629,116 @@ async def validation_exception_handler(
             "details": exc.errors(),
         },
     )
+
+
+# ── Application factory ───────────────────────────────────────────────────────
+
+def create_app(
+    *,
+    stack: Any = None,
+    processor: Any = None,
+    authenticator: Any = None,
+    audit_logger: Any = None,
+    audit_service: Any = None,
+    audit_repository: Any = None,
+    metrics_service: Any = None,
+    skip_config_validation: bool = False,
+) -> FastAPI:
+    """
+    Create and return a fully-configured FastAPI application.
+
+    In production, called once at module level: ``app = create_app()``.
+    In tests, call with injected stubs: ``create_app(stack=mock_stack, skip_config_validation=True)``.
+
+    Args:
+        stack:                  ProductionRuntime for the action gateway (injected in tests).
+        processor:              WebhookProcessor (injected in tests).
+        authenticator:          ApiKeyAuthenticator (injected in tests).
+        audit_logger:           AuditLogger (injected in tests).
+        audit_service:          AuditService (injected in tests).
+        audit_repository:       AuditRepository (injected in tests).
+        metrics_service:        MetricsService (injected in tests).
+        skip_config_validation: Set True in tests to bypass startup security checks.
+    """
+    _docs_enabled = os.getenv("FASTAPI_DOCS_ENABLED", "false").strip().lower() in {
+        "1", "true", "yes", "on"
+    }
+
+    local_app = FastAPI(
+        title="Fuma Docs Ingestion Service",
+        version="1.0.0",
+        lifespan=_build_lifespan(skip_config_validation=skip_config_validation),
+        docs_url="/docs" if _docs_enabled else None,
+        redoc_url="/redoc" if _docs_enabled else None,
+        openapi_url="/openapi.json" if _docs_enabled else None,
+    )
+
+    # Stash injected values so the lifespan can use them (or build from env if None)
+    local_app.state.stack            = stack
+    local_app.state.processor        = processor
+    local_app.state.authenticator    = authenticator
+    local_app.state.audit_logger     = audit_logger
+    local_app.state.audit_service    = audit_service
+    local_app.state.audit_repository = audit_repository
+    local_app.state.metrics_service  = metrics_service
+
+    # ── Middleware ────────────────────────────────────────────────────────────
+    cors_origins = [
+        o.strip()
+        for o in os.getenv(
+            "CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000"
+        ).split(",")
+        if o.strip()
+    ]
+    local_app.add_middleware(
+        CORSMiddleware,
+        allow_origins=cors_origins,
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+        allow_headers=["Content-Type", "X-API-Key", "X-Webhook-Token", "Authorization"],
+    )
+
+    # Starlette LIFO: last registered @middleware = outermost on inbound requests.
+    # auth registered first → innermost of the two @middleware layers.
+    local_app.middleware("http")(api_key_auth_middleware)
+
+    # _log_requests_dispatch registered second → outermost of the two, wrapping auth.
+    # CRITICAL: must be outer so that 401/429 short-circuit returns from auth middleware
+    # are still visible to call_next here and recorded via record_request(). When auth
+    # was outer, it returned JSONResponse without calling call_next, which made
+    # _log_requests_dispatch unreachable and silently dropped all 401/429 from Prometheus.
+    local_app.middleware("http")(_log_requests_dispatch)
+
+    # RequestIdMiddleware via add_middleware → true outermost layer (wraps all @middleware).
+    local_app.add_middleware(RequestIdMiddleware)
+
+    # ── Exception handlers ────────────────────────────────────────────────────
+    local_app.add_exception_handler(HTTPException, _http_exception_handler)
+    local_app.add_exception_handler(Exception, _unhandled_exception_handler)
+    local_app.add_exception_handler(RequestValidationError, _validation_exception_handler)
+
+    # ── RAG routes ────────────────────────────────────────────────────────────
+    local_app.include_router(_rag_router)
+
+    # ── Action gateway routes ─────────────────────────────────────────────────
+    # These routes use per-route Depends(require_admin/approver/operator) auth.
+    # The global api_key_auth_middleware skips them (see app/security.py _GATEWAY_PREFIXES).
+    local_app.include_router(_gw_actions.router,  tags=["Actions"])
+    local_app.include_router(_gw_worker.router,   tags=["Worker"])
+    local_app.include_router(_gw_watchdog.router, tags=["Watchdog"])
+    local_app.include_router(_gw_audit.router,    tags=["Audit"])
+    local_app.include_router(_gw_admin.router,    tags=["Admin"])
+    local_app.include_router(_gw_webhook.router,  tags=["Webhooks"])
+
+    # ── Gateway health and metrics (under /gateway prefix to avoid path conflicts) ──
+    # /gateway/health, /gateway/health/live, /gateway/health/ready — gateway runtime health
+    # /gateway/metrics — action gateway Prometheus metrics (from metrics_service)
+    # /gateway/* bypasses the global rate limiter and auth middleware
+    # (see app/security.py _GATEWAY_PREFIXES which includes "/gateway")
+    local_app.include_router(_gw_health.router,   prefix="/gateway", tags=["Gateway Health"])
+    local_app.include_router(_gw_metrics.router,  prefix="/gateway", tags=["Gateway Metrics"])
+
+    return local_app
 
 
 # ── Request / response models ─────────────────────────────────────────────────
@@ -664,12 +857,77 @@ class RagChatRequest(BaseModel):
 
 # ── Trivial read-only endpoints — no blocking I/O ─────────────────────────────
 
-@app.get("/health")
+@_rag_router.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-@app.get("/freshdesk/filter-options")
+@_rag_router.get("/health/live")
+async def health_live() -> dict:
+    """
+    Liveness probe — returns 200 while the process is running.
+
+    Used by Kubernetes/Docker to detect if the pod needs restarting.
+    Never touches external systems.
+    """
+    return {
+        "alive": True,
+        "service": "kwikid-ai-ingest",
+        "checked_at": datetime.now(tz=timezone.utc).isoformat(),
+    }
+
+
+@_rag_router.get("/health/ready")
+async def health_ready() -> dict:
+    """
+    Readiness probe — returns 200 when the service can serve requests.
+
+    Checks Supabase connectivity. Returns 503 with details if any check fails.
+    """
+    settings = get_settings()
+    checks: dict[str, Any] = {}
+    ok = True
+
+    def _check_supabase() -> bool:
+        store = VectorStore(
+            supabase_url=settings.supabase_url,
+            supabase_key=settings.supabase_key,
+            table_name=settings.supabase_table,
+            local_fallback_max_rows=settings.local_match_fallback_max_rows,
+        )
+        return store.healthcheck()
+
+    try:
+        checks["supabase"] = {"healthy": await asyncio.to_thread(_check_supabase)}
+    except Exception as exc:
+        LOGGER.error("health_ready check=supabase type=%s", type(exc).__name__, exc_info=True)
+        checks["supabase"] = {"healthy": False, "error": "dependency_check_failed"}
+        ok = False
+
+    try:
+        from api.health_providers import ConfigHealthProvider  # noqa: PLC0415
+        _cfg = ConfigHealthProvider().check()
+        checks["config"] = {"healthy": _cfg.healthy, "message": _cfg.message}
+        if not _cfg.healthy:
+            ok = False
+    except Exception as exc:
+        LOGGER.warning("health_ready check=config type=%s", type(exc).__name__)
+        checks["config"] = {"healthy": True, "message": "Config check skipped"}
+
+    if not all(v.get("healthy", False) for v in checks.values()):
+        ok = False
+
+    body: dict[str, Any] = {
+        "ready": ok,
+        "checks": checks,
+        "checked_at": datetime.now(tz=timezone.utc).isoformat(),
+    }
+    if not ok:
+        raise HTTPException(status_code=503, detail=body)
+    return body
+
+
+@_rag_router.get("/freshdesk/filter-options")
 def freshdesk_filter_options() -> dict[str, Any]:
     status_options = [{"value": label, "label": label.title()} for _, label in sorted(STATUS_MAP.items())]
     priority_options = [{"value": label, "label": label.title()} for _, label in sorted(PRIORITY_MAP.items())]
@@ -680,18 +938,20 @@ def freshdesk_filter_options() -> dict[str, Any]:
     }
 
 
-@app.get("/metrics")
+@_rag_router.get("/metrics")
 async def metrics_endpoint():
-    if not _PROMETHEUS_ENABLED:
-        raise HTTPException(
-            status_code=404,
-            detail={"error": "metrics_disabled", "message": "Set PROMETHEUS_ENABLED=true to enable."},
-        )
+    # PROMETHEUS_ENABLED is informational only — the endpoint is always active so
+    # Prometheus can scrape without requiring service restarts when enabling metrics.
+    # When metrics are disabled or prometheus_client is not installed, return a valid
+    # but empty Prometheus text body (Prometheus treats this as "target up, no data").
     result = get_metrics_response()
     if result is None:
-        raise HTTPException(
-            status_code=503,
-            detail={"error": "metrics_unavailable", "message": "prometheus_client not installed."},
+        return Response(
+            content=(
+                "# KwikID AI Ingest Service\n"
+                "# Metrics collection disabled. Set PROMETHEUS_ENABLED=true to enable.\n"
+            ),
+            media_type="text/plain; version=0.0.4; charset=utf-8",
         )
     data, content_type = result
     return Response(content=data, media_type=content_type)
@@ -699,7 +959,7 @@ async def metrics_endpoint():
 
 # ── Readiness — async because it makes real network calls ─────────────────────
 
-@app.get(
+@_rag_router.get(
     "/ready",
     responses={503: {"description": "Dependencies not ready"}},
 )
@@ -755,7 +1015,7 @@ async def ready() -> dict[str, Any]:
 
 # ── Ingest ────────────────────────────────────────────────────────────────────
 
-@app.post(
+@_rag_router.post(
     "/ingest",
     responses={
         500: {"description": "Ingestion failed"},
@@ -828,7 +1088,7 @@ async def ingest_docs(payload: IngestRequest) -> dict[str, Any]:
 
 # ── Query ─────────────────────────────────────────────────────────────────────
 
-@app.post("/query")
+@_rag_router.post("/query")
 async def query_docs(payload: QueryRequest) -> dict[str, Any]:
     trace = tracer.start_trace(
         query=payload.query_text,
@@ -913,7 +1173,7 @@ async def query_docs(payload: QueryRequest) -> dict[str, Any]:
 
 # ── Chat ──────────────────────────────────────────────────────────────────────
 
-@app.post("/chat")
+@_rag_router.post("/chat")
 async def chat_endpoint(payload: ChatRequest) -> dict[str, Any]:
     trace = tracer.start_trace(
         query=payload.query_text,
@@ -993,7 +1253,7 @@ async def chat_endpoint(payload: ChatRequest) -> dict[str, Any]:
     }
 
 
-@app.get("/chat/suggestions")
+@_rag_router.get("/chat/suggestions")
 async def chat_suggestions(
     limit: int = 6,
     tenant: str | None = None,
@@ -1039,7 +1299,7 @@ def _draft_model_to_dataclass(model: DraftCardModel | None) -> DraftKnowledgeCar
     )
 
 
-@app.post("/train/chat")
+@_rag_router.post("/train/chat")
 async def train_chat(payload: TrainChatRequest) -> dict[str, Any]:
     settings = get_settings()
     previous_draft = _draft_model_to_dataclass(payload.draft)
@@ -1082,7 +1342,7 @@ async def train_chat(payload: TrainChatRequest) -> dict[str, Any]:
     }
 
 
-@app.post("/train/commit")
+@_rag_router.post("/train/commit")
 async def train_commit(payload: CommitCardRequest) -> dict[str, Any]:
     settings = get_settings()
     draft = _draft_model_to_dataclass(payload.draft)
@@ -1119,7 +1379,7 @@ async def train_commit(payload: CommitCardRequest) -> dict[str, Any]:
     }
 
 
-@app.get("/train/cards")
+@_rag_router.get("/train/cards")
 async def train_cards_list(
     limit: int = 20,
     offset: int = 0,
@@ -1189,7 +1449,7 @@ async def train_cards_list(
     }
 
 
-@app.get("/train/cards/{card_id}")
+@_rag_router.get("/train/cards/{card_id}")
 async def train_cards_get(card_id: str) -> dict[str, Any]:
     settings = get_settings()
     try:
@@ -1222,7 +1482,7 @@ async def train_cards_get(card_id: str) -> dict[str, Any]:
     }
 
 
-@app.delete("/train/cards/{card_id}")
+@_rag_router.delete("/train/cards/{card_id}")
 async def train_cards_delete(card_id: str) -> dict[str, Any]:
     settings = get_settings()
     try:
@@ -1304,7 +1564,7 @@ def _build_chat_generator(
     return embedder, generator, supabase
 
 
-@app.post("/rag/chat")
+@_rag_router.post("/rag/chat")
 async def rag_chat(payload: RagChatRequest, request: Request) -> dict[str, Any]:
     """
     B1 RAG chat endpoint with tenant isolation and rate limiting.
@@ -1391,7 +1651,7 @@ async def rag_chat(payload: RagChatRequest, request: Request) -> dict[str, Any]:
     }
 
 
-@app.post("/rag/chat/stream")
+@_rag_router.post("/rag/chat/stream")
 async def rag_chat_stream(payload: RagChatRequest, request: Request) -> StreamingResponse:
     """
     B1 RAG streaming chat endpoint — SSE token-by-token delivery.
@@ -1483,7 +1743,7 @@ async def _post_escalation_tcp_note(
 
 # ── Freshdesk webhook ─────────────────────────────────────────────────────────
 
-@app.post("/freshdesk/webhook")
+@_rag_router.post("/freshdesk/webhook")
 async def freshdesk_webhook(request: Request) -> dict[str, Any]:
     """
     Freshdesk webhook receiver.
@@ -1754,7 +2014,7 @@ async def freshdesk_webhook(request: Request) -> dict[str, Any]:
 
 # ── Feedback ──────────────────────────────────────────────────────────────────
 
-@app.post("/feedback", response_model=FeedbackResponse)
+@_rag_router.post("/feedback", response_model=FeedbackResponse)
 async def post_feedback(request: FeedbackRequest) -> FeedbackResponse:
     """
     Record human agent feedback on an AI draft.
@@ -1788,3 +2048,8 @@ async def post_feedback(request: FeedbackRequest) -> FeedbackResponse:
         feedback_ingester=ingester,
         review_queue=review_queue,
     )
+
+
+# ── Production module-level instance ─────────────────────────────────────────
+# uvicorn serves this: ``uvicorn app.main:app --host 0.0.0.0 --port 8000``
+app = create_app()

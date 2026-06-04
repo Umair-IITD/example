@@ -84,9 +84,19 @@ class ActionGateway:
         self,
         repository: ActionRepository,
         supabase_client: Any = None,
+        metrics_service: Any = None,
     ) -> None:
         self._repo = repository
         self._sm   = ActionStateMachine(on_transition=self._persist_transition)
+        self._metrics = metrics_service
+
+    def _record_metric(self, method_name: str) -> None:
+        """Fire-and-forget metrics recording. Never raises."""
+        if self._metrics is not None:
+            try:
+                getattr(self._metrics, method_name)()
+            except Exception:
+                pass
 
     # ── Proposal ───────────────────────────────────────────────────────────────
 
@@ -186,6 +196,7 @@ class ActionGateway:
             )
 
         persisted = self._repo.insert_action(action)
+        self._record_metric("record_action_created")
 
         LOGGER.info(
             "action_gateway.propose: action_id=%s type=%s risk=%s state=%s",
@@ -220,6 +231,7 @@ class ActionGateway:
         action.approved_at = now
         action.approval_notes = notes or None
         self._repo.update_action(action)
+        self._record_metric("record_action_approved")
         return action
 
     def reject(
@@ -245,6 +257,7 @@ class ActionGateway:
         action.rejected_at = now
         action.approval_notes = notes or None
         self._repo.update_action(action)
+        self._record_metric("record_action_rejected")
 
         LOGGER.info(
             "action_gateway.reject: action_id=%s rejected_by=%s",
@@ -280,15 +293,22 @@ class ActionGateway:
         Claim an APPROVED action for execution.
 
         Increments execution_attempt and records the executor_id.
-        Transitions to EXECUTING.
+        Transitions to EXECUTING using optimistic locking: the DB UPDATE
+        includes WHERE current_state='APPROVED' so that only one worker
+        wins the claim under concurrent execution (distributed safety).
 
-        Called by the executor worker (Sprint 2.2: Temporal activity / Celery task).
+        Raises:
+            ActionGatewayError: action is not APPROVED, or another worker
+                                already claimed it (optimistic lock failure).
         """
         if action.current_state != ActionState.APPROVED:
             raise ActionGatewayError(
                 f"begin_execution requires APPROVED state, got {action.current_state.value} "
                 f"for action {action.action_id}"
             )
+
+        # Save from_state before transition (used for optimistic lock WHERE clause)
+        from_state = action.current_state
 
         action.execution_attempt += 1
         action.executor_id = executor_id
@@ -304,7 +324,14 @@ class ActionGateway:
                 "max_attempts":      action.max_attempts,
             },
         )
-        self._repo.update_action(action)
+        # Atomic claim: UPDATE WHERE current_state='APPROVED' — prevents duplicate execution
+        claimed = self._repo.update_action(action, expected_state=from_state)
+        if not claimed:
+            raise ActionGatewayError(
+                f"begin_execution: optimistic lock failure for action {action.action_id} — "
+                "another worker already claimed this action. "
+                "The local state has been mutated; discard this action object."
+            )
         return action
 
     def record_success(
@@ -403,9 +430,23 @@ class ActionGateway:
                 action.action_id, action.execution_attempt, action.max_attempts, failure_code,
             )
         else:
+            # All retries exhausted (or permanent failure) → DEAD_LETTER
+            action.dead_lettered_at = datetime.now(tz=timezone.utc)
+            self._sm.transition(
+                action, ActionState.DEAD_LETTER,
+                reason=f"dead_lettered:{failure_code}",
+                actor="system",
+                detail={
+                    "failure_code":      failure_code,
+                    "reason":            reason,
+                    "execution_attempt": action.execution_attempt,
+                    "max_attempts":      action.max_attempts,
+                    "permanent":         permanent,
+                },
+            )
             LOGGER.error(
-                "action_gateway.record_failure: no retry action_id=%s "
-                "attempt=%d/%d code=%s permanent=%s",
+                "action_gateway.record_failure: dead-lettered action_id=%s "
+                "attempt=%d/%d code=%s permanent=%s — REQUIRES HUMAN INTERVENTION",
                 action.action_id, action.execution_attempt, action.max_attempts,
                 failure_code, permanent,
             )
@@ -453,11 +494,23 @@ class ActionGateway:
                 detail={"remaining_attempts": action.max_attempts - action.execution_attempt},
             )
         else:
+            # Timeout with no retries remaining → FAILED → DEAD_LETTER
             self._sm.transition(
                 action, ActionState.FAILED,
                 reason="max_attempts_after_timeout",
                 actor="system",
                 detail={"execution_attempt": action.execution_attempt},
+            )
+            action.dead_lettered_at = datetime.now(tz=timezone.utc)
+            self._sm.transition(
+                action, ActionState.DEAD_LETTER,
+                reason="dead_lettered:EXECUTOR_TIMEOUT",
+                actor="system",
+                detail={
+                    "executor_id":       executor_id,
+                    "execution_attempt": action.execution_attempt,
+                    "max_attempts":      action.max_attempts,
+                },
             )
 
         self._repo.update_action(action)

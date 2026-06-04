@@ -1,0 +1,50 @@
+# monitoring/prometheus.yml
+#
+# Prometheus scrape configuration for KwikID AI Ingest Service.
+#
+# Usage:
+#   prometheus --config.file=monitoring/prometheus.yml
+#
+# Or via docker-compose:
+#   docker-compose -f monitoring/docker-compose.monitoring.yml up
+#
+# Metrics endpoint: GET /metrics
+# Format: text/plain; version=0.0.4 (Prometheus exposition format)
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    service: kwikid-ai-ingest
+    environment: production
+
+# Alerting configuration (optional — wire to Alertmanager if available)
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets: ['alertmanager:9093']
+
+scrape_configs:
+  # KwikID AI Ingest Service — main metrics endpoint
+  - job_name: kwikid_ai_ingest
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    metrics_path: /metrics
+    scheme: http
+    static_configs:
+      - targets:
+          # Replace with your service host:port in production.
+          # For local development, use host.docker.internal:8000 from within Docker.
+          - host.docker.internal:8000
+        # labels:
+        #   service: kwikid-ai-ingest
+        #   component: action-gateway
+
+  # Prometheus self-monitoring
+  - job_name: prometheus
+    scrape_interval: 30s
+    static_configs:
+      - targets:
+          - localhost:9090
+        labels:
+          service: prometheus

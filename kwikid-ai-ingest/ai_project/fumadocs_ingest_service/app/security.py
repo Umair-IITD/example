@@ -39,14 +39,32 @@ AUDIT_LOGGER = logging.getLogger("audit")
 
 # Paths that do not require an API key.
 # /freshdesk/webhook is protected by HMAC-SHA256 instead.
+# /metrics must be unauthenticated so Prometheus can scrape without credentials.
+# /health/live and /health/ready must be unauthenticated so Kubernetes probes work.
 _UNPROTECTED_PATHS: frozenset[str] = frozenset({
     "/health",
+    "/health/live",
+    "/health/ready",
+    "/metrics",
     "/ready",
     "/docs",
     "/openapi.json",
     "/redoc",
     "/freshdesk/webhook",
 })
+
+# Action gateway routes use per-route Depends(require_admin/approver/operator) auth
+# against ADMIN_API_KEYS — a different key set from the RAG service's RAG_API_KEY.
+# The global api_key_auth_middleware must skip these paths so gateway auth can run.
+_GATEWAY_PREFIXES: tuple[str, ...] = (
+    "/actions",
+    "/worker",
+    "/watchdog",
+    "/audit",
+    "/admin",
+    "/webhook",
+    "/gateway",
+)
 
 # Populated at startup via initialize(). Empty until then → fail closed.
 _API_KEYS: frozenset[str] = frozenset()
@@ -165,11 +183,19 @@ async def api_key_auth_middleware(request: Request, call_next):
     Registered via @app.middleware("http"). The last registered middleware is
     outermost in Starlette's LIFO stack, so register this AFTER log_requests
     to make it outermost (runs first on inbound requests).
+
+    Gateway paths (_GATEWAY_PREFIXES) bypass this middleware entirely — they use
+    per-route Depends(require_admin/approver/operator) from security/dependencies.py
+    and must not be subject to the RAG service's global rate limiter.
     """
     path = request.url.path
     ip = _get_client_ip(request)
 
-    # ── Rate limiting (applies to ALL paths, including /health) ───────────────
+    # ── Gateway paths: skip global middleware (they have per-route auth) ──────
+    if any(path.startswith(p) for p in _GATEWAY_PREFIXES):
+        return await call_next(request)
+
+    # ── Rate limiting (applies to ALL non-gateway paths, including /health) ───
     if not _pick_limiter(path).is_allowed(ip):
         AUDIT_LOGGER.warning("rate_limit_exceeded ip=%s path=%s", ip, path)
         return JSONResponse(

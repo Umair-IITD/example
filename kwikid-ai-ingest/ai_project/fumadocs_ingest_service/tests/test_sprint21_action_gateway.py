@@ -86,7 +86,7 @@ class FakeActionRepository(ActionRepository):
     def get_action_by_idempotency_key(self, key: str) -> ActionRequest | None:
         return self._by_idem.get(key)
 
-    def update_action(self, action: ActionRequest) -> bool:
+    def update_action(self, action: ActionRequest, *, expected_state=None) -> bool:
         self._actions[action.action_id] = action
         self.update_calls.append(action)
         return True
@@ -521,12 +521,12 @@ class TestRecordFailure:
         assert action.execution_started_at is None
         assert action.execution_completed_at is None
 
-    def test_failure_exhausted_stays_failed(self):
+    def test_failure_exhausted_dead_lettered(self):
         gw, repo = _gateway()
         action = self._executing_action(gw, repo, max_attempts=1)
-        # attempt=1, max=1 → exhausted
+        # attempt=1, max=1 → exhausted → DEAD_LETTER (Sprint 2.10)
         gw.record_failure(action, failure_code="HARD_ERROR", reason="unrecoverable")
-        assert action.current_state == ActionState.FAILED
+        assert action.current_state == ActionState.DEAD_LETTER
 
     def test_failure_stores_failure_code(self):
         gw, repo = _gateway()
@@ -579,11 +579,12 @@ class TestRecordTimeout:
         gw.record_timeout(action, executor_id="worker-1")
         assert action.executor_id is None
 
-    def test_timeout_exhausted_transitions_to_failed(self):
+    def test_timeout_exhausted_transitions_to_dead_letter(self):
         gw, repo = _gateway()
         action = self._executing_action(gw, repo, max_attempts=1)
+        # Sprint 2.10: exhausted timeout → DEAD_LETTER
         gw.record_timeout(action, executor_id="worker-1")
-        assert action.current_state == ActionState.FAILED
+        assert action.current_state == ActionState.DEAD_LETTER
 
     def test_timeout_sets_failure_code(self):
         gw, repo = _gateway()

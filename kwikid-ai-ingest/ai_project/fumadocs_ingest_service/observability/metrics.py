@@ -19,17 +19,30 @@ Environment:
 
 Usage:
   from observability.metrics import record_request, record_retrieval_latency, ...
+
+Initialization:
+  The preferred path is force_initialize(enabled=settings.prometheus_enabled) called
+  from the lifespan startup — this bypasses os.getenv() and load_dotenv() timing
+  entirely and guarantees metrics are up before the first request arrives.
+
+  Fallback: _ensure_initialized() is called lazily on every public function.
+  It reads PROMETHEUS_ENABLED from os.environ at the time of the first call.
+  Because load_dotenv() runs at import time of app/config.py (before request
+  processing begins), this lazy path also works — but it produces no diagnostic
+  log if the env var is absent or wrong.  Prefer force_initialize() for clarity.
 """
 from __future__ import annotations
 
 import logging
 import os
+import threading
 import time
 from typing import Any
 
 LOGGER = logging.getLogger(__name__)
 
-_ENABLED = os.getenv("PROMETHEUS_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
+_init_lock = threading.Lock()
+_initialized = False
 
 _http_requests_total: Any = None
 _http_request_duration_seconds: Any = None
@@ -42,13 +55,18 @@ _retrieval_candidates: Any = None
 _metrics_available = False
 
 
-def _init_metrics() -> bool:
+def _do_register_metrics() -> bool:
+    """Register all prometheus_client instruments.
+
+    Called exactly once, under _init_lock.  Separated from the env-var check so
+    both the lazy path (_ensure_initialized) and the eager path (force_initialize)
+    share the same registration logic.
+
+    Returns True on success, False on any failure (ImportError, ValueError, etc.).
+    """
     global _http_requests_total, _http_request_duration_seconds
     global _retrieval_latency_seconds, _llm_latency_seconds
     global _rate_limit_rejections_total, _active_requests, _retrieval_candidates
-
-    if not _ENABLED:
-        return False
 
     try:
         from prometheus_client import Counter, Gauge, Histogram  # noqa: PLC0415
@@ -93,24 +111,99 @@ def _init_metrics() -> bool:
             buckets=[1, 5, 10, 20, 50, 100, 200],
         )
 
-        LOGGER.info("Prometheus metrics initialized")
+        LOGGER.info("Prometheus metrics initialized successfully")
         return True
 
     except ImportError:
-        LOGGER.warning(
+        LOGGER.error(
             "PROMETHEUS_ENABLED=true but prometheus_client is not installed. "
-            "Install with: pip install prometheus-client>=0.21. Metrics disabled."
+            "Run: pip install prometheus-client>=0.21. Metrics disabled."
+        )
+        return False
+    except ValueError as exc:
+        # Duplicated timeseries — happens when metrics module is re-initialized
+        # in the same Python process (e.g. test suites that don't fork).
+        LOGGER.error(
+            "Prometheus metrics registration failed (ValueError: %s). "
+            "This usually means the metrics were already registered in this process. "
+            "In production this indicates a double-initialization bug. Metrics disabled.",
+            exc,
         )
         return False
     except Exception as exc:
-        LOGGER.warning("Prometheus metrics initialization failed: %s", exc)
+        LOGGER.error("Prometheus metrics initialization failed unexpectedly: %s", exc)
         return False
 
 
-_metrics_available = _init_metrics()
+def _do_init_metrics() -> bool:
+    """Read PROMETHEUS_ENABLED from os.environ and register metrics if enabled.
+
+    Logs the exact env-var value it observed so the cause of any disabled state
+    is always visible in the service logs.
+    """
+    raw = os.getenv("PROMETHEUS_ENABLED")
+    enabled = (raw or "false").strip().lower() in {"1", "true", "yes", "on"}
+    LOGGER.info(
+        "Prometheus metrics lazy-init: PROMETHEUS_ENABLED=%r → enabled=%s",
+        raw,
+        enabled,
+    )
+    if not enabled:
+        if raw is None:
+            LOGGER.warning(
+                "PROMETHEUS_ENABLED is not set in the process environment. "
+                "If you set it in .env, ensure load_dotenv(override=True) is used in "
+                "app/config.py so it is not silently ignored when the variable is "
+                "already present in the shell environment. Metrics disabled."
+            )
+        return False
+    return _do_register_metrics()
+
+
+def _ensure_initialized() -> None:
+    """Lazy double-checked initialization — called at the top of every public function.
+
+    Prefers force_initialize() called from the lifespan startup, which bypasses
+    the env-var read entirely.  Falls back here on first-request if force_initialize
+    was never called.
+    """
+    global _initialized, _metrics_available
+    if _initialized:
+        return
+    with _init_lock:
+        if _initialized:
+            return
+        _metrics_available = _do_init_metrics()
+        _initialized = True
+
+
+def force_initialize(*, enabled: bool) -> None:
+    """Eagerly initialize metrics at service startup from an explicit flag.
+
+    Called from the lifespan context manager with the already-parsed settings
+    value (settings.prometheus_enabled), bypassing os.getenv() and any
+    load_dotenv() timing issues entirely.
+
+    Idempotent: a second call (e.g. from _ensure_initialized on the first request)
+    is a no-op because _initialized is True after the first call.
+    """
+    global _initialized, _metrics_available
+    if _initialized:
+        return
+    with _init_lock:
+        if _initialized:
+            return
+        LOGGER.info("Prometheus metrics force_initialize: enabled=%s", enabled)
+        if enabled:
+            _metrics_available = _do_register_metrics()
+        else:
+            _metrics_available = False
+            LOGGER.info("Prometheus metrics disabled (force_initialize called with enabled=False)")
+        _initialized = True
 
 
 def record_request(method: str, path: str, status: int, duration_s: float) -> None:
+    _ensure_initialized()
     if not _metrics_available:
         return
     try:
@@ -121,6 +214,7 @@ def record_request(method: str, path: str, status: int, duration_s: float) -> No
 
 
 def record_retrieval_latency(stage: str, latency_s: float) -> None:
+    _ensure_initialized()
     if not _metrics_available:
         return
     try:
@@ -130,6 +224,7 @@ def record_retrieval_latency(stage: str, latency_s: float) -> None:
 
 
 def record_llm_latency(model: str, latency_s: float) -> None:
+    _ensure_initialized()
     if not _metrics_available:
         return
     try:
@@ -139,6 +234,7 @@ def record_llm_latency(model: str, latency_s: float) -> None:
 
 
 def record_rate_limit_rejection(path: str) -> None:
+    _ensure_initialized()
     if not _metrics_available:
         return
     try:
@@ -148,6 +244,7 @@ def record_rate_limit_rejection(path: str) -> None:
 
 
 def record_retrieval_candidates(stage: str, count: int) -> None:
+    _ensure_initialized()
     if not _metrics_available:
         return
     try:
@@ -163,6 +260,7 @@ class ActiveRequestContext:
         self._path = path
 
     def __enter__(self) -> "ActiveRequestContext":
+        _ensure_initialized()
         if _metrics_available and _active_requests is not None:
             try:
                 _active_requests.labels(path=self._path).inc()
@@ -171,6 +269,7 @@ class ActiveRequestContext:
         return self
 
     def __exit__(self, *_: object) -> None:
+        _ensure_initialized()
         if _metrics_available and _active_requests is not None:
             try:
                 _active_requests.labels(path=self._path).dec()
@@ -183,6 +282,7 @@ def get_metrics_response() -> tuple[bytes, str] | None:
     Generate Prometheus text-format response.
     Returns (data_bytes, content_type_string) or None if unavailable.
     """
+    _ensure_initialized()
     if not _metrics_available:
         return None
     try:
