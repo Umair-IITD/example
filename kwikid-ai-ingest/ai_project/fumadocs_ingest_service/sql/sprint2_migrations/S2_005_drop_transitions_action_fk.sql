@@ -1,0 +1,95 @@
+-- S2_005_drop_transitions_action_fk.sql
+-- Sprint 2.12: Drop action_gateway_transitions.action_id foreign-key constraint
+--
+-- ============================================================================
+-- ROOT CAUSE
+-- ============================================================================
+-- S2_001 defined:
+--
+--   action_id UUID NOT NULL REFERENCES action_gateway(action_id) ON DELETE RESTRICT
+--
+-- This FK requires action_gateway.action_id to exist BEFORE inserting a row
+-- into action_gateway_transitions.
+--
+-- The ordering bug is in ActionGateway.propose() (case_engine/action_gateway.py):
+--
+--   Step 1: _sm.transition(action, APPROVED, ...)
+--              → fires _persist_transition() callback
+--              → calls record_transition()
+--              → INSERT INTO action_gateway_transitions (action_id=<new_uuid>)
+--              → FAILS: action_id does not yet exist in action_gateway
+--
+--   Step 2: self._repo.insert_action(action)
+--              → INSERT INTO action_gateway
+--              → Too late: the transition INSERT already failed above
+--
+-- Every state transition for SAFE, REVERSIBLE, and IRREVERSIBLE actions fires
+-- the on_transition callback (which writes to action_gateway_transitions) before
+-- insert_action() has committed the action_gateway row. The FK violation (23503)
+-- is therefore raised on every propose() call that reaches a real database.
+--
+-- Error observed in logs:
+--   action_repo.record_transition failed
+--   violates foreign key constraint action_gateway_transitions_action_id_fkey
+--
+-- ============================================================================
+-- WHY A MIGRATION (NOT A CODE FIX)
+-- ============================================================================
+-- A code fix would restructure propose() to call insert_action() in PROPOSED
+-- state before firing any transitions — that change is correct but requires
+-- application code review.
+--
+-- Dropping the FK is safe because:
+--   1. action_gateway rows are NEVER deleted (operational invariant).
+--      ON DELETE RESTRICT was effectively inert even when the FK existed.
+--   2. The ActionStateMachine already enforces that action_id on every
+--      ActionTransitionRecord is populated from action.action_id at transition
+--      time. Orphaned transition records cannot be produced by the state machine.
+--   3. This follows the same pattern as S2_004 (dropping the cases→action_gateway
+--      FK), which resolved the identical class of insertion-ordering bug.
+--   4. Sprint 1 audit tables (case_audit_log, case_transitions) intentionally
+--      omit FKs on their parent IDs for this same reason.
+--
+-- ============================================================================
+-- ROLLBACK
+-- ============================================================================
+-- The rollback migration (below) re-adds the FK, but only if there are no
+-- orphaned rows in action_gateway_transitions. If orphaned rows exist, the
+-- rollback will fail — which is the correct behavior (orphaned rows indicate
+-- a data integrity problem that must be resolved manually before re-adding
+-- the constraint).
+--
+-- ============================================================================
+-- PREREQUISITES
+-- ============================================================================
+-- S2_001_action_gateway.sql must already be applied.
+-- Apply via Supabase SQL editor (paste entire file, run as one transaction).
+-- ============================================================================
+
+ALTER TABLE action_gateway_transitions
+    DROP CONSTRAINT IF EXISTS action_gateway_transitions_action_id_fkey;
+
+-- ── Verification ─────────────────────────────────────────────────────────────
+-- Run after applying. Expected: 0 rows (constraint removed).
+--
+-- SELECT constraint_name
+-- FROM information_schema.table_constraints
+-- WHERE table_name = 'action_gateway_transitions'
+--   AND constraint_name = 'action_gateway_transitions_action_id_fkey';
+--
+-- ── Rollback migration ────────────────────────────────────────────────────────
+-- ONLY apply rollback if no orphaned rows exist in action_gateway_transitions:
+--
+-- SELECT COUNT(*) FROM action_gateway_transitions agt
+-- WHERE NOT EXISTS (
+--     SELECT 1 FROM action_gateway ag WHERE ag.action_id = agt.action_id
+-- );
+-- Expected before rollback: 0 (no orphaned rows)
+--
+-- If the count is 0, apply rollback:
+--
+-- ALTER TABLE action_gateway_transitions
+--     ADD CONSTRAINT action_gateway_transitions_action_id_fkey
+--     FOREIGN KEY (action_id)
+--     REFERENCES action_gateway (action_id)
+--     ON DELETE RESTRICT;

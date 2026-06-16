@@ -57,6 +57,15 @@ class MatchType(str, Enum):
     NO_MATCH      = "no_match"
 
 
+# ── Case priority ──────────────────────────────────────────────────────────────
+
+class CasePriority(str, Enum):
+    CRITICAL = "CRITICAL"
+    HIGH     = "HIGH"
+    MEDIUM   = "MEDIUM"
+    LOW      = "LOW"
+
+
 # ── Case ──────────────────────────────────────────────────────────────────────
 
 @dataclass
@@ -81,6 +90,15 @@ class Case:
     # Sprint 1.1: SLA deadline — set by Level 2 SLA watchdog (Sprint 2)
     sla_breach_at: datetime | None = None
 
+    # Sprint 2.15: Slot filling state (JSONB). Maps slot_name → {status, value, attempt_count}.
+    slot_state: dict[str, Any] = field(default_factory=dict)
+
+    # Sprint 2.16: Workflow orchestration state
+    workflow_id:      str | None     = None    # playbook ID (e.g., "vkyc_session_failure_v1")
+    workflow_state:   str | None     = None    # WorkflowState value
+    workflow_step_index: int | None  = None    # current step index (informational)
+    workflow_context: dict[str, Any] = field(default_factory=dict)  # WorkflowExecutionResult JSONB
+
     def to_db_row(self) -> dict[str, Any]:
         return {
             "case_id":       self.case_id,
@@ -93,6 +111,11 @@ class Case:
             "updated_at":    self.updated_at.isoformat(),
             "closed_at":     self.closed_at.isoformat() if self.closed_at else None,
             "sla_breach_at": self.sla_breach_at.isoformat() if self.sla_breach_at else None,
+            "slot_state":         self.slot_state if self.slot_state else None,
+            "workflow_id":        self.workflow_id,
+            "workflow_state":     self.workflow_state,
+            "workflow_step_index": self.workflow_step_index,
+            "workflow_context":   self.workflow_context if self.workflow_context else None,
         }
 
     @classmethod
@@ -108,7 +131,37 @@ class Case:
             updated_at=datetime.fromisoformat(row["updated_at"]) if row.get("updated_at") else _now(),
             closed_at=datetime.fromisoformat(row["closed_at"]) if row.get("closed_at") else None,
             sla_breach_at=datetime.fromisoformat(row["sla_breach_at"]) if row.get("sla_breach_at") else None,
+            slot_state=row.get("slot_state") or {},
+            workflow_id=row.get("workflow_id"),
+            workflow_state=row.get("workflow_state"),
+            workflow_step_index=row.get("workflow_step_index"),
+            workflow_context=row.get("workflow_context") or {},
         )
+
+
+# ── Case context ──────────────────────────────────────────────────────────────
+
+@dataclass
+class CaseContext:
+    """
+    Active slot-filling context for a case.
+
+    Built from Case.slot_state at query time. Tracks clarification progress
+    (turn count, last slot asked). Not independently persisted — it is a
+    structured view of Case.slot_state metadata fields.
+    """
+    case_id:             str
+    topic:               str | None = None
+    clarification_turns: int = 0
+    last_asked_slot:     str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "case_id":             self.case_id,
+            "topic":               self.topic,
+            "clarification_turns": self.clarification_turns,
+            "last_asked_slot":     self.last_asked_slot,
+        }
 
 
 # ── Transition ────────────────────────────────────────────────────────────────
@@ -138,16 +191,85 @@ class CaseTransition:
 # ── Audit ─────────────────────────────────────────────────────────────────────
 
 class AuditEventType(str, Enum):
-    STATE_TRANSITION     = "STATE_TRANSITION"
-    ACTION_PROPOSED      = "ACTION_PROPOSED"
-    ACTION_EXECUTED      = "ACTION_EXECUTED"
-    ACTION_REJECTED      = "ACTION_REJECTED"
-    ESCALATION_TRIGGERED = "ESCALATION_TRIGGERED"
-    NOTE_POSTED          = "NOTE_POSTED"
-    RAG_CALLED           = "RAG_CALLED"
-    SLOT_FILLED          = "SLOT_FILLED"
-    CLASSIFICATION       = "CLASSIFICATION"
-    ERROR                = "ERROR"
+    STATE_TRANSITION        = "STATE_TRANSITION"
+    ACTION_PROPOSED         = "ACTION_PROPOSED"
+    ACTION_EXECUTED         = "ACTION_EXECUTED"
+    ACTION_REJECTED         = "ACTION_REJECTED"
+    ESCALATION_TRIGGERED    = "ESCALATION_TRIGGERED"
+    NOTE_POSTED             = "NOTE_POSTED"
+    RAG_CALLED              = "RAG_CALLED"
+    SLOT_FILLED             = "SLOT_FILLED"
+    CLASSIFICATION          = "CLASSIFICATION"
+    ERROR                   = "ERROR"
+    # Sprint 2.16: Workflow orchestration events
+    WORKFLOW_STARTED        = "WORKFLOW_STARTED"
+    WORKFLOW_STEP_COMPLETED = "WORKFLOW_STEP_COMPLETED"
+    WORKFLOW_ESCALATED      = "WORKFLOW_ESCALATED"
+    WORKFLOW_RESOLVED       = "WORKFLOW_RESOLVED"
+    # Sprint 2.17: Additional workflow lifecycle events
+    WORKFLOW_RESUMED        = "WORKFLOW_RESUMED"
+    WORKFLOW_COMPLETED      = "WORKFLOW_COMPLETED"
+    WORKFLOW_FAILED         = "WORKFLOW_FAILED"
+    # Sprint 2.17: Tool execution events
+    TOOL_EXECUTED           = "TOOL_EXECUTED"
+    TOOL_FAILED             = "TOOL_FAILED"
+    # Sprint 2.18: Investigation layer events
+    INVESTIGATION_STARTED   = "INVESTIGATION_STARTED"
+    INVESTIGATION_COMPLETED = "INVESTIGATION_COMPLETED"
+    # Sprint 2.19: Workflow-level investigation step events
+    WORKFLOW_INVESTIGATION_STARTED   = "WORKFLOW_INVESTIGATION_STARTED"
+    WORKFLOW_INVESTIGATION_COMPLETED = "WORKFLOW_INVESTIGATION_COMPLETED"
+    # Sprint 2.20: Knowledge Layer events
+    KNOWLEDGE_SEARCH_STARTED   = "KNOWLEDGE_SEARCH_STARTED"
+    KNOWLEDGE_SEARCH_COMPLETED = "KNOWLEDGE_SEARCH_COMPLETED"
+    SOP_MATCH_FOUND            = "SOP_MATCH_FOUND"
+    SOP_MATCH_NOT_FOUND        = "SOP_MATCH_NOT_FOUND"
+    # Sprint 2.21: Action Proposal Engine events
+    ACTION_PROPOSAL_STARTED    = "ACTION_PROPOSAL_STARTED"
+    ACTION_PROPOSAL_COMPLETED  = "ACTION_PROPOSAL_COMPLETED"
+    ACTION_PROPOSAL_BLOCKED    = "ACTION_PROPOSAL_BLOCKED"
+    RISK_ASSESSMENT_COMPLETED  = "RISK_ASSESSMENT_COMPLETED"
+    # Sprint 2.22: Action Gateway + Approval events
+    ACTION_GATEWAY_STARTED     = "ACTION_GATEWAY_STARTED"
+    ACTION_GATEWAY_COMPLETED   = "ACTION_GATEWAY_COMPLETED"
+    APPROVAL_REQUESTED         = "APPROVAL_REQUESTED"
+    APPROVAL_GRANTED           = "APPROVAL_GRANTED"
+    APPROVAL_REJECTED          = "APPROVAL_REJECTED"
+    # Sprint 2.23: Execution layer events
+    EXECUTION_STARTED          = "EXECUTION_STARTED"
+    EXECUTION_COMPLETED        = "EXECUTION_COMPLETED"
+    VERIFICATION_STARTED       = "VERIFICATION_STARTED"
+    VERIFICATION_COMPLETED     = "VERIFICATION_COMPLETED"
+    RECOVERY_STARTED           = "RECOVERY_STARTED"
+    RECOVERY_COMPLETED         = "RECOVERY_COMPLETED"
+    RESOLUTION_STARTED         = "RESOLUTION_STARTED"
+    RESOLUTION_COMPLETED       = "RESOLUTION_COMPLETED"
+    # Sprint 2.24: Investigation Reasoning Engine
+    REASONING_STARTED          = "REASONING_STARTED"
+    REASONING_COMPLETED        = "REASONING_COMPLETED"
+    WORKFLOW_REASONING_STARTED  = "WORKFLOW_REASONING_STARTED"
+    WORKFLOW_REASONING_COMPLETED = "WORKFLOW_REASONING_COMPLETED"
+    # Sprint 2.25: Clarification Layer
+    CLARIFICATION_STARTED           = "CLARIFICATION_STARTED"
+    CLARIFICATION_COMPLETED         = "CLARIFICATION_COMPLETED"
+    WORKFLOW_CLARIFICATION_STARTED  = "WORKFLOW_CLARIFICATION_STARTED"
+    WORKFLOW_CLARIFICATION_COMPLETED  = "WORKFLOW_CLARIFICATION_COMPLETED"
+    # Sprint 2.26: Clarification Resume + Attempt Tracking
+    WORKFLOW_CLARIFICATION_RESUMED    = "WORKFLOW_CLARIFICATION_RESUMED"
+    CLARIFICATION_ATTEMPT_INCREMENTED = "CLARIFICATION_ATTEMPT_INCREMENTED"
+    # Sprint 2.27: Adapter Framework events
+    ADAPTER_REQUEST_STARTED    = "ADAPTER_REQUEST_STARTED"
+    ADAPTER_REQUEST_COMPLETED  = "ADAPTER_REQUEST_COMPLETED"
+    ADAPTER_HEALTH_CHECK       = "ADAPTER_HEALTH_CHECK"
+    ADAPTER_ROUTING_FAILED     = "ADAPTER_ROUTING_FAILED"
+    # Sprint 2.27.5: Architecture convergence events
+    KNOWLEDGE_ORCHESTRATION_COMPLETED = "KNOWLEDGE_ORCHESTRATION_COMPLETED"
+    RESPONSE_GENERATED                = "RESPONSE_GENERATED"
+    ENGINEERING_ESCALATION_CREATED    = "ENGINEERING_ESCALATION_CREATED"
+    ENGINEERING_ESCALATION_RESOLVED   = "ENGINEERING_ESCALATION_RESOLVED"
+    AGENT_RUN_STARTED                 = "AGENT_RUN_STARTED"
+    AGENT_RUN_COMPLETED               = "AGENT_RUN_COMPLETED"
+    TICKET_PROCESSED                  = "TICKET_PROCESSED"
 
 
 @dataclass

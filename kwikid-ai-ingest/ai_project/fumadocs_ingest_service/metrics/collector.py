@@ -55,6 +55,9 @@ COUNTER_WORKER_EXECUTION       = "worker_execution_total"
 COUNTER_WORKER_FAILURE         = "worker_failure_total"
 COUNTER_WORKER_ROLLBACK        = "worker_rollback_total"
 
+# Sprint 2.13: retry counter (distinct from failure — fires on FAILED→APPROVED re-queue)
+COUNTER_ACTIONS_RETRIED        = "actions_retried_total"
+
 # Gauge name (current outbox depth)
 GAUGE_AUDIT_OUTBOX_SIZE        = "audit_outbox_size"
 
@@ -82,6 +85,7 @@ class MetricsCollector:
         COUNTER_ACTIONS_ROLLED_BACK,
         COUNTER_ACTIONS_ROLLBACK_FAILED,
         COUNTER_ACTIONS_DEAD_LETTERED,
+        COUNTER_ACTIONS_RETRIED,
         COUNTER_AUTH_SUCCESS,
         COUNTER_AUTH_FAILURE,
         COUNTER_WATCHDOG_RUNS,

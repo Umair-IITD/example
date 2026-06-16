@@ -136,6 +136,9 @@ class ActionRequest:
     # Dead letter — set when all retries exhausted
     dead_lettered_at:    datetime | None = None
 
+    # Cancellation — set when operator cancels before execution
+    cancelled_at:        datetime | None = None
+
     # Timestamps
     created_at:          datetime     = field(default_factory=_now)
     updated_at:          datetime     = field(default_factory=_now)
@@ -202,6 +205,7 @@ class ActionRequest:
             "rollback_action_id":     self.rollback_action_id,
             "rollback_completed_at":  _iso(self.rollback_completed_at),
             "dead_lettered_at":       _iso(self.dead_lettered_at),
+            "cancelled_at":           _iso(self.cancelled_at),
             "created_at":             _iso(self.created_at),
             "updated_at":             _iso(self.updated_at),
         }
@@ -245,6 +249,7 @@ class ActionRequest:
             rollback_action_id=row.get("rollback_action_id"),
             rollback_completed_at=_dt(row.get("rollback_completed_at")),
             dead_lettered_at=_dt(row.get("dead_lettered_at")),
+            cancelled_at=_dt(row.get("cancelled_at")),
             created_at=_dt(row.get("created_at")) or _now(),
             updated_at=_dt(row.get("updated_at")) or _now(),
         )

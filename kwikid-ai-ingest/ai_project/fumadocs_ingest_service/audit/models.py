@@ -42,6 +42,11 @@ class AuditEventType(str, Enum):
     # Sprint 2.11: Admin and compliance operations
     ACTION_DEAD_LETTERED     = "ACTION_DEAD_LETTERED"
     ACTION_AUDIT_READ        = "ACTION_AUDIT_READ"
+    # Sprint 2.14: Human recovery and operational control
+    ACTION_CANCELLED                  = "ACTION_CANCELLED"
+    ACTION_RECOVERED_FROM_DEAD_LETTER = "ACTION_RECOVERED_FROM_DEAD_LETTER"
+    ACTION_MANUALLY_EXPIRED           = "ACTION_MANUALLY_EXPIRED"
+    ACTION_ROLLBACK_TRIGGERED         = "ACTION_ROLLBACK_TRIGGERED"
 
 
 @dataclass(frozen=True)

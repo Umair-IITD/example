@@ -1,0 +1,58 @@
+-- S2_004_drop_case_fk.sql
+-- Sprint 2.12: Drop action_gateway.case_id foreign-key constraint
+--
+-- ============================================================================
+-- PROBLEM
+-- ============================================================================
+-- S2_001 defined:
+--   case_id UUID NOT NULL REFERENCES cases(case_id) ON DELETE RESTRICT
+--
+-- This FK blocks INSERT when case_id is a synthetic UUID (not in cases table).
+-- build_synthetic_case() in app/action_proposer.py generates a deterministic
+-- UUID v5 for webhook flows where CaseService is unavailable. Those UUIDs are
+-- NOT in the cases table, so every INSERT to action_gateway fails with:
+--   ERROR 23503: insert or update on table "action_gateway" violates foreign
+--   key constraint "action_gateway_case_id_fkey"
+--
+-- This silently kills all gateway-path note proposals. The worker loop queries
+-- list_clients_with_approved_work() (DB-backed), finds nothing, and never
+-- executes. Notes are never posted.
+--
+-- ============================================================================
+-- FIX
+-- ============================================================================
+-- Drop the FK. case_id remains NOT NULL — it is still required for idempotency
+-- key computation and audit correlation. We just stop requiring it to reference
+-- a row in cases.
+--
+-- The idempotency key already incorporates case_id in the SHA-256 hash, so
+-- deduplication is unaffected.
+--
+-- ============================================================================
+-- SAFETY
+-- ============================================================================
+-- action_gateway rows are never deleted. ON DELETE RESTRICT was effectively
+-- inert for the cases→actions direction anyway — cases are only closed after
+-- all actions reach terminal state, and the gateway enforces this at the
+-- application layer.
+--
+-- The self-referential FK on rollback_action_id is NOT affected by this
+-- migration (it references action_gateway itself, not cases).
+--
+-- ============================================================================
+-- PREREQUISITES
+-- ============================================================================
+-- S2_001_action_gateway.sql must already be applied.
+-- Apply via Supabase SQL editor (paste entire file, run as one transaction).
+-- ============================================================================
+
+ALTER TABLE action_gateway
+    DROP CONSTRAINT IF EXISTS action_gateway_case_id_fkey;
+
+-- ── Verification ─────────────────────────────────────────────────────────────
+-- Run after applying. Expected: 0 rows (constraint removed).
+--
+-- SELECT constraint_name
+-- FROM information_schema.table_constraints
+-- WHERE table_name = 'action_gateway'
+--   AND constraint_name = 'action_gateway_case_id_fkey';

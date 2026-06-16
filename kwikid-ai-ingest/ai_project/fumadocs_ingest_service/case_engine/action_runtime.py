@@ -349,7 +349,16 @@ class ActionRuntime:
     def _health_check(self, executor: ActionExecutor, action: ActionRequest) -> bool:
         """Call executor.health_check(), catching any exception as False."""
         try:
-            return executor.health_check()
+            result = executor.health_check()
+            if not result:
+                LOGGER.warning(
+                    "action_runtime.health_check: unhealthy "
+                    "action_id=%s executor=%s provider_name=%s health_check_result=False",
+                    action.action_id,
+                    type(executor).__name__,
+                    getattr(executor, "_provider_name", "unknown"),
+                )
+            return result
         except Exception as exc:
             LOGGER.warning(
                 "action_runtime.health_check: exception executor=%s action_id=%s error=%s",

@@ -1,0 +1,203 @@
+workflow_id: api_callback_failure_v1
+topic: API_Callback_Failure
+version: "2.0"
+name: API Callback Failure Resolution
+description: >
+  Resolves API callback failures (CBS, DMS, SFDC, WEBHOOK) by clarifying
+  required information, investigating the callback state, looking up SOPs,
+  reasoning about the best action, proposing a callback retry through the
+  action gateway, executing the retry, and resolving the case. Escalates
+  at any failure point that cannot be automatically recovered.
+
+required_slots:
+  - callback_type
+  - application_id
+
+# Sprint 2.17: Investigation metadata (advisory)
+investigation_steps:
+  - tool: GetFailureReasonTool
+    purpose: Identify why the callback failed (timeout, auth, network)
+    required_input: operation_id
+  - tool: GetOnboardingStatusTool
+    purpose: Check if the application is in a valid state for callback retry
+    required_input: application_id
+  - tool: GetCaseHistoryTool
+    purpose: Check for repeat callback failures to assess escalation risk
+    required_input: application_id
+
+tool_candidates:
+  - GetFailureReasonTool
+  - GetOnboardingStatusTool
+  - GetCaseHistoryTool
+
+resolution_paths:
+  automatic: api_callback_retry
+  escalation_missing_slots: escalate_missing_slots
+  escalation_retry_failed: escalate_execute_failed
+  escalation_rejected: escalate_gateway_blocked
+
+entry_conditions:
+  - field: callback_type
+    operator: exists
+    description: Callback type must be present before workflow can start
+
+steps:
+  # ── Phase 0: Clarification ─────────────────────────────────────────────────
+  - step_id: clarify_slots
+    type: CLARIFY
+    name: Clarify Missing Required Information
+    description: >
+      Verify callback_type and application_id are available.
+      If missing, ask the customer to provide them.
+      If max attempts exceeded, escalate to human agent.
+    on_success: investigate_callback
+    on_failure: escalate_missing_slots
+
+  # ── Phase 1: Investigation ─────────────────────────────────────────────────
+  - step_id: investigate_callback
+    type: INVESTIGATE
+    name: Investigate API Callback State
+    description: >
+      Collect evidence about the API callback failure using available tools.
+      Determines root cause category (TIMEOUT / AUTH / NETWORK / INVALID_ENDPOINT)
+      and confidence level.
+    on_success: knowledge_lookup
+    on_failure: escalate_investigation_failed
+
+  # ── Phase 2: Knowledge Lookup ──────────────────────────────────────────────
+  - step_id: knowledge_lookup
+    type: KNOWLEDGE_LOOKUP
+    name: Look Up API Callback SOPs
+    description: >
+      Search the knowledge base for standard operating procedures
+      related to the identified root cause category.
+    on_success: reason_action
+    on_failure: escalate_knowledge_failed
+
+  # ── Phase 3: Reasoning ─────────────────────────────────────────────────────
+  - step_id: reason_action
+    type: REASON
+    name: Reason About Recommended Action
+    description: >
+      Apply the 6-rule priority chain to determine the optimal action
+      given the root cause category, confidence, and SOP findings.
+      Blueprint Principle 3 — Reasoning before execution.
+    on_success: propose_callback_retry
+    on_failure: escalate_reasoning_failed
+
+  # ── Phase 4: Action Proposal ───────────────────────────────────────────────
+  - step_id: propose_callback_retry
+    type: PROPOSE_ACTION
+    name: Propose API Callback Retry
+    description: >
+      Submit an action request to retry the failed API callback for the
+      given application_id and callback_type. REVERSIBLE — the retry can
+      be cancelled before execution if the target system comes back online.
+    action_type: api_callback_retry
+    action_namespace: kwikid.integrations
+    risk_level: REVERSIBLE
+    rollback_action_type: api_callback_cancel
+    action_params:
+      callback_type: "{callback_type}"
+      application_id: "{application_id}"
+      failure_code: "{failure_code}"
+    on_success: action_gateway
+    on_failure: escalate_retry_failed
+
+  # ── Phase 5: Action Gateway ────────────────────────────────────────────────
+  - step_id: action_gateway
+    type: ACTION_GATEWAY
+    name: Action Gateway - Risk Check and Approval
+    description: >
+      Route the callback retry proposal through risk assessment and approval.
+      REVERSIBLE actions require human approval before execution.
+    on_success: execute_retry
+    on_failure: escalate_gateway_blocked
+
+  # ── Phase 6: Execution ─────────────────────────────────────────────────────
+  - step_id: execute_retry
+    type: EXECUTE
+    name: Execute API Callback Retry
+    description: >
+      Execute the approved callback retry action via the KwikID backend.
+      Includes verification and recovery on failure.
+    action_type: api_callback_retry
+    action_namespace: kwikid.integrations
+    risk_level: REVERSIBLE
+    action_params:
+      callback_type: "{callback_type}"
+      application_id: "{application_id}"
+    on_success: resolve_callback_retry
+    on_failure: escalate_execute_failed
+
+  # ── Terminal: Resolution ───────────────────────────────────────────────────
+  - step_id: resolve_callback_retry
+    type: RESOLVE_CASE
+    name: Mark case resolved — API callback retry succeeded
+    description: >
+      The API callback has been successfully retried and acknowledged by
+      the target system. Application processing can continue.
+    on_success: RESOLVE
+    on_failure: ESCALATE
+
+  # ── Terminal: Escalations ──────────────────────────────────────────────────
+  - step_id: escalate_missing_slots
+    type: ESCALATE_CASE
+    name: Escalate — required information missing
+    description: Cannot process callback failure without callback_type and application_id.
+    on_success: ESCALATE
+    on_failure: ESCALATE
+
+  - step_id: escalate_investigation_failed
+    type: ESCALATE_CASE
+    name: Escalate — investigation failed
+    description: >
+      Evidence collection for the API callback failure failed or escalation
+      flag is set. Escalate to human agent for manual investigation.
+    on_success: ESCALATE
+    on_failure: ESCALATE
+
+  - step_id: escalate_knowledge_failed
+    type: ESCALATE_CASE
+    name: Escalate — knowledge lookup failed
+    description: >
+      SOP lookup failed or returned no usable guidance. Escalate for
+      manual SOP lookup and resolution.
+    on_success: ESCALATE
+    on_failure: ESCALATE
+
+  - step_id: escalate_reasoning_failed
+    type: ESCALATE_CASE
+    name: Escalate — reasoning engine escalated
+    description: >
+      The reasoning engine determined that escalation is required
+      (INVALID_ENDPOINT, auth failure, or unknown root cause).
+    on_success: ESCALATE
+    on_failure: ESCALATE
+
+  - step_id: escalate_retry_failed
+    type: ESCALATE_CASE
+    name: Escalate — callback retry proposal failed
+    description: >
+      The callback retry proposal could not be generated.
+      Escalate to human agent for manual integration investigation.
+    on_success: ESCALATE
+    on_failure: ESCALATE
+
+  - step_id: escalate_gateway_blocked
+    type: ESCALATE_CASE
+    name: Escalate — action gateway blocked or approval pending
+    description: >
+      The action gateway blocked the retry or approval is pending.
+      Escalate to senior technical support for manual resolution.
+    on_success: ESCALATE
+    on_failure: ESCALATE
+
+  - step_id: escalate_execute_failed
+    type: ESCALATE_CASE
+    name: Escalate — callback retry execution failed
+    description: >
+      The API callback retry could not be executed or failed verification.
+      Escalate to human agent for manual integration investigation.
+    on_success: ESCALATE
+    on_failure: ESCALATE

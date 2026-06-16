@@ -10,6 +10,8 @@ import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import Any
+from dotenv import load_dotenv
+load_dotenv()
 
 from fastapi import APIRouter, FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
@@ -22,11 +24,22 @@ from api.routes import (
     actions as _gw_actions,
     admin as _gw_admin,
     audit as _gw_audit,
+    case_engine as _case_engine_routes,
+    gateway_admin as _gw_gateway_admin,
     health as _gw_health,
     metrics as _gw_metrics,
+    recovery_admin as _gw_recovery_admin,
+    investigation_admin as _investigation_admin_routes,
+    action_proposals_admin as _action_proposals_admin_routes,
+    execution_admin as _execution_admin_routes,
+    reasoning_admin as _reasoning_admin_routes,
+    clarification_admin as _clarification_admin_routes,
+    adapter_admin as _adapter_admin_routes,
+    tool_admin as _tool_admin_routes,
     watchdog as _gw_watchdog,
     webhook as _gw_webhook,
     worker as _gw_worker,
+    workflow_admin as _wf_admin_routes,
 )
 from app.security import (
     _GATEWAY_PREFIXES,
@@ -89,6 +102,7 @@ from app.query_router import QueryRouter
 from case_engine.case_state import CaseState
 from case_engine.service import CaseService, build_case_service
 from app.pii_masking import mask_aadhaar
+from app.action_proposer import build_synthetic_case, propose_rag_note_action
 
 
 _LOGGER_PRE = logging.getLogger(__name__)
@@ -97,6 +111,26 @@ LOGGER = _LOGGER_PRE
 _B1_HYBRID_ENABLED = os.getenv("B1_HYBRID_RETRIEVAL_ENABLED", "false").strip().lower() in {
     "1", "true", "yes", "on"
 }
+
+# Sprint 2.12: Route RAG note postings through the ActionGateway when true.
+# Default false → existing FreshdeskReplyClient direct-post path (production safety).
+# Set ACTION_GATEWAY_ENABLED=true to activate the autonomous action flow.
+_ACTION_GATEWAY_ENABLED: bool = os.getenv("ACTION_GATEWAY_ENABLED", "false").strip().lower() in {
+    "1", "true", "yes", "on"
+}
+print(
+    f"[STARTUP] _ACTION_GATEWAY_ENABLED={_ACTION_GATEWAY_ENABLED!r} "
+    f"raw_env={os.getenv('ACTION_GATEWAY_ENABLED')!r}",
+    flush=True,
+)
+
+# Sprint 2.12: Worker poll interval (seconds). How often the background worker
+# loop checks for APPROVED actions across all tenants.
+_WORKER_POLL_INTERVAL_S: float = float(os.getenv("ACTION_WORKER_POLL_INTERVAL_S", "5"))
+
+# Sprint 2.12: Watchdog poll interval (seconds). How often the background
+# watchdog loop expires stale AWAITING_APPROVAL actions.
+_WATCHDOG_POLL_INTERVAL_S: float = float(os.getenv("ACTION_WATCHDOG_POLL_INTERVAL_S", "60"))
 
 _QUERY_ROUTER = QueryRouter()
 
@@ -141,6 +175,105 @@ _EMBED_CACHE_MAX = 256
 # Routes are defined below using @_rag_router decorators.
 # create_app() includes this router on the FastAPI instance.
 _rag_router = APIRouter()
+
+
+# ── Sprint 2.12: Background loops and crash recovery ─────────────────────────
+
+async def _background_worker_loop(app: "FastAPI") -> None:
+    """
+    Async background task: poll for APPROVED actions and execute them.
+
+    Runs every _WORKER_POLL_INTERVAL_S seconds. Discovers tenants with pending
+    work via ActionRepository.list_clients_with_approved_work() so it doesn't
+    need a configured client list. Exception-safe: any error in a single poll
+    cycle is caught and logged; the loop continues.
+
+    Cancelled cleanly by the lifespan shutdown (asyncio.CancelledError propagates).
+    """
+    while True:
+        try:
+            stack = getattr(app.state, "stack", None)
+            if stack is not None:
+                clients = await asyncio.to_thread(
+                    stack.repository.list_clients_with_approved_work
+                )
+                for client in clients:
+                    try:
+                        await asyncio.to_thread(stack.worker.process, client)
+                    except Exception as _client_exc:
+                        _LOGGER_PRE.warning(
+                            "worker_loop: client=%s error=%s", client, _client_exc
+                        )
+        except asyncio.CancelledError:
+            raise
+        except Exception as _exc:
+            _LOGGER_PRE.warning("worker_loop: poll_cycle_error error=%s", _exc)
+        await asyncio.sleep(_WORKER_POLL_INTERVAL_S)
+
+
+async def _background_watchdog_loop(app: "FastAPI") -> None:
+    """
+    Async background task: expire stale AWAITING_APPROVAL actions.
+
+    Runs every _WATCHDOG_POLL_INTERVAL_S seconds (default 60 s). Sweeps all
+    tenants (client=None). Exception-safe: any error is caught and logged.
+
+    Cancelled cleanly by the lifespan shutdown.
+    """
+    while True:
+        try:
+            stack = getattr(app.state, "stack", None)
+            if stack is not None:
+                result = await asyncio.to_thread(stack.watchdog.run, None)
+                if result.expired_actions > 0:
+                    _LOGGER_PRE.info(
+                        "watchdog_loop: expired=%d processed=%d",
+                        result.expired_actions, result.processed,
+                    )
+        except asyncio.CancelledError:
+            raise
+        except Exception as _exc:
+            _LOGGER_PRE.warning("watchdog_loop: sweep_error error=%s", _exc)
+        await asyncio.sleep(_WATCHDOG_POLL_INTERVAL_S)
+
+
+def _recover_stale_executing_actions(stack: Any) -> None:
+    """
+    Sprint 2.12 crash recovery: find EXECUTING actions orphaned by a crashed worker
+    and transition them back to APPROVED (or DEAD_LETTER if retries exhausted).
+
+    Calls ActionGateway.record_timeout() which uses the existing state machine.
+    The executor_id "crash_recovery" is used so audit logs clearly identify the source.
+
+    Runs synchronously during lifespan startup (before the app begins serving).
+    Never raises — recovery failures are logged and the app continues starting.
+    """
+    if stack is None:
+        return
+    try:
+        from case_engine.action_runtime import EXECUTION_TIMEOUT_DEFAULT  # noqa: PLC0415
+        timeout_s = int(EXECUTION_TIMEOUT_DEFAULT.total_seconds())
+        stale = stack.repository.list_executing_actions(older_than_seconds=timeout_s)
+        if not stale:
+            return
+        _LOGGER_PRE.warning(
+            "crash_recovery: found %d stale EXECUTING action(s) — recovering",
+            len(stale),
+        )
+        for action in stale:
+            try:
+                stack.gateway.record_timeout(action, executor_id="crash_recovery")
+                _LOGGER_PRE.info(
+                    "crash_recovery: recovered action_id=%s ticket=%s client=%s",
+                    action.action_id, action.ticket_id, action.client,
+                )
+            except Exception as _exc:
+                _LOGGER_PRE.error(
+                    "crash_recovery: failed action_id=%s error=%s",
+                    action.action_id, _exc,
+                )
+    except Exception as _exc:
+        _LOGGER_PRE.error("crash_recovery: unexpected error error=%s", _exc)
 
 
 # ── Gateway stack builder ─────────────────────────────────────────────────────
@@ -322,14 +455,54 @@ def _build_lifespan(*, skip_config_validation: bool = False):
 
         # ── Sprint 1: Pre-warm CaseService singleton ──────────────────────────
         try:
-            _case_service_singleton = build_case_service(_sb_singleton)
+            from case_engine.workflows.playbook_registry import PlaybookRegistry  # noqa: PLC0415
+            from case_engine.tools.tool_registry import ToolRegistry              # noqa: PLC0415
+            from case_engine.tools.tool_executor import ToolExecutor              # noqa: PLC0415
+            from case_engine.reasoning.reasoning_engine import ReasoningEngine    # noqa: PLC0415
+
+            _playbook_registry = PlaybookRegistry.build()
+            _tool_registry     = ToolRegistry.build_default()
+            _tool_executor     = ToolExecutor(_tool_registry)
+            _reasoning_engine  = ReasoningEngine()
+
+            _app.state.playbook_registry = _playbook_registry
+            _app.state.tool_registry     = _tool_registry
+            _app.state.tool_executor     = _tool_executor
+            _app.state.reasoning_engine  = _reasoning_engine
+
+            # CaseService needs the playbook_registry and (optionally) action_gateway.
+            # The gateway stack is built below; we pass None here and patch after.
+            _case_service_singleton = build_case_service(
+                _sb_singleton,
+                playbook_registry=_playbook_registry,
+            )
+            _app.state.case_service = _case_service_singleton
             _LOGGER_PRE.info(
-                "sprint1_case_service_warmed supabase_backed=%s", _sb_singleton is not None
+                "sprint1_case_service_warmed supabase_backed=%s playbooks=%d tools=%d",
+                _sb_singleton is not None,
+                len(_playbook_registry),
+                len(_tool_registry),
             )
         except Exception as _exc:  # noqa: BLE001
             _LOGGER_PRE.warning(
                 "sprint1_case_service_warmup_failed error=%s — offline mode will be used", _exc
             )
+            _app.state.case_service = None
+
+        # ── Sprint 2.18: Pre-warm InvestigationService ────────────────────────
+        try:
+            from case_engine.investigation import build_investigation_service  # noqa: PLC0415
+            _inv_service = build_investigation_service(
+                tool_executor=_app.state.tool_executor,
+                audit_logger=None,  # case_engine.audit.AuditLogger wired after gateway
+            )
+            _app.state.investigation_service = _inv_service
+            _LOGGER_PRE.info("sprint218_investigation_service_warmed")
+        except Exception as _inv_exc:  # noqa: BLE001
+            _LOGGER_PRE.warning(
+                "sprint218_investigation_service_warmup_failed error=%s", _inv_exc
+            )
+            _app.state.investigation_service = None
 
         # ── Action gateway state setup ────────────────────────────────────────
         # Gateway routes use request.app.state.stack / .audit_logger / .authenticator.
@@ -363,13 +536,91 @@ def _build_lifespan(*, skip_config_validation: bool = False):
                 )
             if _app.state.metrics_service is None and _app.state.stack is not None:
                 _app.state.metrics_service = getattr(_app.state.stack, "metrics_service", None)
+            # Wire action_gateway into CaseService now that the stack exists.
+            if _app.state.case_service is not None and _app.state.stack is not None:
+                _app.state.case_service._gateway = getattr(_app.state.stack, "gateway", None)
+
+            # ── Sprint 2.26: Wire workflow services from stack into app.state ──
+            # The ProductionRuntime now contains all 7 workflow services. Promote
+            # each into app.state so admin endpoints receive real (not None) services.
+            _stack = _app.state.stack
+            if _stack is not None:
+                _wf_service_names = [
+                    "clarification_service",
+                    "investigation_service",
+                    "knowledge_service",
+                    "reasoning_service",
+                    "action_proposal_service",
+                    "action_gateway_service",
+                    "execution_service",
+                    "workflow_engine",
+                    "playbook_registry",
+                    "adapter_registry",
+                    "adapter_router",
+                    # Sprint 2.27.5: Architecture convergence services
+                    "router_service",
+                    "knowledge_orchestrator",
+                    "response_generation_service",
+                    "engineering_escalation_service",
+                    "support_agent_runtime",
+                    "ticket_orchestrator",
+                ]
+                for _svc_name in _wf_service_names:
+                    if getattr(_app.state, _svc_name, None) is None:
+                        _svc = getattr(_stack, _svc_name, None)
+                        if _svc is not None:
+                            setattr(_app.state, _svc_name, _svc)
+                            _LOGGER_PRE.info("sprint226_service_wired service=%s", _svc_name)
+
+                # Upgrade CaseService to use the fully-wired WorkflowEngine
+                if _app.state.case_service is not None:
+                    _wf_eng = getattr(_app.state, "workflow_engine", None)
+                    if _wf_eng is not None:
+                        _app.state.case_service._wf_engine = _wf_eng
+                        _LOGGER_PRE.info("sprint226_case_service_workflow_engine_upgraded")
+
             _LOGGER_PRE.info("action_gateway_initialized")
         except Exception as _gw_exc:  # noqa: BLE001
             _LOGGER_PRE.warning(
                 "action_gateway_init_failed error=%s — gateway routes will return 503", _gw_exc
             )
 
+        # ── Sprint 2.12: Crash recovery — recover stale EXECUTING actions ─────
+        _recover_stale_executing_actions(_app.state.stack)
+
+        # ── Sprint 2.12: Background loops ─────────────────────────────────────
+        # Only start background loops in production (not during unit tests).
+        # Tests use skip_config_validation=True.
+        _bg_tasks: list[asyncio.Task] = []  # type: ignore[type-arg]
+        if not skip_config_validation:
+            _bg_tasks.append(
+                asyncio.create_task(
+                    _background_worker_loop(_app),
+                    name="action_worker_loop",
+                )
+            )
+            _bg_tasks.append(
+                asyncio.create_task(
+                    _background_watchdog_loop(_app),
+                    name="action_watchdog_loop",
+                )
+            )
+            _LOGGER_PRE.info(
+                "sprint212_background_loops_started worker_interval=%.0fs watchdog_interval=%.0fs",
+                _WORKER_POLL_INTERVAL_S, _WATCHDOG_POLL_INTERVAL_S,
+            )
+
         yield
+
+        # ── Sprint 2.12: Cancel background loops ──────────────────────────────
+        for _task in _bg_tasks:
+            _task.cancel()
+            try:
+                await _task
+            except asyncio.CancelledError:
+                pass
+        if _bg_tasks:
+            _LOGGER_PRE.info("sprint212_background_loops_stopped count=%d", len(_bg_tasks))
 
         # ── SPRINT0_FIX_SINGLETON: graceful shutdown ───────────────────────────
         if _generator_singleton is not None:
@@ -681,6 +932,12 @@ def create_app(
     local_app.state.audit_service    = audit_service
     local_app.state.audit_repository = audit_repository
     local_app.state.metrics_service  = metrics_service
+    local_app.state.case_service     = None  # set during lifespan startup
+    local_app.state.playbook_registry = None  # set during lifespan startup
+    local_app.state.tool_registry     = None  # set during lifespan startup
+    local_app.state.tool_executor        = None  # set during lifespan startup
+    local_app.state.reasoning_engine     = None  # set during lifespan startup
+    local_app.state.investigation_service = None  # set during lifespan startup
 
     # ── Middleware ────────────────────────────────────────────────────────────
     cors_origins = [
@@ -720,15 +977,28 @@ def create_app(
     # ── RAG routes ────────────────────────────────────────────────────────────
     local_app.include_router(_rag_router)
 
+    # ── Case Engine routes (Sprint 2.15) ─────────────────────────────────────
+    local_app.include_router(_case_engine_routes.router, tags=["Case Engine"])
+
     # ── Action gateway routes ─────────────────────────────────────────────────
     # These routes use per-route Depends(require_admin/approver/operator) auth.
     # The global api_key_auth_middleware skips them (see app/security.py _GATEWAY_PREFIXES).
-    local_app.include_router(_gw_actions.router,  tags=["Actions"])
-    local_app.include_router(_gw_worker.router,   tags=["Worker"])
-    local_app.include_router(_gw_watchdog.router, tags=["Watchdog"])
-    local_app.include_router(_gw_audit.router,    tags=["Audit"])
-    local_app.include_router(_gw_admin.router,    tags=["Admin"])
-    local_app.include_router(_gw_webhook.router,  tags=["Webhooks"])
+    local_app.include_router(_gw_actions.router,         tags=["Actions"])
+    local_app.include_router(_gw_worker.router,          tags=["Worker"])
+    local_app.include_router(_gw_watchdog.router,        tags=["Watchdog"])
+    local_app.include_router(_gw_audit.router,           tags=["Audit"])
+    local_app.include_router(_gw_admin.router,           tags=["Admin"])
+    local_app.include_router(_gw_gateway_admin.router,   tags=["Gateway Admin"])
+    local_app.include_router(_gw_recovery_admin.router,  tags=["Recovery Admin"])
+    local_app.include_router(_wf_admin_routes.router,    tags=["Workflow Admin"])
+    local_app.include_router(_tool_admin_routes.router,          tags=["Tool Admin"])
+    local_app.include_router(_investigation_admin_routes.router,       tags=["Investigation Admin"])
+    local_app.include_router(_action_proposals_admin_routes.router,   tags=["Action Proposal Admin"])
+    local_app.include_router(_execution_admin_routes.router,          tags=["Execution Admin"])
+    local_app.include_router(_reasoning_admin_routes.router,          tags=["Reasoning Admin"])
+    local_app.include_router(_clarification_admin_routes.router,      tags=["Clarification Admin"])
+    local_app.include_router(_adapter_admin_routes.router,            tags=["Adapter Admin"])
+    local_app.include_router(_gw_webhook.router,                 tags=["Webhooks"])
 
     # ── Gateway health and metrics (under /gateway prefix to avoid path conflicts) ──
     # /gateway/health, /gateway/health/live, /gateway/health/ready — gateway runtime health
@@ -1905,6 +2175,19 @@ async def freshdesk_webhook(request: Request) -> dict[str, Any]:
                 ticket_id, _ce_exc,
             )
 
+    # ── Sprint 2.12: Query router shadow mode — classify without affecting routing ─
+    try:
+        _router_result = _QUERY_ROUTER.classify(query_text)
+        LOGGER.info(
+            "query_router_shadow: ticket=%s route=%s confidence=%.3f signals=%s",
+            ticket_id, _router_result.route, _router_result.confidence,
+            _router_result.matched_signals[:3],
+        )
+    except Exception as _qr_exc:
+        LOGGER.debug(
+            "query_router_shadow: classify_failed ticket=%s error=%s", ticket_id, _qr_exc,
+        )
+
     # ── Sprint 1.1: Post TCP note if RAG evaluation escalated the case ───────
     if _case is not None and _case.current_state == CaseState.ESCALATED and not _tcp_posted:
         try:
@@ -1949,33 +2232,52 @@ async def freshdesk_webhook(request: Request) -> dict[str, Any]:
             detail={"status": "config_error", "error": "Freshdesk credentials not configured"},
         )
 
-    # Reuse the client created earlier for TCP posting (avoids duplicate connection)
-    reply_client = _reply_client or FreshdeskReplyClient(
-        domain=app_settings.freshdesk_domain,
-        api_key=app_settings.freshdesk_api_key,
+    # Format note body (needed by both gateway and direct paths)
+    body_html = format_note_html(
+        result.answer,
+        confidence=result.confidence,
+        citations=result.citations,
+        ticket_id=ticket_id,
+        client=client,
     )
 
-    try:
-        if app_settings.freshdesk_webhook_reply_as_note:
-            body_html = format_note_html(
-                result.answer,
-                confidence=result.confidence,
-                citations=result.citations,
-                ticket_id=ticket_id,
-                client=client,
-            )
-            await asyncio.to_thread(reply_client.post_note, ticket_id, body_html, private=True)
-            action = "private_note_posted"
-        else:
-            body_html = format_reply_html(result.answer)
-            await asyncio.to_thread(reply_client.post_reply, ticket_id, body_html)
-            action = "public_reply_posted"
-    except Exception as exc:  # noqa: BLE001
-        LOGGER.exception("freshdesk_webhook: api_call_failed ticket=%s", ticket_id)
-        raise HTTPException(
-            status_code=502,
-            detail={"status": "freshdesk_api_error", "error": str(exc), "ticket_id": ticket_id},
-        ) from exc
+    if _ACTION_GATEWAY_ENABLED:
+        # Sprint 2.12: Gateway path — propose SAFE action; worker executes asynchronously
+        _gateway_case = _case if _case is not None else build_synthetic_case(ticket_id, client)
+        _stack = getattr(request.app.state, "stack", None)
+        _action_id = await asyncio.to_thread(
+            propose_rag_note_action,
+            case=_gateway_case,
+            body_html=body_html,
+            stack=_stack,
+            ticket_id=ticket_id,
+            client=client,
+        )
+        action = "gateway_note_proposed"
+        LOGGER.info(
+            "freshdesk_webhook: gateway_path action_id=%s ticket=%s client=%s",
+            _action_id, ticket_id, client,
+        )
+    else:
+        # Direct path — synchronous post via FreshdeskReplyClient
+        reply_client = _reply_client or FreshdeskReplyClient(
+            domain=app_settings.freshdesk_domain,
+            api_key=app_settings.freshdesk_api_key,
+        )
+        try:
+            if app_settings.freshdesk_webhook_reply_as_note:
+                await asyncio.to_thread(reply_client.post_note, ticket_id, body_html, private=True)
+                action = "private_note_posted"
+            else:
+                body_html = format_reply_html(result.answer)
+                await asyncio.to_thread(reply_client.post_reply, ticket_id, body_html)
+                action = "public_reply_posted"
+        except Exception as exc:  # noqa: BLE001
+            LOGGER.exception("freshdesk_webhook: api_call_failed ticket=%s", ticket_id)
+            raise HTTPException(
+                status_code=502,
+                detail={"status": "freshdesk_api_error", "error": str(exc), "ticket_id": ticket_id},
+            ) from exc
 
     LOGGER.info(
         "freshdesk_webhook: action=%s ticket=%s client=%s confidence=%s chunks=%d",

@@ -1,0 +1,102 @@
+@startuml
+skinparam componentStyle rectangle
+skinparam linetype ortho
+
+package "External Interfaces" {
+    actor "Bank Agent / User" as User
+    rectangle "Freshdesk" as FD
+    rectangle "Asana" as ASANA
+    rectangle "Engineering Team" as DEV
+}
+
+package "Core Support System" {
+    rectangle "Ticket Ingestion" as TI
+    rectangle "Case Service" as CS
+    database "Cases DB" as CDB
+}
+
+package "AI & Reasoning Engine" {
+    cloud "Enterprise LLM" as LLM
+    component "Topic Classifier" as TC
+    component "Slot Extractor" as SE
+    component "Clarification Engine" as CE
+    component "Workflow Engine" as WE
+    component "Reasoning Engine" as RE
+}
+
+package "Knowledge & Data Layer" {
+    database "Knowledge Base" as KB
+    database "SOP Repository" as SOP
+    database "Workflow Playbooks" as PB
+}
+
+package "Investigation Tooling" {
+    component "GetUserDetails" as T1
+    component "GetSessionDetails" as T2
+    component "GetFailureReason" as T3
+    component "GetCaseHistory" as T4
+    component "GetOnboardingStatus" as T5
+}
+
+package "Action & Execution Gateway" {
+    component "Action Gateway" as AG
+    component "Executor" as EX
+    component "Recovery Service" as RS
+    database "Actions DB" as ADB
+}
+
+package "Governance & Audit" {
+    component "Audit Service" as AUD
+    database "Audit DB" as AUDDB
+}
+
+' --- Core Flow Relationships ---
+User --> FD
+FD --> TI
+TI --> CS
+CS --> CDB
+CS --> TC
+
+' --- AI Processing Relationships ---
+TC --> LLM
+TC --> KB
+TC --> SOP
+TC --> PB
+TC --> SE
+
+SE --> LLM
+SE --> CE
+CE --> FD
+
+SE --> WE
+WE --> PB
+WE --> RE
+RE --> LLM
+
+' --- Tooling Relationships ---
+RE --> T1
+RE --> T2
+RE --> T3
+RE --> T4
+RE --> T5
+
+' --- Execution Relationships ---
+RE --> AG
+AG --> EX
+EX --> ADB
+EX --> RS
+RS --> AG
+
+' --- External Escalation Relationships ---
+RE --> ASANA
+ASANA <--> DEV
+ASANA --> FD
+
+' --- Audit Relationships ---
+WE .down.> AUD
+AG .down.> AUD
+EX .down.> AUD
+RS .down.> AUD
+AUD --> AUDDB
+
+@enduml

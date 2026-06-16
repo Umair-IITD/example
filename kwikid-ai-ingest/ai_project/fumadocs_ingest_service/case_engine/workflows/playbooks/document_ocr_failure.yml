@@ -1,0 +1,204 @@
+workflow_id: document_ocr_failure_v1
+topic: Document_OCR_Failure
+version: "2.0"
+name: Document OCR Failure Resolution
+description: >
+  Resolves document OCR failures (Aadhaar, PAN, Passport, Voter ID) by
+  clarifying required information, investigating the OCR state, looking up
+  SOPs, reasoning about the best action, proposing an OCR re-processing
+  request through the action gateway, executing the reprocess, and resolving
+  the case. Escalates at any failure point that cannot be automatically
+  recovered.
+
+required_slots:
+  - document_type
+  - application_id
+
+# Sprint 2.17: Investigation metadata (advisory)
+investigation_steps:
+  - tool: GetOnboardingStatusTool
+    purpose: Confirm the application is at the KYC stage and document upload exists
+    required_input: application_id
+  - tool: GetUserDetailsTool
+    purpose: Verify user identity and check KYC tier before reprocessing
+    required_input: phone_number
+  - tool: GetFailureReasonTool
+    purpose: Determine OCR failure category (QUALITY / TIMEOUT / FORMAT)
+    required_input: operation_id
+
+tool_candidates:
+  - GetOnboardingStatusTool
+  - GetUserDetailsTool
+  - GetFailureReasonTool
+
+resolution_paths:
+  automatic: document_ocr_reprocess
+  escalation_missing_slots: escalate_missing_slots
+  escalation_reprocess_failed: escalate_execute_failed
+  escalation_rejected: escalate_gateway_blocked
+
+entry_conditions:
+  - field: application_id
+    operator: exists
+    description: Application ID must be present before workflow can start
+
+steps:
+  # ── Phase 0: Clarification ─────────────────────────────────────────────────
+  - step_id: clarify_slots
+    type: CLARIFY
+    name: Clarify Missing Required Information
+    description: >
+      Verify document_type and application_id are available.
+      If missing, ask the customer to provide them.
+      If max attempts exceeded, escalate to human agent.
+    on_success: investigate_ocr
+    on_failure: escalate_missing_slots
+
+  # ── Phase 1: Investigation ─────────────────────────────────────────────────
+  - step_id: investigate_ocr
+    type: INVESTIGATE
+    name: Investigate Document OCR State
+    description: >
+      Collect evidence about the OCR failure using available tools.
+      Determines root cause category (QUALITY / TIMEOUT / FORMAT / UNSUPPORTED)
+      and confidence level.
+    on_success: knowledge_lookup
+    on_failure: escalate_investigation_failed
+
+  # ── Phase 2: Knowledge Lookup ──────────────────────────────────────────────
+  - step_id: knowledge_lookup
+    type: KNOWLEDGE_LOOKUP
+    name: Look Up Document OCR SOPs
+    description: >
+      Search the knowledge base for standard operating procedures
+      related to the identified root cause category.
+    on_success: reason_action
+    on_failure: escalate_knowledge_failed
+
+  # ── Phase 3: Reasoning ─────────────────────────────────────────────────────
+  - step_id: reason_action
+    type: REASON
+    name: Reason About Recommended Action
+    description: >
+      Apply the 6-rule priority chain to determine the optimal action
+      given the root cause category, confidence, and SOP findings.
+      Blueprint Principle 3 — Reasoning before execution.
+    on_success: propose_ocr_reprocess
+    on_failure: escalate_reasoning_failed
+
+  # ── Phase 4: Action Proposal ───────────────────────────────────────────────
+  - step_id: propose_ocr_reprocess
+    type: PROPOSE_ACTION
+    name: Propose Document OCR Re-processing
+    description: >
+      Submit an OCR re-processing request for the document attached to the
+      given application_id. SAFE — re-processing uses the existing document
+      image; no new upload is required.
+    action_type: document_ocr_reprocess
+    action_namespace: kwikid.kyc
+    risk_level: SAFE
+    action_params:
+      document_type: "{document_type}"
+      application_id: "{application_id}"
+      failure_code: "{failure_code}"
+    on_success: action_gateway
+    on_failure: escalate_reprocess_failed
+
+  # ── Phase 5: Action Gateway ────────────────────────────────────────────────
+  - step_id: action_gateway
+    type: ACTION_GATEWAY
+    name: Action Gateway - Risk Check and Approval
+    description: >
+      Route the OCR re-process proposal through risk assessment and approval.
+      SAFE actions are auto-approved and do not require human sign-off.
+    on_success: execute_reprocess
+    on_failure: escalate_gateway_blocked
+
+  # ── Phase 6: Execution ─────────────────────────────────────────────────────
+  - step_id: execute_reprocess
+    type: EXECUTE
+    name: Execute Document OCR Re-processing
+    description: >
+      Execute the approved OCR re-processing action via the KwikID backend.
+      Includes verification and recovery on failure.
+    action_type: document_ocr_reprocess
+    action_namespace: kwikid.kyc
+    risk_level: SAFE
+    action_params:
+      document_type: "{document_type}"
+      application_id: "{application_id}"
+    on_success: resolve_ocr_success
+    on_failure: escalate_execute_failed
+
+  # ── Terminal: Resolution ───────────────────────────────────────────────────
+  - step_id: resolve_ocr_success
+    type: RESOLVE_CASE
+    name: Mark case resolved — OCR re-processing succeeded
+    description: >
+      The document has been successfully re-processed by the OCR engine.
+      The application can continue to the next KYC step.
+    on_success: RESOLVE
+    on_failure: ESCALATE
+
+  # ── Terminal: Escalations ──────────────────────────────────────────────────
+  - step_id: escalate_missing_slots
+    type: ESCALATE_CASE
+    name: Escalate — required information missing
+    description: Cannot process OCR failure without document_type and application_id.
+    on_success: ESCALATE
+    on_failure: ESCALATE
+
+  - step_id: escalate_investigation_failed
+    type: ESCALATE_CASE
+    name: Escalate — investigation failed
+    description: >
+      Evidence collection for the OCR failure failed or escalation flag
+      is set. Escalate to human agent for manual document investigation.
+    on_success: ESCALATE
+    on_failure: ESCALATE
+
+  - step_id: escalate_knowledge_failed
+    type: ESCALATE_CASE
+    name: Escalate — knowledge lookup failed
+    description: >
+      SOP lookup failed or returned no usable guidance. Escalate for
+      manual SOP lookup and resolution.
+    on_success: ESCALATE
+    on_failure: ESCALATE
+
+  - step_id: escalate_reasoning_failed
+    type: ESCALATE_CASE
+    name: Escalate — reasoning engine escalated
+    description: >
+      The reasoning engine determined that escalation is required
+      (UNSUPPORTED document type, low quality, or unknown root cause).
+    on_success: ESCALATE
+    on_failure: ESCALATE
+
+  - step_id: escalate_reprocess_failed
+    type: ESCALATE_CASE
+    name: Escalate — OCR re-process proposal failed
+    description: >
+      The OCR re-processing proposal could not be generated.
+      Escalate to human agent for manual document review.
+    on_success: ESCALATE
+    on_failure: ESCALATE
+
+  - step_id: escalate_gateway_blocked
+    type: ESCALATE_CASE
+    name: Escalate — action gateway blocked or approval pending
+    description: >
+      The action gateway blocked the re-process request or approval is pending.
+      Escalate to senior support for manual resolution.
+    on_success: ESCALATE
+    on_failure: ESCALATE
+
+  - step_id: escalate_execute_failed
+    type: ESCALATE_CASE
+    name: Escalate — OCR re-processing execution failed
+    description: >
+      The OCR re-processing could not be executed or failed verification.
+      The customer may need to re-upload a clearer document image.
+      Escalate for guided re-submission.
+    on_success: ESCALATE
+    on_failure: ESCALATE

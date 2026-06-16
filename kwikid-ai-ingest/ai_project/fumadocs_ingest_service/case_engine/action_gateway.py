@@ -112,9 +112,12 @@ class ActionGateway:
           1. Validate the proposal (risk consistency, required fields).
           2. Compute idempotency key and check for duplicate.
           3. Build ActionRequest with appropriate defaults per risk_level.
-          4. For SAFE: auto-approve immediately (PROPOSED → APPROVED).
-          5. For REVERSIBLE/IRREVERSIBLE: move to AWAITING_APPROVAL with SLA deadline.
-          6. Persist and return.
+          4. INSERT the action row in PROPOSED state — establishes the FK anchor
+             required by action_gateway_transitions.action_id before any transition
+             callback fires.
+          5. For SAFE: auto-approve immediately (PROPOSED → APPROVED).
+          6. For REVERSIBLE/IRREVERSIBLE: move to AWAITING_APPROVAL with SLA deadline.
+          7. UPDATE the row with the post-transition state and return.
 
         Raises:
           ValueError: proposal validation failed.
@@ -159,8 +162,24 @@ class ActionGateway:
             idempotency_key=idem_key,
         )
 
+        # Pre-set SLA deadline before insert so the initial row carries expires_at.
+        # This value is also referenced in the transition detail below.
+        if proposal.risk_level == ActionRiskLevel.REVERSIBLE:
+            action.expires_at = now + APPROVAL_DEADLINE_REVERSIBLE
+        elif proposal.risk_level == ActionRiskLevel.IRREVERSIBLE:
+            action.expires_at = now + APPROVAL_DEADLINE_IRREVERSIBLE
+
+        # ── INSERT the action row FIRST ────────────────────────────────────────
+        # action_gateway_transitions carries a FK on action_id that references
+        # action_gateway. _sm.transition() fires _persist_transition() which calls
+        # record_transition() synchronously. The INSERT into action_gateway_transitions
+        # will fail with FK error 23503 if the action_gateway row does not already
+        # exist. Insert in PROPOSED state now, then transition below.
+        action = self._repo.insert_action(action)
+
+        # ── Apply initial state transition ─────────────────────────────────────
+        # The action_gateway row now exists; _persist_transition is safe to fire.
         if proposal.risk_level == ActionRiskLevel.SAFE:
-            # Auto-approve immediately: no human decision needed
             self._sm.transition(
                 action, ActionState.APPROVED,
                 reason="auto_approved_safe",
@@ -171,7 +190,6 @@ class ActionGateway:
             action.approved_at = datetime.now(tz=timezone.utc)
 
         elif proposal.risk_level == ActionRiskLevel.REVERSIBLE:
-            action.expires_at = now + APPROVAL_DEADLINE_REVERSIBLE
             self._sm.transition(
                 action, ActionState.AWAITING_APPROVAL,
                 reason="requires_human_approval",
@@ -183,7 +201,6 @@ class ActionGateway:
             )
 
         else:  # IRREVERSIBLE
-            action.expires_at = now + APPROVAL_DEADLINE_IRREVERSIBLE
             self._sm.transition(
                 action, ActionState.AWAITING_APPROVAL,
                 reason="requires_strict_human_approval",
@@ -195,15 +212,19 @@ class ActionGateway:
                 },
             )
 
-        persisted = self._repo.insert_action(action)
+        # ── Persist post-transition state ──────────────────────────────────────
+        # Update the row from PROPOSED to its final state (APPROVED or
+        # AWAITING_APPROVAL) along with any fields set during transition
+        # (approver, approved_at, updated_at).
+        self._repo.update_action(action)
         self._record_metric("record_action_created")
 
         LOGGER.info(
             "action_gateway.propose: action_id=%s type=%s risk=%s state=%s",
-            persisted.action_id, persisted.action_type,
-            persisted.risk_level.value, persisted.current_state.value,
+            action.action_id, action.action_type,
+            action.risk_level.value, action.current_state.value,
         )
-        return persisted
+        return action
 
     # ── Human approval ─────────────────────────────────────────────────────────
 
@@ -429,6 +450,7 @@ class ActionGateway:
                 "attempt=%d/%d code=%s",
                 action.action_id, action.execution_attempt, action.max_attempts, failure_code,
             )
+            self._record_metric("record_action_retried")
         else:
             # All retries exhausted (or permanent failure) → DEAD_LETTER
             action.dead_lettered_at = datetime.now(tz=timezone.utc)
@@ -450,6 +472,7 @@ class ActionGateway:
                 action.action_id, action.execution_attempt, action.max_attempts,
                 failure_code, permanent,
             )
+            self._record_metric("record_action_dead_lettered")
 
         self._repo.update_action(action)
         return action

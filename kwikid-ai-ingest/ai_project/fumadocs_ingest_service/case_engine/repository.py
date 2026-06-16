@@ -129,6 +129,16 @@ class CaseRepository:
             patch["closed_at"] = case.closed_at.isoformat()
         if case.sla_breach_at is not None:
             patch["sla_breach_at"] = case.sla_breach_at.isoformat()
+        if case.slot_state:
+            patch["slot_state"] = case.slot_state
+        if case.workflow_id is not None:
+            patch["workflow_id"] = case.workflow_id
+        if case.workflow_state is not None:
+            patch["workflow_state"] = case.workflow_state
+        if case.workflow_step_index is not None:
+            patch["workflow_step_index"] = case.workflow_step_index
+        if case.workflow_context:
+            patch["workflow_context"] = case.workflow_context
 
         try:
             self._sb.table(_CASES_TABLE).update(patch).eq("case_id", case.case_id).execute()
@@ -159,6 +169,29 @@ class CaseRepository:
                 exc,
             )
             return False
+
+    # ── Workflow listing (Sprint 2.16) ────────────────────────────────────────
+
+    def list_cases_by_workflow_state(self, states: list[str] | None = None) -> list[Case]:
+        """
+        Return cases that have a non-null workflow_state, optionally filtered by state.
+
+        Returns an empty list if offline or on any DB error.
+        """
+        if self._sb is None:
+            return []
+
+        try:
+            query = self._sb.table(_CASES_TABLE).select("*").not_.is_("workflow_state", "null")
+            if states:
+                query = query.in_("workflow_state", states)
+            result = query.order("updated_at", desc=True).limit(200).execute()
+            if result.data:
+                return [Case.from_db_row(row) for row in result.data]
+            return []
+        except Exception as exc:
+            LOGGER.error("repository.list_cases_by_workflow_state failed error=%s", exc)
+            return []
 
     # ── Audit log ─────────────────────────────────────────────────────────────
 

@@ -48,7 +48,13 @@ _api_key_scheme = APIKeyHeader(name="x-api-key", auto_error=False)
 
 def _get_authenticator(request: Request):
     """Extract the ApiKeyAuthenticator from app.state."""
-    return request.app.state.authenticator
+    try:
+        return request.app.state.authenticator
+    except AttributeError:
+        raise HTTPException(
+            status_code=503,
+            detail=error_body("SERVICE_UNAVAILABLE", "Auth subsystem not initialised"),
+        )
 
 
 def _authenticate_and_authorize(

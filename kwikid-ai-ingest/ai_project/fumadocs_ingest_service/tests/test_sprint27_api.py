@@ -313,7 +313,7 @@ class TestFreshdeskProcessorParse:
         proposal = proc.parse(self._event("ticket_created"))
         assert proposal is not None
         assert proposal.action_type == "add_note"
-        assert proposal.action_namespace == "freshdesk"
+        assert proposal.action_namespace == "ticket"  # Sprint 2.12: fixed from "freshdesk"
         assert proposal.risk_level == ActionRiskLevel.SAFE
 
     def test_ticket_updated_returns_proposal(self):
@@ -338,10 +338,12 @@ class TestFreshdeskProcessorParse:
         proposal = proc.parse(self._event(""))
         assert proposal is None
 
-    def test_proposal_contains_ticket_id(self):
+    def test_proposal_does_not_contain_ticket_id_in_params(self):
+        # Sprint 2.12: ticket_id must NOT be in action_params — executor reads it
+        # from Case.ticket_id. Having it in params was the original bug.
         proc = _make_processor()
         proposal = proc.parse(self._event("ticket_created", ticket_id="TKT-999"))
-        assert proposal.action_params["ticket_id"] == "TKT-999"
+        assert "ticket_id" not in proposal.action_params
 
     def test_proposal_proposed_by_webhook(self):
         proc = _make_processor()
@@ -962,9 +964,10 @@ class TestBuildFreshdeskProcessor:
 
     def test_empty_env_secret_treated_as_no_secret(self, monkeypatch):
         monkeypatch.setenv("FRESHDESK_WEBHOOK_SECRET", "")
+        monkeypatch.setenv("FRESHDESK_WEBHOOK_ENFORCE_HMAC", "true")
         proc = build_freshdesk_processor()
         result = proc.validate(b"body", "sig")
-        # No secret → reject (enforce_hmac defaults to True)
+        # No secret → reject (enforce_hmac=true)
         assert not result.is_valid
 
 

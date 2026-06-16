@@ -45,6 +45,9 @@ class ActionRepository:
         self._sb = supabase_client
         # Used by update_action(expected_state=...) in offline mode for atomic claiming
         self._claim_lock = threading.Lock()
+        # Offline-mode in-memory store: idempotency_key → ActionRequest
+        # Ensures duplicate proposals raise DuplicateActionError in offline/test environments.
+        self._offline_store: dict[str, "ActionRequest"] = {}
 
     # ── action_gateway ─────────────────────────────────────────────────────────
 
@@ -59,7 +62,12 @@ class ActionRepository:
         All other DB errors are logged and the in-memory action is returned.
         """
         if self._sb is None:
-            LOGGER.debug("action_repo: offline — action in-memory only %s", action.action_id)
+            with self._claim_lock:
+                if action.idempotency_key in self._offline_store:
+                    from case_engine.action_gateway import DuplicateActionError  # noqa: PLC0415
+                    raise DuplicateActionError(self._offline_store[action.idempotency_key])
+                self._offline_store[action.idempotency_key] = action
+            LOGGER.debug("action_repo: offline — action stored in-memory %s", action.action_id)
             return action
 
         try:
@@ -108,7 +116,7 @@ class ActionRepository:
 
     def get_action_by_idempotency_key(self, idempotency_key: str) -> ActionRequest | None:
         if self._sb is None:
-            return None
+            return self._offline_store.get(idempotency_key)
         try:
             result = (
                 self._sb
@@ -148,12 +156,11 @@ class ActionRepository:
             expected_state is provided and the state has already changed).
         """
         if self._sb is None:
-            # In-memory mode: use lock for atomic check-and-set when expected_state given
-            if expected_state is not None:
-                with self._claim_lock:
-                    if action.current_state != expected_state:
-                        # Simulated concurrent claim failure (shouldn't happen in tests)
-                        return False
+            # Offline/in-memory mode: no DB row to lock against, no concurrent workers.
+            # The transition already mutated action.current_state before update_action
+            # is called, so checking expected_state against action.current_state would
+            # always fail. Skip the check — optimistic locking is only meaningful with
+            # a real DB WHERE clause.
             return True
 
         row = action.to_db_row()
@@ -297,6 +304,70 @@ class ActionRepository:
             )
             return []
 
+    def list_executing_actions(self, older_than_seconds: int = 900) -> list[ActionRequest]:
+        """
+        Return EXECUTING actions whose execution_started_at is older than the given
+        number of seconds (default 900 s = 15 min = EXECUTION_TIMEOUT_DEFAULT).
+
+        Used at startup to recover actions orphaned by a crashed worker process.
+        Optionally filtered by age to avoid racing with active workers.
+        """
+        if self._sb is None:
+            return []
+        try:
+            from datetime import datetime, timedelta, timezone  # noqa: PLC0415
+            cutoff = (
+                datetime.now(tz=timezone.utc) - timedelta(seconds=older_than_seconds)
+            ).isoformat()
+            result = (
+                self._sb
+                .table(_ACTIONS_TABLE)
+                .select("*")
+                .eq("current_state", ActionState.EXECUTING.value)
+                .lt("execution_started_at", cutoff)
+                .execute()
+            )
+            return [ActionRequest.from_db_row(r) for r in (result.data or [])]
+        except Exception as exc:
+            LOGGER.error(
+                "action_repo.list_executing_actions failed older_than=%ds error=%s",
+                older_than_seconds, exc,
+            )
+            return []
+
+    def list_clients_with_approved_work(self) -> list[str]:
+        """
+        Return distinct client values that have at least one action in
+        APPROVED or ROLLING_BACK state.
+
+        Used by the background worker loop to determine which tenants need
+        processing on each poll cycle.
+        """
+        if self._sb is None:
+            return []
+        try:
+            result = (
+                self._sb
+                .table(_ACTIONS_TABLE)
+                .select("client")
+                .in_("current_state", [
+                    ActionState.APPROVED.value,
+                    ActionState.ROLLING_BACK.value,
+                ])
+                .execute()
+            )
+            seen: set[str] = set()
+            clients: list[str] = []
+            for row in result.data or []:
+                c = row.get("client", "")
+                if c and c not in seen:
+                    seen.add(c)
+                    clients.append(c)
+            return clients
+        except Exception as exc:
+            LOGGER.error("action_repo.list_clients_with_approved_work failed error=%s", exc)
+            return []
+
     def list_expired_actions(self, client: str | None = None) -> list[ActionRequest]:
         """
         Return AWAITING_APPROVAL or APPROVED actions whose expires_at is in the past.
@@ -325,6 +396,174 @@ class ActionRepository:
         except Exception as exc:
             LOGGER.error(
                 "action_repo.list_expired_actions failed client=%s error=%s", client, exc,
+            )
+            return []
+
+    # ── Sprint 2.13: Operational queries ──────────────────────────────────────
+
+    def count_by_state(self, client: str | None = None) -> dict[str, int]:
+        """
+        Return a mapping of state_name → count for all ActionState values.
+
+        Used by the operational dashboard. Returns -1 for any state that
+        could not be queried (network error).
+        """
+        if self._sb is None:
+            return {}
+        counts: dict[str, int] = {}
+        for state in ActionState:
+            try:
+                query = (
+                    self._sb
+                    .table(_ACTIONS_TABLE)
+                    .select("action_id", count="exact")
+                    .eq("current_state", state.value)
+                )
+                if client is not None:
+                    query = query.eq("client", client)
+                result = query.execute()
+                counts[state.value] = result.count if result.count is not None else len(result.data or [])
+            except Exception as exc:
+                LOGGER.error(
+                    "action_repo.count_by_state failed state=%s error=%s",
+                    state.value, exc,
+                )
+                counts[state.value] = -1
+        return counts
+
+    def list_retried_actions(self, client: str | None = None) -> list[ActionRequest]:
+        """
+        Return actions that have been retried at least once (execution_attempt >= 2).
+
+        Covers all states — the action may have ultimately succeeded, failed,
+        or been dead-lettered after retries.
+        """
+        if self._sb is None:
+            return []
+        try:
+            query = (
+                self._sb
+                .table(_ACTIONS_TABLE)
+                .select("*")
+                .gte("execution_attempt", 2)
+                .order("proposed_at", desc=True)
+            )
+            if client is not None:
+                query = query.eq("client", client)
+            result = query.execute()
+            return [ActionRequest.from_db_row(r) for r in (result.data or [])]
+        except Exception as exc:
+            LOGGER.error(
+                "action_repo.list_retried_actions failed client=%s error=%s", client, exc,
+            )
+            return []
+
+    def list_stale_approval_actions(
+        self,
+        older_than_seconds: int = 86400,
+        client: str | None = None,
+    ) -> list[ActionRequest]:
+        """
+        Return AWAITING_APPROVAL actions whose proposed_at is older than the
+        given threshold (default 86400 s = 24 h).
+
+        Used by the stuck-action detector to flag approvals that have been
+        waiting too long. These are not yet expired — the SLA watchdog handles
+        expiry via expires_at. This detector surfaces actions stuck in the
+        approval queue beyond an operator-defined wall-clock threshold.
+        """
+        if self._sb is None:
+            return []
+        try:
+            cutoff = (
+                datetime.now(tz=timezone.utc) - timedelta(seconds=older_than_seconds)
+            ).isoformat()
+            query = (
+                self._sb
+                .table(_ACTIONS_TABLE)
+                .select("*")
+                .eq("current_state", ActionState.AWAITING_APPROVAL.value)
+                .lt("proposed_at", cutoff)
+                .order("proposed_at", desc=False)
+            )
+            if client is not None:
+                query = query.eq("client", client)
+            result = query.execute()
+            return [ActionRequest.from_db_row(r) for r in (result.data or [])]
+        except Exception as exc:
+            LOGGER.error(
+                "action_repo.list_stale_approval_actions failed "
+                "older_than=%ds client=%s error=%s",
+                older_than_seconds, client, exc,
+            )
+            return []
+
+    def list_all_executing_actions(self, client: str | None = None) -> list[ActionRequest]:
+        """
+        Return ALL EXECUTING actions regardless of age.
+
+        Used by the operational dashboard to show currently-executing actions.
+        (list_executing_actions() only returns those older than a threshold.)
+        """
+        if self._sb is None:
+            return []
+        try:
+            query = (
+                self._sb
+                .table(_ACTIONS_TABLE)
+                .select("*")
+                .eq("current_state", ActionState.EXECUTING.value)
+            )
+            if client is not None:
+                query = query.eq("client", client)
+            result = query.order("execution_started_at", desc=False).execute()
+            return [ActionRequest.from_db_row(r) for r in (result.data or [])]
+        except Exception as exc:
+            LOGGER.error(
+                "action_repo.list_all_executing_actions failed client=%s error=%s",
+                client, exc,
+            )
+            return []
+
+    def list_recently_terminal_actions(
+        self,
+        hours: int = 24,
+        client: str | None = None,
+    ) -> list[ActionRequest]:
+        """
+        Return EXECUTED, FAILED, and DEAD_LETTER actions from the last N hours.
+
+        Used to derive per-worker statistics: group by executor_id to produce
+        success/failure counts per worker. Bounded by hours to avoid full-table
+        scans on high-volume deployments.
+        """
+        if self._sb is None:
+            return []
+        try:
+            from datetime import timedelta  # noqa: PLC0415
+            cutoff = (
+                datetime.now(tz=timezone.utc) - timedelta(hours=hours)
+            ).isoformat()
+            query = (
+                self._sb
+                .table(_ACTIONS_TABLE)
+                .select("*")
+                .in_("current_state", [
+                    ActionState.EXECUTED.value,
+                    ActionState.FAILED.value,
+                    ActionState.DEAD_LETTER.value,
+                ])
+                .gte("proposed_at", cutoff)
+                .not_.is_("executor_id", "null")
+            )
+            if client is not None:
+                query = query.eq("client", client)
+            result = query.order("proposed_at", desc=True).execute()
+            return [ActionRequest.from_db_row(r) for r in (result.data or [])]
+        except Exception as exc:
+            LOGGER.error(
+                "action_repo.list_recently_terminal_actions failed hours=%d client=%s error=%s",
+                hours, client, exc,
             )
             return []
 

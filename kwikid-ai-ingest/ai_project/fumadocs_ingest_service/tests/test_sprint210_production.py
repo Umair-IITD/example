@@ -1238,22 +1238,26 @@ class TestDistributedExecutionSafety:
         assert action.execution_started_at is not None
         assert action.execution_started_at.tzinfo is not None
 
-    def test_update_action_expected_state_mismatch_returns_false_offline(self):
-        # In offline mode, update_action checks action.current_state directly
+    def test_update_action_expected_state_offline_always_true(self):
+        # Offline mode has no concurrent workers — optimistic locking is a DB concern only.
+        # update_action always returns True regardless of expected_state vs current_state.
+        # This allows begin_execution() to work correctly: _sm.transition() mutates
+        # action.current_state in-place before update_action is called, so checking
+        # action.current_state against expected_state would always fail in offline mode.
         repo = ActRepo(supabase_client=None)
         from case_engine.action_models import ActionRequest
         action = ActionRequest(
             case_id="c1", ticket_id="t1", client="acme",
             action_type="noop", action_namespace="test",
             risk_level=ActionRiskLevel.SAFE,
-            current_state=ActionState.EXECUTING,  # already EXECUTING
+            current_state=ActionState.EXECUTING,  # already transitioned in-place
             proposed_by="ai",
             proposed_at=datetime.now(tz=timezone.utc),
             action_payload={}, max_attempts=3,
         )
-        # expected_state=APPROVED but action.current_state=EXECUTING → mismatch → False
+        # Offline mode: always True (no DB WHERE clause, no concurrent workers)
         result = repo.update_action(action, expected_state=ActionState.APPROVED)
-        assert result is False
+        assert result is True
 
     def test_update_action_expected_state_match_returns_true_offline(self):
         repo = ActRepo(supabase_client=None)
@@ -1267,7 +1271,6 @@ class TestDistributedExecutionSafety:
             proposed_at=datetime.now(tz=timezone.utc),
             action_payload={}, max_attempts=3,
         )
-        # expected_state=APPROVED and action.current_state=APPROVED → match → True
         result = repo.update_action(action, expected_state=ActionState.APPROVED)
         assert result is True
 

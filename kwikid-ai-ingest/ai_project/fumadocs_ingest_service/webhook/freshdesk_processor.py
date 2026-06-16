@@ -135,10 +135,9 @@ class FreshdeskWebhookProcessor(WebhookProcessor):
         body = _format_note_body(event)
         return ActionProposal(
             action_type="add_note",
-            action_namespace="freshdesk",
+            action_namespace="ticket",
             risk_level=ActionRiskLevel.SAFE,
             action_params={
-                "ticket_id": event.ticket_id,
                 "body": body,
                 "private": True,
             },

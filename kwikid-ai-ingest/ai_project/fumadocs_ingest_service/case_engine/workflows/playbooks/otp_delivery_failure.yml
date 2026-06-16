@@ -1,0 +1,202 @@
+workflow_id: otp_delivery_failure_v1
+topic: OTP_Delivery_Failure
+version: "2.0"
+name: OTP Delivery Failure Resolution
+description: >
+  Resolves OTP delivery failures by clarifying required information,
+  investigating the delivery state, looking up SOPs, reasoning about the
+  best action, proposing an OTP resend through the action gateway,
+  executing the resend, and resolving the case. Escalates at any failure
+  point that cannot be automatically recovered.
+
+required_slots:
+  - phone_number
+  - channel
+
+# Sprint 2.17: Investigation metadata (advisory)
+investigation_steps:
+  - tool: GetUserDetailsTool
+    purpose: Verify phone number is registered and active before resending OTP
+    required_input: phone_number
+  - tool: GetFailureReasonTool
+    purpose: Identify root cause of delivery failure (NETWORK / QUOTA / TIMEOUT)
+    required_input: operation_id
+  - tool: GetCaseHistoryTool
+    purpose: Check for repeat OTP failures to assess escalation risk
+    required_input: phone_number
+
+tool_candidates:
+  - GetUserDetailsTool
+  - GetFailureReasonTool
+  - GetCaseHistoryTool
+
+resolution_paths:
+  automatic: otp_resend
+  escalation_missing_slots: escalate_missing_slots
+  escalation_resend_failed: escalate_execute_failed
+  escalation_rejected: escalate_gateway_blocked
+
+entry_conditions:
+  - field: phone_number
+    operator: exists
+    description: Phone number must be present before workflow can start
+
+steps:
+  # ── Phase 0: Clarification ─────────────────────────────────────────────────
+  - step_id: clarify_slots
+    type: CLARIFY
+    name: Clarify Missing Required Information
+    description: >
+      Verify phone_number and channel are available.
+      If missing, ask the customer to provide them.
+      If max attempts exceeded, escalate to human agent.
+    on_success: investigate_delivery
+    on_failure: escalate_missing_slots
+
+  # ── Phase 1: Investigation ─────────────────────────────────────────────────
+  - step_id: investigate_delivery
+    type: INVESTIGATE
+    name: Investigate OTP Delivery State
+    description: >
+      Collect evidence about the OTP delivery failure using available tools.
+      Determines root cause category (NETWORK / QUOTA / TIMEOUT / INVALID_NUMBER)
+      and confidence level.
+    on_success: knowledge_lookup
+    on_failure: escalate_investigation_failed
+
+  # ── Phase 2: Knowledge Lookup ──────────────────────────────────────────────
+  - step_id: knowledge_lookup
+    type: KNOWLEDGE_LOOKUP
+    name: Look Up OTP Delivery SOPs
+    description: >
+      Search the knowledge base for standard operating procedures
+      related to the identified root cause category.
+    on_success: reason_action
+    on_failure: escalate_knowledge_failed
+
+  # ── Phase 3: Reasoning ─────────────────────────────────────────────────────
+  - step_id: reason_action
+    type: REASON
+    name: Reason About Recommended Action
+    description: >
+      Apply the 6-rule priority chain to determine the optimal action
+      given the root cause category, confidence, and SOP findings.
+      Blueprint Principle 3 — Reasoning before execution.
+    on_success: propose_otp_resend
+    on_failure: escalate_reasoning_failed
+
+  # ── Phase 4: Action Proposal ───────────────────────────────────────────────
+  - step_id: propose_otp_resend
+    type: PROPOSE_ACTION
+    name: Propose OTP Resend
+    description: >
+      Submit an action request to resend OTP for the given phone_number
+      via the confirmed channel. SAFE — resending an OTP is idempotent
+      and self-expiring via OTP TTL.
+    action_type: otp_resend
+    action_namespace: kwikid.otp
+    risk_level: SAFE
+    action_params:
+      phone_number: "{phone_number}"
+      channel: "{channel}"
+      failure_code: "{failure_code}"
+    on_success: action_gateway
+    on_failure: escalate_resend_failed
+
+  # ── Phase 5: Action Gateway ────────────────────────────────────────────────
+  - step_id: action_gateway
+    type: ACTION_GATEWAY
+    name: Action Gateway - Risk Check and Approval
+    description: >
+      Route the OTP resend proposal through risk assessment and approval.
+      SAFE actions are auto-approved and do not require human sign-off.
+    on_success: execute_resend
+    on_failure: escalate_gateway_blocked
+
+  # ── Phase 6: Execution ─────────────────────────────────────────────────────
+  - step_id: execute_resend
+    type: EXECUTE
+    name: Execute OTP Resend
+    description: >
+      Execute the approved OTP resend action via the KwikID backend.
+      Includes verification and recovery on failure.
+    action_type: otp_resend
+    action_namespace: kwikid.otp
+    risk_level: SAFE
+    action_params:
+      phone_number: "{phone_number}"
+      channel: "{channel}"
+    on_success: resolve_otp_resend
+    on_failure: escalate_execute_failed
+
+  # ── Terminal: Resolution ───────────────────────────────────────────────────
+  - step_id: resolve_otp_resend
+    type: RESOLVE_CASE
+    name: Mark case resolved — OTP resend succeeded
+    description: >
+      The OTP has been successfully resent. The customer should receive
+      it within 2 minutes on the confirmed channel.
+    on_success: RESOLVE
+    on_failure: ESCALATE
+
+  # ── Terminal: Escalations ──────────────────────────────────────────────────
+  - step_id: escalate_missing_slots
+    type: ESCALATE_CASE
+    name: Escalate — required information missing
+    description: Cannot process OTP failure without phone_number and channel.
+    on_success: ESCALATE
+    on_failure: ESCALATE
+
+  - step_id: escalate_investigation_failed
+    type: ESCALATE_CASE
+    name: Escalate — investigation failed
+    description: >
+      Evidence collection for the OTP delivery failure failed or escalation
+      flag is set. Escalate to human agent for manual investigation.
+    on_success: ESCALATE
+    on_failure: ESCALATE
+
+  - step_id: escalate_knowledge_failed
+    type: ESCALATE_CASE
+    name: Escalate — knowledge lookup failed
+    description: >
+      SOP lookup failed or returned no usable guidance. Escalate for
+      manual SOP lookup and resolution.
+    on_success: ESCALATE
+    on_failure: ESCALATE
+
+  - step_id: escalate_reasoning_failed
+    type: ESCALATE_CASE
+    name: Escalate — reasoning engine escalated
+    description: >
+      The reasoning engine determined that escalation is required
+      (INVALID_NUMBER, quota exhausted, or unknown root cause).
+    on_success: ESCALATE
+    on_failure: ESCALATE
+
+  - step_id: escalate_resend_failed
+    type: ESCALATE_CASE
+    name: Escalate — OTP resend proposal failed
+    description: >
+      The OTP resend proposal could not be generated.
+      Escalate to human agent for manual delivery investigation.
+    on_success: ESCALATE
+    on_failure: ESCALATE
+
+  - step_id: escalate_gateway_blocked
+    type: ESCALATE_CASE
+    name: Escalate — action gateway blocked or approval pending
+    description: >
+      The action gateway blocked the resend or approval is pending.
+      Escalate to senior support for manual resolution.
+    on_success: ESCALATE
+    on_failure: ESCALATE
+
+  - step_id: escalate_execute_failed
+    type: ESCALATE_CASE
+    name: Escalate — OTP resend execution failed
+    description: >
+      The OTP resend could not be executed or failed verification.
+      Escalate to human agent for manual delivery investigation.
+    on_success: ESCALATE
+    on_failure: ESCALATE

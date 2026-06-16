@@ -28,6 +28,7 @@ from metrics.collector import (
     COUNTER_ACTIONS_EXPIRED,
     COUNTER_ACTIONS_FAILED,
     COUNTER_ACTIONS_REJECTED,
+    COUNTER_ACTIONS_RETRIED,
     COUNTER_ACTIONS_ROLLED_BACK,
     COUNTER_ACTIONS_ROLLBACK_FAILED,
     COUNTER_AUTH_FAILURE,
@@ -53,6 +54,7 @@ _COUNTER_HELP: dict[str, str] = {
     COUNTER_ACTIONS_EXECUTED:        "Total actions successfully executed",
     COUNTER_ACTIONS_FAILED:          "Total actions that failed execution (all severities)",
     COUNTER_ACTIONS_EXPIRED:         "Total actions expired by the SLA watchdog",
+    COUNTER_ACTIONS_RETRIED:         "Total retry re-queues (FAILED→APPROVED transitions)",
     COUNTER_ACTIONS_ROLLED_BACK:     "Total actions successfully rolled back",
     COUNTER_ACTIONS_ROLLBACK_FAILED: "Total rollback attempts that failed",
     COUNTER_ACTIONS_DEAD_LETTERED:   "Total actions sent to dead-letter (all retries exhausted)",
@@ -119,6 +121,9 @@ class MetricsService:
     def record_action_dead_lettered(self) -> None:
         self._safe_increment(COUNTER_ACTIONS_DEAD_LETTERED)
 
+    def record_action_retried(self) -> None:
+        self._safe_increment(COUNTER_ACTIONS_RETRIED)
+
     # ── Auth counters ──────────────────────────────────────────────────────────
 
     def record_auth_success(self) -> None:
@@ -155,6 +160,33 @@ class MetricsService:
         self._safe_increment(COUNTER_WORKER_ROLLBACK)
 
     # ── Output ─────────────────────────────────────────────────────────────────
+
+    def get_gateway_totals(self) -> dict[str, int]:
+        """
+        Return current in-process lifetime counters for all gateway events.
+
+        Returns a dict of counter_name → value. These are in-process counters
+        that reset on service restart; they complement DB-level counts from
+        ActionGatewayOperationsService.
+        """
+        snap = self._col.snapshot()
+        counters = snap["counters"]
+        gateway_keys = [
+            COUNTER_ACTIONS_CREATED,
+            COUNTER_ACTIONS_APPROVED,
+            COUNTER_ACTIONS_REJECTED,
+            COUNTER_ACTIONS_EXECUTED,
+            COUNTER_ACTIONS_FAILED,
+            COUNTER_ACTIONS_EXPIRED,
+            COUNTER_ACTIONS_RETRIED,
+            COUNTER_ACTIONS_ROLLED_BACK,
+            COUNTER_ACTIONS_ROLLBACK_FAILED,
+            COUNTER_ACTIONS_DEAD_LETTERED,
+            COUNTER_WORKER_EXECUTION,
+            COUNTER_WORKER_FAILURE,
+            COUNTER_WORKER_ROLLBACK,
+        ]
+        return {k: counters.get(k, 0) for k in gateway_keys}
 
     def snapshot(self) -> dict[str, Any]:
         """Return a raw snapshot from the underlying collector."""

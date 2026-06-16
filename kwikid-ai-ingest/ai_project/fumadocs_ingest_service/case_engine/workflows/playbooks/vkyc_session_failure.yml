@@ -1,0 +1,201 @@
+workflow_id: vkyc_session_failure_v1
+topic: VKYC_Session_Failure
+version: "2.0"
+name: VKYC Session Failure Resolution
+description: >
+  Resolves VKYC session failures by clarifying required information,
+  investigating the session state, looking up SOPs, reasoning about the
+  best action, proposing a session reset through the action gateway,
+  executing the reset, and resolving the case. Escalates at any failure
+  point that cannot be automatically recovered.
+
+required_slots:
+  - session_id
+  - phone_number
+
+# Sprint 2.17: Investigation metadata (advisory)
+investigation_steps:
+  - tool: GetSessionDetailsTool
+    purpose: Verify session status and determine if auto-reset is possible
+    required_input: session_id
+  - tool: GetUserDetailsTool
+    purpose: Confirm user identity and KYC tier before resetting
+    required_input: phone_number
+  - tool: GetCaseHistoryTool
+    purpose: Check for repeat VKYC failures to assess escalation risk
+    required_input: phone_number
+
+tool_candidates:
+  - GetSessionDetailsTool
+  - GetUserDetailsTool
+  - GetCaseHistoryTool
+
+resolution_paths:
+  automatic: vkyc_session_reset
+  escalation_missing_slots: escalate_missing_slots
+  escalation_reset_failed: escalate_execute_failed
+  escalation_rejected: escalate_gateway_blocked
+
+entry_conditions:
+  - field: session_id
+    operator: exists
+    description: Session ID must be present before workflow can start
+
+steps:
+  # ── Phase 0: Clarification ─────────────────────────────────────────────────
+  - step_id: clarify_slots
+    type: CLARIFY
+    name: Clarify Missing Required Information
+    description: >
+      Verify session_id and phone_number are available.
+      If missing, ask the customer to provide them.
+      If max attempts exceeded, escalate to human agent.
+    on_success: investigate_session
+    on_failure: escalate_missing_slots
+
+  # ── Phase 1: Investigation ─────────────────────────────────────────────────
+  - step_id: investigate_session
+    type: INVESTIGATE
+    name: Investigate VKYC Session State
+    description: >
+      Collect evidence about the VKYC session failure using available tools.
+      Determines root cause category and confidence level.
+    on_success: knowledge_lookup
+    on_failure: escalate_investigation_failed
+
+  # ── Phase 2: Knowledge Lookup ──────────────────────────────────────────────
+  - step_id: knowledge_lookup
+    type: KNOWLEDGE_LOOKUP
+    name: Look Up VKYC Session SOPs
+    description: >
+      Search the knowledge base for standard operating procedures
+      related to the identified root cause category.
+    on_success: reason_action
+    on_failure: escalate_knowledge_failed
+
+  # ── Phase 3: Reasoning ─────────────────────────────────────────────────────
+  - step_id: reason_action
+    type: REASON
+    name: Reason About Recommended Action
+    description: >
+      Apply the 6-rule priority chain to determine the optimal action
+      given the root cause category, confidence, and SOP findings.
+      Blueprint Principle 3 — Reasoning before execution.
+    on_success: propose_session_reset
+    on_failure: escalate_reasoning_failed
+
+  # ── Phase 4: Action Proposal ───────────────────────────────────────────────
+  - step_id: propose_session_reset
+    type: PROPOSE_ACTION
+    name: Propose VKYC Session Reset
+    description: >
+      Submit an action request to reset the VKYC session for the given
+      session_id. REVERSIBLE — the original session metadata is preserved.
+    action_type: vkyc_session_reset
+    action_namespace: kwikid.vkyc
+    risk_level: REVERSIBLE
+    rollback_action_type: vkyc_session_restore
+    action_params:
+      session_id: "{session_id}"
+      phone_number: "{phone_number}"
+      failure_code: "{failure_code}"
+    on_success: action_gateway
+    on_failure: escalate_reset_failed
+
+  # ── Phase 5: Action Gateway ────────────────────────────────────────────────
+  - step_id: action_gateway
+    type: ACTION_GATEWAY
+    name: Action Gateway - Risk Check and Approval
+    description: >
+      Route the session reset proposal through risk assessment and approval.
+      REVERSIBLE actions require human approval before execution.
+    on_success: execute_reset
+    on_failure: escalate_gateway_blocked
+
+  # ── Phase 6: Execution ─────────────────────────────────────────────────────
+  - step_id: execute_reset
+    type: EXECUTE
+    name: Execute VKYC Session Reset
+    description: >
+      Execute the approved session reset action via the KwikID backend.
+      Includes verification and recovery on failure.
+    action_type: vkyc_session_reset
+    action_namespace: kwikid.vkyc
+    risk_level: REVERSIBLE
+    action_params:
+      session_id: "{session_id}"
+      phone_number: "{phone_number}"
+    on_success: resolve_session_reset
+    on_failure: escalate_execute_failed
+
+  # ── Terminal: Resolution ───────────────────────────────────────────────────
+  - step_id: resolve_session_reset
+    type: RESOLVE_CASE
+    name: Mark case resolved — VKYC session reset succeeded
+    description: >
+      The VKYC session has been successfully reset. The customer can now
+      reattempt their video KYC session.
+    on_success: RESOLVE
+    on_failure: ESCALATE
+
+  # ── Terminal: Escalations ──────────────────────────────────────────────────
+  - step_id: escalate_missing_slots
+    type: ESCALATE_CASE
+    name: Escalate — required information missing
+    description: Cannot process VKYC failure without session_id and phone_number.
+    on_success: ESCALATE
+    on_failure: ESCALATE
+
+  - step_id: escalate_investigation_failed
+    type: ESCALATE_CASE
+    name: Escalate — investigation failed
+    description: >
+      Evidence collection for the VKYC session failed or escalation flag
+      is set. Escalate to human agent for manual investigation.
+    on_success: ESCALATE
+    on_failure: ESCALATE
+
+  - step_id: escalate_knowledge_failed
+    type: ESCALATE_CASE
+    name: Escalate — knowledge lookup failed
+    description: >
+      SOP lookup failed or returned no usable guidance. Escalate for
+      manual SOP lookup and resolution.
+    on_success: ESCALATE
+    on_failure: ESCALATE
+
+  - step_id: escalate_reasoning_failed
+    type: ESCALATE_CASE
+    name: Escalate — reasoning engine escalated
+    description: >
+      The reasoning engine determined that escalation is required
+      (KYC_REJECTED, low confidence, or unknown root cause).
+    on_success: ESCALATE
+    on_failure: ESCALATE
+
+  - step_id: escalate_reset_failed
+    type: ESCALATE_CASE
+    name: Escalate — session reset proposal failed
+    description: >
+      The VKYC session reset proposal could not be generated.
+      Escalate to human agent for manual session investigation.
+    on_success: ESCALATE
+    on_failure: ESCALATE
+
+  - step_id: escalate_gateway_blocked
+    type: ESCALATE_CASE
+    name: Escalate — action gateway blocked or approval pending
+    description: >
+      The action gateway blocked the reset or approval is pending.
+      Escalate to senior support for manual resolution.
+    on_success: ESCALATE
+    on_failure: ESCALATE
+
+  - step_id: escalate_execute_failed
+    type: ESCALATE_CASE
+    name: Escalate — session reset execution failed
+    description: >
+      The VKYC session reset could not be executed or failed verification.
+      Escalate to human agent for manual session investigation.
+    on_success: ESCALATE
+    on_failure: ESCALATE

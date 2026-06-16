@@ -1,0 +1,132 @@
+# Maps Stack Overflow Teams tags to RAG tenant slugs (clients: frontmatter).
+# Used by scripts/generate_client_sops.py
+
+clients:
+  cbi:
+    display_name: Central Bank of India (CBI)
+    tags:
+      - cbi
+      - cbi-prod
+      - cbi-uat
+      - cbi-dkyc
+      - cbi-vkyc
+      - cbi-rrb
+      - cbirrb
+      - cbi-plc
+    url_keywords:
+      - centralbank
+      - cbi
+
+  unity_bank:
+    display_name: Unity Bank
+    tags:
+      - unity
+      - unityuat
+    url_keywords:
+      - unitybank
+      - unity
+
+  rbl:
+    display_name: RBL / BFL (RBL Bank infrastructure)
+    tags:
+      - rbl
+      - rbl-prod
+      - bfl
+    url_keywords:
+      - rblbank
+      - vcip
+      - bflvkyc
+
+  bob:
+    display_name: Bank of Baroda (BOB)
+    tags:
+      - bob
+      - bob-prod
+      - bob-up
+      - bob-rrb
+      - bobcard
+      - bobrrbup
+    url_keywords:
+      - bankofbaroda
+      - bob_prod
+      - bob
+
+  canara_bank:
+    display_name: Canara Bank
+    tags:
+      - canarabank
+      - canara
+    url_keywords:
+      - canara
+
+  bajaj:
+    display_name: Bajaj Finserv / Bajaj Finance
+    tags:
+      - bajajfin
+      - bajaj
+    url_keywords:
+      - bajajfinserv
+      - bajajfin
+      - bajaj.vkyc
+
+  fino:
+    display_name: Fino
+    tags:
+      - fino
+      - fino-prod
+    url_keywords:
+      - fino
+
+  tcook:
+    display_name: Thomas Cook (TCOOK)
+    tags:
+      - tcook
+      - tcookp
+      - tcook-br
+    url_keywords:
+      - thomascook
+      - tcook
+
+  nrfsi:
+    display_name: NRFSI
+    tags:
+      - nrfsi
+    url_keywords:
+      - nrfsi
+
+  pfizer:
+    display_name: Pfizer
+    tags:
+      - pfizer
+      - pfizer-p2
+    url_keywords:
+      - pfizer
+
+  opdyta:
+    display_name: Opdyta
+    tags:
+      - opdyta
+    url_keywords:
+      - opdyta
+
+  shinhan:
+    display_name: Shinhan
+    tags:
+      - shinhan
+      - shinhan-prod
+    url_keywords:
+      - shinhan
+
+  loanbaba:
+    display_name: LoanBaba
+    tags:
+      - loanbaba
+    url_keywords:
+      - loanbaba
+
+  aarohan:
+    display_name: Aarohan
+    tags:
+      - aarohan
+    url_keywords:
+      - aarohan

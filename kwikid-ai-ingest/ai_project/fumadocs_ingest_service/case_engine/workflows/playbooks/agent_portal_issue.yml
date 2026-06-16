@@ -1,0 +1,203 @@
+workflow_id: agent_portal_issue_v1
+topic: Agent_Portal_Issue
+version: "2.0"
+name: Agent Portal Issue Resolution
+description: >
+  Resolves agent portal access and functionality issues (Web, Mobile, Desktop)
+  by clarifying required information, investigating the portal state, looking
+  up SOPs, reasoning about the best action, proposing a session refresh through
+  the action gateway, executing the refresh, and resolving the case. Escalates
+  at any failure point that cannot be automatically recovered.
+
+required_slots:
+  - agent_id
+  - portal_type
+
+# Sprint 2.17: Investigation metadata (advisory)
+investigation_steps:
+  - tool: GetUserDetailsTool
+    purpose: Verify agent account is active and not suspended
+    required_input: phone_number
+  - tool: GetFailureReasonTool
+    purpose: Check portal error logs for auth / infra failure pattern
+    required_input: operation_id
+  - tool: GetCaseHistoryTool
+    purpose: Check for repeat portal issues to assess if systemic
+    required_input: phone_number
+
+tool_candidates:
+  - GetUserDetailsTool
+  - GetFailureReasonTool
+  - GetCaseHistoryTool
+
+resolution_paths:
+  automatic: agent_session_refresh
+  escalation_missing_slots: escalate_missing_slots
+  escalation_refresh_failed: escalate_execute_failed
+  escalation_rejected: escalate_gateway_blocked
+
+entry_conditions:
+  - field: agent_id
+    operator: exists
+    description: Agent ID must be present before workflow can start
+
+steps:
+  # ── Phase 0: Clarification ─────────────────────────────────────────────────
+  - step_id: clarify_slots
+    type: CLARIFY
+    name: Clarify Missing Required Information
+    description: >
+      Verify agent_id and portal_type are available.
+      If missing, ask the agent to provide them.
+      If max attempts exceeded, escalate to human agent.
+    on_success: investigate_portal
+    on_failure: escalate_missing_slots
+
+  # ── Phase 1: Investigation ─────────────────────────────────────────────────
+  - step_id: investigate_portal
+    type: INVESTIGATE
+    name: Investigate Agent Portal State
+    description: >
+      Collect evidence about the portal issue using available tools.
+      Determines root cause category (AUTH / INFRA / STALE_SESSION / SUSPENDED)
+      and confidence level.
+    on_success: knowledge_lookup
+    on_failure: escalate_investigation_failed
+
+  # ── Phase 2: Knowledge Lookup ──────────────────────────────────────────────
+  - step_id: knowledge_lookup
+    type: KNOWLEDGE_LOOKUP
+    name: Look Up Agent Portal SOPs
+    description: >
+      Search the knowledge base for standard operating procedures
+      related to the identified root cause category.
+    on_success: reason_action
+    on_failure: escalate_knowledge_failed
+
+  # ── Phase 3: Reasoning ─────────────────────────────────────────────────────
+  - step_id: reason_action
+    type: REASON
+    name: Reason About Recommended Action
+    description: >
+      Apply the 6-rule priority chain to determine the optimal action
+      given the root cause category, confidence, and SOP findings.
+      Blueprint Principle 3 — Reasoning before execution.
+    on_success: propose_session_refresh
+    on_failure: escalate_reasoning_failed
+
+  # ── Phase 4: Action Proposal ───────────────────────────────────────────────
+  - step_id: propose_session_refresh
+    type: PROPOSE_ACTION
+    name: Propose Agent Session Refresh
+    description: >
+      Submit an action request to invalidate and refresh the agent's portal
+      session to clear any stale authentication tokens or cached state.
+      SAFE — the agent can log back in immediately after refresh.
+    action_type: agent_session_refresh
+    action_namespace: kwikid.portal
+    risk_level: SAFE
+    action_params:
+      agent_id: "{agent_id}"
+      portal_type: "{portal_type}"
+      failure_code: "{failure_code}"
+    on_success: action_gateway
+    on_failure: escalate_refresh_failed
+
+  # ── Phase 5: Action Gateway ────────────────────────────────────────────────
+  - step_id: action_gateway
+    type: ACTION_GATEWAY
+    name: Action Gateway - Risk Check and Approval
+    description: >
+      Route the session refresh proposal through risk assessment and approval.
+      SAFE actions are auto-approved and do not require human sign-off.
+    on_success: execute_refresh
+    on_failure: escalate_gateway_blocked
+
+  # ── Phase 6: Execution ─────────────────────────────────────────────────────
+  - step_id: execute_refresh
+    type: EXECUTE
+    name: Execute Agent Session Refresh
+    description: >
+      Execute the approved session refresh action via the KwikID backend.
+      Includes verification and recovery on failure.
+    action_type: agent_session_refresh
+    action_namespace: kwikid.portal
+    risk_level: SAFE
+    action_params:
+      agent_id: "{agent_id}"
+      portal_type: "{portal_type}"
+    on_success: resolve_session_refresh
+    on_failure: escalate_execute_failed
+
+  # ── Terminal: Resolution ───────────────────────────────────────────────────
+  - step_id: resolve_session_refresh
+    type: RESOLVE_CASE
+    name: Mark case resolved — agent session refreshed
+    description: >
+      The agent's portal session has been refreshed. The agent should log
+      back into the portal and retry their previous action.
+    on_success: RESOLVE
+    on_failure: ESCALATE
+
+  # ── Terminal: Escalations ──────────────────────────────────────────────────
+  - step_id: escalate_missing_slots
+    type: ESCALATE_CASE
+    name: Escalate — required information missing
+    description: Cannot process portal issue without agent_id and portal_type.
+    on_success: ESCALATE
+    on_failure: ESCALATE
+
+  - step_id: escalate_investigation_failed
+    type: ESCALATE_CASE
+    name: Escalate — investigation failed
+    description: >
+      Evidence collection for the portal issue failed or escalation flag
+      is set. Escalate to human agent for manual portal investigation.
+    on_success: ESCALATE
+    on_failure: ESCALATE
+
+  - step_id: escalate_knowledge_failed
+    type: ESCALATE_CASE
+    name: Escalate — knowledge lookup failed
+    description: >
+      SOP lookup failed or returned no usable guidance. Escalate for
+      manual SOP lookup and resolution.
+    on_success: ESCALATE
+    on_failure: ESCALATE
+
+  - step_id: escalate_reasoning_failed
+    type: ESCALATE_CASE
+    name: Escalate — reasoning engine escalated
+    description: >
+      The reasoning engine determined that escalation is required
+      (SUSPENDED agent, infrastructure issue, or unknown root cause).
+    on_success: ESCALATE
+    on_failure: ESCALATE
+
+  - step_id: escalate_refresh_failed
+    type: ESCALATE_CASE
+    name: Escalate — session refresh proposal failed
+    description: >
+      The session refresh proposal could not be generated.
+      Escalate to human agent for manual portal investigation.
+    on_success: ESCALATE
+    on_failure: ESCALATE
+
+  - step_id: escalate_gateway_blocked
+    type: ESCALATE_CASE
+    name: Escalate — action gateway blocked or approval pending
+    description: >
+      The action gateway blocked the refresh or approval is pending.
+      Escalate to the platform operations team for manual resolution.
+    on_success: ESCALATE
+    on_failure: ESCALATE
+
+  - step_id: escalate_execute_failed
+    type: ESCALATE_CASE
+    name: Escalate — session refresh execution failed
+    description: >
+      The agent session refresh could not be executed or failed verification.
+      This suggests an infrastructure-level problem with the portal.
+      Escalate to the platform operations team.
+    on_success: ESCALATE
+    on_failure: ESCALATE

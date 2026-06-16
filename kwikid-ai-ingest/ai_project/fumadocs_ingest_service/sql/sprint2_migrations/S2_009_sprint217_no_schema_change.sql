@@ -1,0 +1,23 @@
+-- S2_009_sprint217_no_schema_change.sql
+--
+-- Sprint 2.17: Workflow Reliability + Investigation Tool Framework + Reasoning Foundation
+--
+-- DATABASE CHANGE ASSESSMENT: NO SCHEMA CHANGES REQUIRED
+--
+-- All Sprint 2.17 components are in-memory:
+--   - ToolRegistry / ToolExecutor / BaseTool          → Python objects, no persistence
+--   - Mock investigation tools (5 tools)              → deterministic fake data, no DB reads
+--   - ReasoningEngine / ReasoningContext              → stateless computation over Case model
+--   - Playbook YAML upgrades (investigation metadata) → loaded at startup from YAML files
+--   - Admin visibility endpoints                      → read-only queries over existing state
+--
+-- The existing cases table (with workflow_state, slot_state, workflow_context columns
+-- added in S2_008) is sufficient to persist all state that Sprint 2.17 produces.
+--
+-- FUTURE MIGRATIONS (Sprint 2.18+):
+--   - tool_executions table if tool history persistence is needed
+--   - reasoning_decisions table if reasoning audit trail is required
+--   - No changes needed for current sprint scope.
+
+-- Intentional no-op: validates migration runner processes this file without error.
+SELECT 1 AS sprint_217_migration_check;

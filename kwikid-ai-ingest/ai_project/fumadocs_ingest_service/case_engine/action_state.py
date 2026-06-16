@@ -24,13 +24,15 @@ class ActionState(str, Enum):
     Action request lifecycle states.
 
     Matches the current_state CHECK constraint in S2_001_action_gateway.sql
-    (extended by S2_003_dead_letter_and_audit_events.sql with DEAD_LETTER).
+    (extended by S2_003_dead_letter_and_audit_events.sql with DEAD_LETTER,
+    and S2_006_cancelled_state.sql with CANCELLED).
     """
     PROPOSED          = "PROPOSED"
     AWAITING_APPROVAL = "AWAITING_APPROVAL"
     APPROVED          = "APPROVED"
     REJECTED          = "REJECTED"
     EXPIRED           = "EXPIRED"
+    CANCELLED         = "CANCELLED"
     EXECUTING         = "EXECUTING"
     EXECUTED          = "EXECUTED"
     FAILED            = "FAILED"
@@ -59,15 +61,18 @@ ALLOWED_ACTION_TRANSITIONS: dict[ActionState, frozenset[ActionState]] = {
     ActionState.PROPOSED: frozenset({
         ActionState.AWAITING_APPROVAL,  # REVERSIBLE / IRREVERSIBLE — human needed
         ActionState.APPROVED,           # SAFE — auto-approved immediately
+        ActionState.CANCELLED,          # operator cancelled before processing
     }),
     ActionState.AWAITING_APPROVAL: frozenset({
         ActionState.APPROVED,           # human approved
         ActionState.REJECTED,           # human rejected
         ActionState.EXPIRED,            # approval_deadline elapsed
+        ActionState.CANCELLED,          # operator cancelled while awaiting approval
     }),
     ActionState.APPROVED: frozenset({
         ActionState.EXECUTING,          # executor acquired the action
         ActionState.EXPIRED,            # executor never picked up within window
+        ActionState.CANCELLED,          # operator cancelled before execution started
     }),
     ActionState.EXECUTING: frozenset({
         ActionState.EXECUTED,           # target system confirmed success
@@ -93,6 +98,7 @@ ALLOWED_ACTION_TRANSITIONS: dict[ActionState, frozenset[ActionState]] = {
     # Terminal states — no outgoing transitions
     ActionState.REJECTED:        frozenset(),
     ActionState.EXPIRED:         frozenset(),
+    ActionState.CANCELLED:       frozenset(),
     ActionState.ROLLED_BACK:     frozenset(),
     ActionState.ROLLBACK_FAILED: frozenset(),
     ActionState.DEAD_LETTER:     frozenset(),
@@ -101,6 +107,7 @@ ALLOWED_ACTION_TRANSITIONS: dict[ActionState, frozenset[ActionState]] = {
 TERMINAL_ACTION_STATES: frozenset[ActionState] = frozenset({
     ActionState.REJECTED,
     ActionState.EXPIRED,
+    ActionState.CANCELLED,
     ActionState.ROLLED_BACK,
     ActionState.ROLLBACK_FAILED,
     ActionState.DEAD_LETTER,

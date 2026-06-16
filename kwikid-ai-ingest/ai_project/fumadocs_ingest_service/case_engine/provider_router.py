@@ -161,8 +161,21 @@ class ProviderRouter:
         """
         try:
             provider = self._registry.get_provider(provider_name)
-            return self._safe_health_check(provider).is_healthy
+            health = self._safe_health_check(provider)
+            if not health.is_healthy:
+                LOGGER.warning(
+                    "provider_router.provider_is_healthy: unhealthy "
+                    "provider=%s latency_ms=%d message=%s",
+                    provider_name,
+                    health.latency_ms,
+                    health.message or "no_message",
+                )
+            return health.is_healthy
         except Exception:
+            LOGGER.warning(
+                "provider_router.provider_is_healthy: not registered provider=%s",
+                provider_name,
+            )
             return False
 
     def provider_has_capability(
