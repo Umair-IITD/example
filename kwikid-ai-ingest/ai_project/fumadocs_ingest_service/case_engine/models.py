@@ -99,6 +99,10 @@ class Case:
     workflow_step_index: int | None  = None    # current step index (informational)
     workflow_context: dict[str, Any] = field(default_factory=dict)  # WorkflowExecutionResult JSONB
 
+    # Sprint 2.27.9: Tenant context (in-process only — not persisted in DB)
+    # Carries client_id, enabled_tools, credentials_ref, environment, etc.
+    tenant_context: Any = None
+
     def to_db_row(self) -> dict[str, Any]:
         return {
             "case_id":       self.case_id,
@@ -270,6 +274,23 @@ class AuditEventType(str, Enum):
     AGENT_RUN_STARTED                 = "AGENT_RUN_STARTED"
     AGENT_RUN_COMPLETED               = "AGENT_RUN_COMPLETED"
     TICKET_PROCESSED                  = "TICKET_PROCESSED"
+    # Sprint 2.27.8: Dry-run mode and startup validation events
+    DRY_RUN_MODE_ACTIVE               = "DRY_RUN_MODE_ACTIVE"
+    PRODUCTION_MODE_ACTIVE            = "PRODUCTION_MODE_ACTIVE"
+    DRY_RUN_EXECUTION                 = "DRY_RUN_EXECUTION"
+    DRY_RUN_ROUTE                     = "DRY_RUN_ROUTE"
+    DRY_RUN_ACTION                    = "DRY_RUN_ACTION"
+    STARTUP_VALIDATION_PASSED         = "STARTUP_VALIDATION_PASSED"
+    STARTUP_VALIDATION_FAILED         = "STARTUP_VALIDATION_FAILED"
+    STARTUP_VALIDATION_WARNING        = "STARTUP_VALIDATION_WARNING"
+    INVARIANT_VIOLATION               = "INVARIANT_VIOLATION"
+    # Sprint 2.27.9: Multi-Tenant Client Resolution events
+    CLIENT_RESOLVED                   = "CLIENT_RESOLVED"
+    CLIENT_RESOLUTION_FAILED          = "CLIENT_RESOLUTION_FAILED"
+    TENANT_CONTEXT_ATTACHED           = "TENANT_CONTEXT_ATTACHED"
+    UNKNOWN_CLIENT_ESCALATED          = "UNKNOWN_CLIENT_ESCALATED"
+    TENANT_REGISTRY_VALIDATED         = "TENANT_REGISTRY_VALIDATED"
+    TENANT_REGISTRY_VALIDATION_FAILED = "TENANT_REGISTRY_VALIDATION_FAILED"
 
 
 @dataclass

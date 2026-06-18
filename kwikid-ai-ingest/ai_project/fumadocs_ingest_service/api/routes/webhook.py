@@ -42,6 +42,8 @@ LOGGER = logging.getLogger(__name__)
 router = APIRouter()
 
 
+# NON_PRODUCTION_PATH: Sprint 2.1 legacy entry. Bypasses TicketOrchestrator.
+# Use POST /tickets/process (api/routes/tickets.py) for new integrations.
 @router.post("/webhook/{client}")
 async def receive_webhook(client: str, request: Request) -> JSONResponse:
     """

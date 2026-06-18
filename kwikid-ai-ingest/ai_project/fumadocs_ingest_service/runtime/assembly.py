@@ -111,6 +111,12 @@ class ProductionRuntime:
     engineering_escalation_service:  Any = None   # case_engine.engineering.EngineeringEscalationService
     support_agent_runtime:           Any = None   # case_engine.runtime.SupportAgentRuntime
     ticket_orchestrator:             Any = None   # case_engine.ticket_orchestration.TicketOrchestrator
+    # ── Multi-Tenant Resolution (Sprint 2.27.9) ──────────────────────────────
+    tenant_registry:                 Any = None   # case_engine.tenant.TenantRegistry
+    client_resolver:                 Any = None   # case_engine.tenant.ClientResolver
+    tenant_tool_registry:            Any = None   # case_engine.tenant.TenantAwareToolRegistry
+    # ── Startup Validation (Sprint 2.27.8) ───────────────────────────────────
+    startup_validation_result:       Any = None   # runtime.startup_validation.RuntimeValidationResult
 
 
 def build_production_runtime(
@@ -220,7 +226,7 @@ def build_production_runtime(
         adapter_registry=adapter_registry,
     )
 
-    return ProductionRuntime(
+    production_runtime = ProductionRuntime(
         runtime=runtime,
         gateway=gateway,
         repository=repository,
@@ -238,6 +244,28 @@ def build_production_runtime(
         recovery=recovery,
         **workflow_services,
     )
+
+    # ── Sprint 2.27.8: Startup Validation ────────────────────────────────────
+    import logging as _logging
+    _LOG_ASSEMBLY = _logging.getLogger(__name__)
+    try:
+        from runtime.startup_validation import validate_production_runtime  # noqa: PLC0415
+        validation_result = validate_production_runtime(production_runtime)
+        production_runtime.startup_validation_result = validation_result
+        if not validation_result.overall_passed:
+            _LOG_ASSEMBLY.error(
+                "assembly: startup_validation FAILED critical_failed=%s",
+                validation_result.critical_failed,
+            )
+        else:
+            _LOG_ASSEMBLY.info(
+                "assembly: startup_validation PASSED warnings=%d",
+                len(validation_result.warnings),
+            )
+    except Exception as _val_exc:
+        _LOG_ASSEMBLY.warning("assembly: startup_validation failed to run error=%s", _val_exc)
+
+    return production_runtime
 
 
 def _register_all_executors(
@@ -326,6 +354,10 @@ def _build_workflow_services(
         "engineering_escalation_service": None,
         "support_agent_runtime":         None,
         "ticket_orchestrator":           None,
+        # Sprint 2.27.9: Multi-Tenant Resolution
+        "tenant_registry":               None,
+        "client_resolver":               None,
+        "tenant_tool_registry":          None,
     }
 
     # 1. ClarificationService
@@ -510,15 +542,50 @@ def _build_workflow_services(
     except Exception as exc:
         _LOG.warning("assembly: support_agent_runtime failed to build error=%s", exc)
 
-    # 16. TicketOrchestrator — ticket lifecycle layer
+    # ── Sprint 2.27.9: Multi-Tenant Resolution Stack ──────────────────────────
+
+    # 17. TenantRegistry
+    try:
+        from case_engine.tenant.registry import build_default_tenant_registry  # noqa: PLC0415
+        result["tenant_registry"] = build_default_tenant_registry()
+        _LOG.info(
+            "assembly: tenant_registry wired tenants=%d",
+            result["tenant_registry"].count(),
+        )
+    except Exception as exc:
+        _LOG.warning("assembly: tenant_registry failed to build error=%s", exc)
+
+    # 18. ClientResolver — depends on TenantRegistry
+    try:
+        from case_engine.tenant.resolver import ClientResolver  # noqa: PLC0415
+        if result["tenant_registry"] is not None:
+            result["client_resolver"] = ClientResolver(result["tenant_registry"])
+            _LOG.info("assembly: client_resolver wired")
+    except Exception as exc:
+        _LOG.warning("assembly: client_resolver failed to build error=%s", exc)
+
+    # 19. TenantAwareToolRegistry — depends on TenantRegistry
+    try:
+        from case_engine.tenant.tool_registry import TenantAwareToolRegistry  # noqa: PLC0415
+        if result["tenant_registry"] is not None:
+            result["tenant_tool_registry"] = TenantAwareToolRegistry(result["tenant_registry"])
+            _LOG.info("assembly: tenant_tool_registry wired")
+    except Exception as exc:
+        _LOG.warning("assembly: tenant_tool_registry failed to build error=%s", exc)
+
+    # 16. TicketOrchestrator — ticket lifecycle layer (with client_resolver)
     try:
         from case_engine.ticket_orchestration import build_ticket_orchestrator  # noqa: PLC0415
         result["ticket_orchestrator"] = build_ticket_orchestrator(
             agent_runtime=result["support_agent_runtime"],
             case_service=result["case_service"],
             audit_logger=audit_logger,
+            client_resolver=result["client_resolver"],
         )
-        _LOG.info("assembly: ticket_orchestrator wired")
+        _LOG.info(
+            "assembly: ticket_orchestrator wired client_resolver=%s",
+            result["client_resolver"] is not None,
+        )
     except Exception as exc:
         _LOG.warning("assembly: ticket_orchestrator failed to build error=%s", exc)
 

@@ -2,6 +2,7 @@
 case_engine/runtime/agent_models.py
 
 Sprint 2.27.5: SupportAgentRuntime output models.
+Sprint 2.27.8: Added SupportAgentMode (DRY_RUN / PRODUCTION).
 
 AgentStatus and AgentExecutionResult are the output types for every
 run_case() call on the SupportAgentRuntime.
@@ -15,6 +16,7 @@ Design:
 """
 from __future__ import annotations
 
+import os
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -28,6 +30,31 @@ def _now_iso() -> str:
 
 def _new_id() -> str:
     return str(uuid.uuid4())
+
+
+class SupportAgentMode(str, Enum):
+    """
+    Sprint 2.27.8: Operating mode for SupportAgentRuntime.
+
+    DRY_RUN:    Investigation, knowledge, reasoning, gateway, and routing all
+                run normally. Execution is simulated — no external mutations
+                occur. Audit events are emitted with DRY_RUN_* prefix.
+                Default until Sprint 2.28 production integrations are complete.
+
+    PRODUCTION: All pipeline steps execute with real external calls.
+                Set SUPPORT_AGENT_MODE=PRODUCTION in environment to enable.
+    """
+    DRY_RUN    = "DRY_RUN"
+    PRODUCTION = "PRODUCTION"
+
+
+def _mode_from_env() -> "SupportAgentMode":
+    """Read SUPPORT_AGENT_MODE from environment. Defaults to DRY_RUN."""
+    raw = os.getenv("SUPPORT_AGENT_MODE", "DRY_RUN").strip().upper()
+    try:
+        return SupportAgentMode(raw)
+    except ValueError:
+        return SupportAgentMode.DRY_RUN
 
 
 class AgentStatus(str, Enum):

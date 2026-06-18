@@ -162,6 +162,80 @@ Case Object
 
 ---
 
+## Layer 1.5 — Client Resolution & Tenant Context
+
+Purpose:
+
+Determine which client environment the user belongs to before any investigation begins.
+
+The system operates in a multi-tenant architecture.
+
+Each client has:
+
+* Separate Support Admin Portal
+* Separate API credentials
+* Separate operational data
+* Separate configuration
+
+Examples:
+```
+mrunali.gaikwad@unitybank.co.in
+→ UNITY_BANK
+
+agent@bobbank.in
+→ BANK_OF_BARODA
+
+officer@centralbank.co.in
+→ CENTRAL_BANK
+```
+
+### Resolution Process:
+
+1. Receive Freshdesk ticket.
+2. Extract sender email.
+3. Extract email domain.
+4. Lookup Tenant Registry.
+5. Resolve tenant.
+6. Build Tenant Context.
+7. Attach Tenant Context to Case.
+8. Continue workflow.
+
+Output:
+```
+Tenant Context
+```
+
+Contains:
+```
+tenant_id
+
+tenant_name
+
+portal_configuration
+
+api_credentials_reference
+
+enabled_tools
+
+workflow_overrides
+```
+
+### Failure Handling
+
+If tenant cannot be resolved:
+```
+UNKNOWN_TENANT
+```
+
+System must:
+* Stop automation
+* Create audit event
+* route to human review
+
+Automation must never continue with an unresolved tenant
+
+---
+
 ## Layer 2 — Case Engine
 
 Purpose:
@@ -328,6 +402,25 @@ Why did it happen?
 Can it be fixed automatically?
 
 Should it be escalated?
+
+---
+
+## Tenant-Aware Investigation
+
+Every investigation must execute within the resolved Tenant Context.
+
+All Support Admin API calls must be routed through:
+```
+Tenant API Router
+```
+
+Direct access to client portals is prohibited.
+
+This guarantees:
+
+* client isolation
+* credential isolation
+* safe onboarding of new clients
 
 ---
 
@@ -903,7 +996,9 @@ Recommended Action
 
 - Freshdesk API
 - Asana API
-- Support Portal APIs
+- Multi-Tenant Support Portal APIs
+    * Current : Unity Bank
+    * Future : Bank of Baroda, Central Bank, Additional Clients
 - Session APIs
 - Metrics APIs
 - Video APIs

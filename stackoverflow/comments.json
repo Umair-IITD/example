@@ -1,0 +1,1620 @@
+[{
+ "creationDate": "2021-06-30T08:25:20.227Z",
+ "editCount": 0,
+ "postId": 14,
+ "id": 1,
+ "postCommentTypeId": "Unknown",
+ "userId": 2,
+ "text": "and password is ? for prdvkyc"
+}, {
+ "creationDate": "2021-06-30T08:44:38.190Z",
+ "editCount": 0,
+ "postId": 14,
+ "id": 2,
+ "postCommentTypeId": "Unknown",
+ "replyToUserId": 2,
+ "score": 1,
+ "userDisplayName": "user3",
+ "text": "@ShivamPandey i send you in slack"
+}, {
+ "creationDate": "2021-07-02T09:20:39.143Z",
+ "editCount": 0,
+ "postId": 17,
+ "id": 3,
+ "postCommentTypeId": "Unknown",
+ "userId": 2,
+ "text": "nice"
+}, {
+ "creationDate": "2021-09-16T08:20:06.623Z",
+ "editCount": 0,
+ "postId": 25,
+ "id": 4,
+ "postCommentTypeId": "Unknown",
+ "userId": 2,
+ "text": "waht is documet_id ?"
+}, {
+ "creationDate": "2021-10-07T12:17:22.550Z",
+ "editCount": 0,
+ "postId": 30,
+ "id": 5,
+ "postCommentTypeId": "Unknown",
+ "userId": 2,
+ "text": "Please include some links that you might have followed to build this package."
+}, {
+ "creationDate": "2022-11-16T06:41:46.610Z",
+ "editCount": 0,
+ "postId": 112,
+ "id": 6,
+ "postCommentTypeId": "Unknown",
+ "userId": 2,
+ "text": "think_dev"
+}, {
+ "creationDate": "2022-11-16T06:41:56.367Z",
+ "editCount": 0,
+ "postId": 112,
+ "id": 7,
+ "postCommentTypeId": "Unknown",
+ "userId": 2,
+ "text": "think_dev_agent_1"
+}, {
+ "creationDate": "2022-11-16T06:42:02.677Z",
+ "editCount": 0,
+ "postId": 112,
+ "id": 8,
+ "postCommentTypeId": "Unknown",
+ "userId": 2,
+ "text": "think_dev_agent_1"
+}, {
+ "creationDate": "2022-12-21T08:16:30.350Z",
+ "editCount": 0,
+ "postId": 96,
+ "id": 9,
+ "postCommentTypeId": "Unknown",
+ "userId": 2,
+ "text": "sudo su - vkyc-user"
+}, {
+ "creationDate": "2023-01-17T12:15:51.980Z",
+ "editCount": 1,
+ "postId": 152,
+ "id": 10,
+ "postCommentTypeId": "Unknown",
+ "userDisplayName": "user21",
+ "text": "The problem still exists. botocore.exceptions.ClientError: An error occurred (ValidationException) when calling the Query operation: Invalid KeyConditionExpression: Attribute name is a reserved keyword; reserved keyword: month"
+}, {
+ "creationDate": "2023-01-17T12:35:56.197Z",
+ "editCount": 0,
+ "postId": 152,
+ "id": 11,
+ "postCommentTypeId": "Unknown",
+ "replyToUserId": 21,
+ "userDisplayName": "user13",
+ "text": "@MihirJadhav Have you reinstalled bolt ?"
+}, {
+ "creationDate": "2023-01-18T06:29:25.733Z",
+ "editCount": 0,
+ "postId": 152,
+ "id": 12,
+ "postCommentTypeId": "Unknown",
+ "userDisplayName": "user21",
+ "text": "Yes"
+}, {
+ "creationDate": "2023-01-19T05:01:57.953Z",
+ "editCount": 0,
+ "postId": 166,
+ "id": 13,
+ "postCommentTypeId": "Unknown",
+ "userDisplayName": "Pintu Bhattacharya",
+ "text": "Remember these changes will directly reflect to the production database do check all the necessary things before using this command."
+}, {
+ "creationDate": "2023-01-19T18:57:47.620Z",
+ "editCount": 0,
+ "postId": 167,
+ "id": 14,
+ "postCommentTypeId": "Unknown",
+ "userDisplayName": "Pintu Bhattacharya",
+ "text": "Remember these changes will directly reflect in the production database do check all the necessary things before using this command."
+}, {
+ "creationDate": "2023-02-06T08:11:37.977Z",
+ "editCount": 0,
+ "postId": 183,
+ "id": 15,
+ "postCommentTypeId": "Unknown",
+ "score": 1,
+ "userId": 14,
+ "text": "Status Codes:"
+}, {
+ "creationDate": "2023-02-06T09:54:04.107Z",
+ "editCount": 1,
+ "postId": 183,
+ "id": 16,
+ "postCommentTypeId": "Unknown",
+ "score": 1,
+ "userId": 14,
+ "text": "PRODUCTION Health URLs: \nUser API: https://vkyc.centralbank.co.in/v1/user/health \nAgent API: https://vkyc.centralbank.co.in/v1/agent/health \nAdmin API: https://vkyc.centralbank.co.in/api/v1/health"
+}, {
+ "creationDate": "2023-02-08T11:16:21.733Z",
+ "editCount": 0,
+ "postId": 191,
+ "id": 17,
+ "postCommentTypeId": "Unknown",
+ "userDisplayName": "user11",
+ "text": "yes i have secured the route"
+}, {
+ "creationDate": "2023-04-20T18:22:56.223Z",
+ "editCount": 0,
+ "postId": 227,
+ "id": 18,
+ "postCommentTypeId": "Unknown",
+ "deletionUserId": 14,
+ "deletionDate": "2023-04-20T18:25:01.563Z",
+ "userId": 14,
+ "text": "aws dynamodb get-item --table-name ipv_bpo_state --key '{\"client\": {\"S\": \"CBI_uat\"}}' --endpoint-url https://vkycuat.centralbank.co.in:49163 --no-verify-ssl"
+}, {
+ "creationDate": "2023-04-20T18:23:56.857Z",
+ "editCount": 0,
+ "postId": 227,
+ "id": 19,
+ "postCommentTypeId": "Unknown",
+ "deletionUserId": 14,
+ "deletionDate": "2023-04-20T18:25:08.363Z",
+ "userId": 14,
+ "text": "aws s3 ls --endpoint-url vkycuat.centralbank.co.in:49164 --no-verify-ssl"
+}, {
+ "creationDate": "2023-07-15T16:49:28.553Z",
+ "editCount": 0,
+ "postId": 261,
+ "id": 20,
+ "postCommentTypeId": "Unknown",
+ "userDisplayName": "Pintu Bhattacharya",
+ "text": "Note the Value should be present in the UserInfoList."
+}, {
+ "creationDate": "2023-08-22T04:00:54.460Z",
+ "editCount": 0,
+ "postId": 271,
+ "id": 21,
+ "postCommentTypeId": "Unknown",
+ "userId": 2,
+ "text": "https://stackoverflowteams.com/c/kwikid/questions/79"
+}, {
+ "creationDate": "2023-08-29T11:01:20.920Z",
+ "editCount": 0,
+ "postId": 287,
+ "id": 22,
+ "postCommentTypeId": "Unknown",
+ "score": 0,
+ "userDisplayName": "Pintu Bhattacharya",
+ "text": "Server is BOB dev server"
+}, {
+ "creationDate": "2023-09-13T12:17:38.243Z",
+ "editCount": 0,
+ "postId": 314,
+ "id": 23,
+ "postCommentTypeId": "Unknown",
+ "userId": 14,
+ "text": "Refernec link - https://www.atlassian.com/git/glossary"
+}, {
+ "creationDate": "2023-09-14T13:50:23.937Z",
+ "editCount": 0,
+ "postId": 327,
+ "id": 24,
+ "postCommentTypeId": "Unknown",
+ "userDisplayName": "Pintu Bhattacharya",
+ "text": "If any errors enounter while installing--"
+}, {
+ "creationDate": "2023-09-14T13:51:18.487Z",
+ "editCount": 0,
+ "postId": 327,
+ "id": 25,
+ "postCommentTypeId": "Unknown",
+ "userDisplayName": "Pintu Bhattacharya",
+ "text": "Executable Path: Ensure that the MinIO binary is actually located at /usr/local/bin/minio. You can check this with:\n\nls -l /usr/local/bin/minio"
+}, {
+ "creationDate": "2023-09-14T13:51:27.890Z",
+ "editCount": 0,
+ "postId": 327,
+ "id": 26,
+ "postCommentTypeId": "Unknown",
+ "userDisplayName": "Pintu Bhattacharya",
+ "text": "sudo chmod +x /usr/local/bin/minio"
+}, {
+ "creationDate": "2023-09-14T13:51:34.453Z",
+ "editCount": 0,
+ "postId": 327,
+ "id": 27,
+ "postCommentTypeId": "Unknown",
+ "userDisplayName": "Pintu Bhattacharya",
+ "text": "sudo setenforce 0"
+}, {
+ "creationDate": "2023-09-14T13:52:03.247Z",
+ "editCount": 0,
+ "postId": 327,
+ "id": 28,
+ "postCommentTypeId": "Unknown",
+ "userDisplayName": "Pintu Bhattacharya",
+ "text": "sudo chmod 755 /usr/local/bin/minio"
+}, {
+ "creationDate": "2023-09-16T20:07:51.657Z",
+ "editCount": 1,
+ "postId": 339,
+ "id": 29,
+ "postCommentTypeId": "Unknown",
+ "userDisplayName": "Pintu Bhattacharya",
+ "text": "This script uses this api inside my script https://ml.getkwikid.com/process_image as this api is getting used in production also but however sometimes the aadhaar redact gets missed in live calls but reusing this is redacting the image automatically"
+}, {
+ "creationDate": "2023-10-04T11:51:22.2Z",
+ "editCount": 0,
+ "postId": 367,
+ "id": 30,
+ "postCommentTypeId": "Unknown",
+ "userDisplayName": "Pintu Bhattacharya",
+ "text": "https://kwikid.s3.ap-south-1.amazonaws.com/pintu/get_summary_data_into_dynamobd.py"
+}, {
+ "creationDate": "2023-10-04T11:51:35.177Z",
+ "editCount": 0,
+ "postId": 367,
+ "id": 31,
+ "postCommentTypeId": "Unknown",
+ "score": 1,
+ "userDisplayName": "Pintu Bhattacharya",
+ "text": "download script"
+}, {
+ "creationDate": "2023-10-31T08:13:03.010Z",
+ "editCount": 0,
+ "postId": 388,
+ "id": 32,
+ "postCommentTypeId": "Unknown",
+ "replyToUserId": 16,
+ "userDisplayName": "Baiju Dodhia",
+ "text": "@GaurangThakker  Can you please edit this and write it in more detail"
+}, {
+ "creationDate": "2024-01-06T18:46:49.383Z",
+ "editCount": 1,
+ "postId": 435,
+ "id": 33,
+ "postCommentTypeId": "Unknown",
+ "userDisplayName": "Pintu Bhattacharya",
+ "text": "also added { \"name\": \"Product Code\", \"key\": \"product_code\" },  in   \"isShowUserIdDownloadBtn\": ["
+}, {
+ "creationDate": "2024-01-22T05:50:38.203Z",
+ "editCount": 0,
+ "postId": 291,
+ "id": 34,
+ "postCommentTypeId": "Unknown",
+ "score": 1,
+ "userDisplayName": "Pintu Bhattacharya",
+ "text": "for nrfsi table name will be prod-kwikid_vkyc_session_status"
+}, {
+ "creationDate": "2024-01-25T05:49:18.467Z",
+ "editCount": 0,
+ "postId": 447,
+ "id": 35,
+ "postCommentTypeId": "Unknown",
+ "score": 1,
+ "userDisplayName": "Pintu Bhattacharya",
+ "text": "SELECT process_user_ids(ARRAY['%CC05017248698%', '%CC05016229865_4421842%', '%other_user_id%']);"
+}, {
+ "creationDate": "2024-02-01T08:18:22.413Z",
+ "editCount": 0,
+ "postId": 445,
+ "id": 36,
+ "postCommentTypeId": "Unknown",
+ "userDisplayName": "Pintu Bhattacharya",
+ "text": "cd Kwikid_ipv_poc/kwikid_ipv_backend_new"
+}, {
+ "creationDate": "2024-02-04T09:53:00.110Z",
+ "editCount": 0,
+ "postId": 453,
+ "id": 37,
+ "postCommentTypeId": "Unknown",
+ "score": 1,
+ "userDisplayName": "Pintu Bhattacharya",
+ "text": "after doing this please comment it back or else this will effect the PRODUCTTION"
+}, {
+ "creationDate": "2024-02-12T10:04:06.283Z",
+ "editCount": 0,
+ "postId": 464,
+ "id": 38,
+ "postCommentTypeId": "Unknown",
+ "userDisplayName": "Pintu Bhattacharya",
+ "text": "aws dynamodb query --table-name vkyc_audit_status --index-name session_id-index --key-condition-expression \"session_id= :id\" --expression-attribute-values '{\":id\":{\"S\":\"4b01fef9-3c56-4f30-8ee4-5a9249d5748b\"}}' --projection-expression \"session_id, session_status, audit_id,audit_result\""
+}, {
+ "creationDate": "2024-02-12T10:06:14.840Z",
+ "editCount": 0,
+ "postId": 464,
+ "id": 39,
+ "postCommentTypeId": "Unknown",
+ "userDisplayName": "Pintu Bhattacharya",
+ "text": "aws dynamodb update-item \\\n    --table-name kwikid_vkyc_session_status \\\n    --key '{\"session_id\": {\"S\": \"ece48cf1-3ef7-4ed0-b2ed-f7363b2b0140\"}}' \\\n    --update-expression \"SET audit_id=:aid\" \\\n    --expression-attribute-values '{\":aid\":{\"S\": \"b529a259-aa6f-4b09-91ae-efca4f8b3ffb\"}}' \\\n    --return-values UPDATED_NEW"
+}, {
+ "creationDate": "2024-02-15T09:39:55.047Z",
+ "editCount": 2,
+ "postId": 467,
+ "id": 40,
+ "postCommentTypeId": "Unknown",
+ "userId": 2,
+ "text": "The response in the shared image is the ideal oneFor E.g. ICE Server Results should have, host, srflx and relay all three type"
+}, {
+ "creationDate": "2024-02-22T10:55:30.980Z",
+ "editCount": 0,
+ "postId": 418,
+ "id": 41,
+ "postCommentTypeId": "Unknown",
+ "userId": 2,
+ "text": "https://vkyc.tatacapital.com/connection-test"
+}, {
+ "creationDate": "2024-02-22T10:55:39.437Z",
+ "editCount": 0,
+ "postId": 418,
+ "id": 42,
+ "postCommentTypeId": "Unknown",
+ "userId": 2,
+ "text": "https://videokyc.thomascook.in/connection-test"
+}, {
+ "creationDate": "2024-02-22T10:55:51.890Z",
+ "editCount": 0,
+ "postId": 418,
+ "id": 43,
+ "postCommentTypeId": "Unknown",
+ "userId": 2,
+ "text": "https://vcip.rblbank.com/connection-test"
+}, {
+ "creationDate": "2024-02-26T08:41:28.383Z",
+ "editCount": 1,
+ "postId": 483,
+ "id": 44,
+ "postCommentTypeId": "Unknown",
+ "userDisplayName": "Pintu Bhattacharya",
+ "text": "https://stackoverflowteams.com/c/kwikid/questions/45 - Also through this method also you can do"
+}, {
+ "creationDate": "2024-02-27T10:33:12.727Z",
+ "editCount": 0,
+ "postId": 24,
+ "id": 45,
+ "postCommentTypeId": "Unknown",
+ "userDisplayName": "Pintu Bhattacharya",
+ "text": "ubuntu@ip-172-81-12-53:~/Kwikid_ipv_poc/vkyc_mod_schedule_backend$ tail -100f error_logs"
+}, {
+ "creationDate": "2024-02-27T10:33:24.680Z",
+ "editCount": 0,
+ "postId": 24,
+ "id": 46,
+ "postCommentTypeId": "Unknown",
+ "userDisplayName": "Pintu Bhattacharya",
+ "text": "For checking errors - tcook app server"
+}, {
+ "creationDate": "2024-03-05T10:14:09.230Z",
+ "editCount": 0,
+ "postId": 425,
+ "id": 47,
+ "postCommentTypeId": "Unknown",
+ "deletionUserId": 25,
+ "deletionDate": "2024-03-05T10:14:23.990Z",
+ "userId": 25,
+ "text": "Traceback (most recent call last):\n  File \"C:\\Users\\HarshkumarKoladiya\\Documents\\Harsh\\Kwid_Id\\Generate_Excel_Sheet\\get_duplicate_removed.py\", line 21, in <module>\n    key, value = line.split(\": \")\n    ^^^^^^^^^^\nValueError: not enough values to unpack (expected 2, got 1)Got this error."
+}, {
+ "creationDate": "2024-03-05T10:14:56.280Z",
+ "editCount": 0,
+ "postId": 425,
+ "id": 48,
+ "postCommentTypeId": "Unknown",
+ "deletionUserId": 25,
+ "deletionDate": "2024-03-05T10:15:12Z",
+ "userId": 25,
+ "text": "Traceback (most recent call last):\n  File \"C:\\Users\\HarshkumarKoladiya\\Documents\\Harsh\\Kwid_Id\\Generate_Excel_Sheet\\get_duplicate_removed.py\", line 21, in <module>\n    key, value = line.split(\": \")\n    ^^^^^^^^^^\nValueError: not enough values to unpack (expected 2, got 1)Got this error."
+}, {
+ "creationDate": "2024-03-14T10:08:05.6Z",
+ "editCount": 0,
+ "postId": 506,
+ "id": 49,
+ "postCommentTypeId": "Unknown",
+ "score": 1,
+ "userId": 24,
+ "text": "1. Remove audit lock for session_id"
+}, {
+ "creationDate": "2024-03-18T05:45:24.343Z",
+ "editCount": 0,
+ "postId": 487,
+ "id": 50,
+ "postCommentTypeId": "Unknown",
+ "userDisplayName": "Pintu Bhattacharya",
+ "text": "212546922940989445"
+}, {
+ "creationDate": "2024-04-01T19:36:00.547Z",
+ "editCount": 0,
+ "postId": 523,
+ "id": 51,
+ "postCommentTypeId": "Unknown",
+ "score": 1,
+ "userDisplayName": "Pintu Bhattacharya",
+ "text": "https://thinkanalyticsindia.sharepoint.com/:b:/s/KwikIDDocumentaion/EQG2MDDbbJ1Pif1blEI5Oa0Bs_i2-cV4RXD8CGuyApo1eA?e=656j0m"
+}, {
+ "creationDate": "2024-04-01T19:51:52.143Z",
+ "editCount": 0,
+ "postId": 425,
+ "id": 52,
+ "postCommentTypeId": "Unknown",
+ "userDisplayName": "Pintu Bhattacharya",
+ "text": "https://thinkanalyticsindia.sharepoint.com/:b:/s/KwikIDDocumentaion/EeaRqX0jDGpGqbzcHpN-o7sB_cYBhTgQDA808JLdSyImIw?e=hOSOr9"
+}, {
+ "creationDate": "2024-04-01T19:57:05.013Z",
+ "editCount": 0,
+ "postId": 102,
+ "id": 53,
+ "postCommentTypeId": "Unknown",
+ "userDisplayName": "Pintu Bhattacharya",
+ "text": "https://thinkanalyticsindia.sharepoint.com/:b:/s/KwikIDDocumentaion/EYH8egcSSz1FiQlniWyaCzcBFXs75h6pWPWGMtbhkHr0Tw?e=oG6kHb"
+}, {
+ "creationDate": "2024-04-01T20:07:39.687Z",
+ "editCount": 0,
+ "postId": 107,
+ "id": 54,
+ "postCommentTypeId": "Unknown",
+ "score": 1,
+ "userDisplayName": "Pintu Bhattacharya",
+ "text": "https://thinkanalyticsindia.sharepoint.com/:b:/s/KwikIDDocumentaion/EUFDYkh-_4FJsCFAE_cumvMBHhHcNWpYC-e5xWS9C1SEJg?e=34pszV"
+}, {
+ "creationDate": "2024-04-05T10:35:39.027Z",
+ "editCount": 0,
+ "postId": 544,
+ "id": 55,
+ "postCommentTypeId": "Unknown",
+ "userId": 26,
+ "text": "Search this group name in  Teams app  for passwordGroup name - Harshkumar,pintu,praful,summit,swapnil"
+}, {
+ "creationDate": "2024-04-22T07:21:48.737Z",
+ "editCount": 0,
+ "postId": 60,
+ "id": 56,
+ "postCommentTypeId": "Unknown",
+ "userDisplayName": "Pintu Bhattacharya",
+ "text": "now .14 server is the report server"
+}, {
+ "creationDate": "2024-05-03T11:50:30.263Z",
+ "editCount": 1,
+ "postId": 562,
+ "id": 57,
+ "postCommentTypeId": "Unknown",
+ "score": 1,
+ "userDisplayName": "Pintu Bhattacharya",
+ "text": "agent_role - both = agent + auditor"
+}, {
+ "creationDate": "2024-05-03T11:50:45.587Z",
+ "editCount": 1,
+ "postId": 562,
+ "id": 58,
+ "postCommentTypeId": "Unknown",
+ "userDisplayName": "Pintu Bhattacharya",
+ "text": "agent_role - agent =  agent only"
+}, {
+ "creationDate": "2024-05-03T11:50:58.243Z",
+ "editCount": 1,
+ "postId": 562,
+ "id": 59,
+ "postCommentTypeId": "Unknown",
+ "userDisplayName": "Pintu Bhattacharya",
+ "text": "agent_role - auditor =  auditor only"
+}, {
+ "creationDate": "2024-05-03T11:52:16.483Z",
+ "editCount": 1,
+ "postId": 562,
+ "id": 60,
+ "postCommentTypeId": "Unknown",
+ "userDisplayName": "Pintu Bhattacharya",
+ "text": "add IS_ADMIN = 1 -  When you want to add admin"
+}, {
+ "creationDate": "2024-06-11T11:06:00.253Z",
+ "editCount": 0,
+ "postId": 454,
+ "id": 61,
+ "postCommentTypeId": "Unknown",
+ "userDisplayName": "Pintu Bhattacharya",
+ "text": "https://kwikid.s3.ap-south-1.amazonaws.com/pintu/get_script_for_structure.py"
+}, {
+ "creationDate": "2024-06-11T11:06:11.143Z",
+ "editCount": 0,
+ "postId": 454,
+ "id": 62,
+ "postCommentTypeId": "Unknown",
+ "score": 1,
+ "userDisplayName": "Pintu Bhattacharya",
+ "text": "script for structure"
+}, {
+ "creationDate": "2024-07-08T13:24:10.923Z",
+ "editCount": 0,
+ "postId": 656,
+ "id": 63,
+ "postCommentTypeId": "Unknown",
+ "userDisplayName": "Pintu Bhattacharya",
+ "text": "https://kwikid.freshdesk.com/a/tickets/20515 - Reference TIcket"
+}, {
+ "creationDate": "2024-07-15T07:25:21.033Z",
+ "editCount": 1,
+ "postId": 661,
+ "id": 64,
+ "postCommentTypeId": "Unknown",
+ "userDisplayName": "Atal Deshmukh",
+ "text": "https://kwikid.freshdesk.com/a/tickets/25357Please refer this FreshDesk ticket"
+}, {
+ "creationDate": "2024-08-20T16:19:49.927Z",
+ "editCount": 2,
+ "postId": 723,
+ "id": 65,
+ "postCommentTypeId": "Unknown",
+ "userDisplayName": "Baiju Dodhia",
+ "text": "How do you verify that the script has run successfully? + What to do in case of failure?@GaurangThakker"
+}, {
+ "creationDate": "2024-08-21T16:35:27.343Z",
+ "editCount": 1,
+ "postId": 684,
+ "id": 66,
+ "postCommentTypeId": "Unknown",
+ "userId": 38,
+ "text": "the file name is vi get_video_merge.py"
+}, {
+ "creationDate": "2024-08-24T19:11:24.430Z",
+ "editCount": 1,
+ "postId": 730,
+ "id": 67,
+ "postCommentTypeId": "Unknown",
+ "userId": 38,
+ "text": "Please check there are 2 code for the same task 1 get_fine_RR_v3.py (og)2. get_fine_RR_v4.py(with csv logic)"
+}, {
+ "creationDate": "2024-08-30T09:08:40.230Z",
+ "editCount": 2,
+ "postId": 723,
+ "id": 68,
+ "postCommentTypeId": "Unknown",
+ "userId": 14,
+ "text": "@GaurangThakker  run script on nohup. For example - \"nohup python -u rekyc.py > apr2024.log &\""
+}, {
+ "creationDate": "2024-09-12T11:47:57.060Z",
+ "editCount": 0,
+ "postId": 60,
+ "id": 69,
+ "postCommentTypeId": "Unknown",
+ "userId": 38,
+ "text": "path : cd /home/Vkyc-user/reports"
+}, {
+ "creationDate": "2024-09-15T13:33:49.103Z",
+ "editCount": 0,
+ "postId": 767,
+ "id": 70,
+ "postCommentTypeId": "Unknown",
+ "userDisplayName": "Sourav",
+ "text": "get_add_username_v2.py is not working it is user testingphase"
+}, {
+ "creationDate": "2024-09-20T08:04:50.297Z",
+ "editCount": 0,
+ "postId": 556,
+ "id": 71,
+ "postCommentTypeId": "Unknown",
+ "replyToUserId": 10,
+ "userDisplayName": "Komal Annaldas",
+ "text": "@Baiju  please add the types of role we have currently in the system. and as we consider a case where I need to give access for n no. of people, which we have given to amit sinha then in that case what will be the role?"
+}, {
+ "creationDate": "2024-10-15T06:17:08.247Z",
+ "editCount": 0,
+ "postId": 819,
+ "id": 72,
+ "postCommentTypeId": "Unknown",
+ "userDisplayName": "Pintu Bhattacharya",
+ "text": "For Ref.  https://thinkanalyticsindia.sharepoint.com/:x:/s/KwikIDDocumentaion/Ea_ek8sBeCRDs2rqrXiWpKIBD_K8v22zdFLrmZuIyESJ4w?e=CdopFf"
+}, {
+ "creationDate": "2024-10-16T21:14:12.347Z",
+ "editCount": 0,
+ "postId": 830,
+ "id": 73,
+ "postCommentTypeId": "Unknown",
+ "userDisplayName": "Pintu Bhattacharya",
+ "text": "Refernce ticket - https://app.asana.com/0/1202768316219339/1208518447024231/f"
+}, {
+ "creationDate": "2024-10-21T05:10:17.480Z",
+ "editCount": 1,
+ "postId": 653,
+ "id": 74,
+ "postCommentTypeId": "Unknown",
+ "userDisplayName": "Komal Annaldas",
+ "text": "the above did not work for prod when I was trying to check password for a agent.               To see help text, you can run:\n\n  aws help\n  aws <command> help\n  aws <command> <subcommand> help\nusage: aws [options] <command> <subcommand> [<subcommand> ...] [parameters]\naws: error: the following arguments are required: --table-name\n--table-name: command not found\n--index-name: command not found\n--key-condition-expression: command not found\n--expression-attribute-values: command not found"
+}, {
+ "creationDate": "2024-10-21T09:14:21.473Z",
+ "editCount": 0,
+ "postId": 654,
+ "id": 75,
+ "postCommentTypeId": "Unknown",
+ "userId": 38,
+ "text": "The s3 bucket access has been revoked ---unable to access the bucket"
+}, {
+ "creationDate": "2024-10-29T07:58:03.683Z",
+ "editCount": 0,
+ "postId": 418,
+ "id": 76,
+ "postCommentTypeId": "Unknown",
+ "userDisplayName": "Pintu Bhattacharya",
+ "text": "https://vkycubgbuat.rrbcbi.co.in:49166/connection-test/"
+}, {
+ "creationDate": "2024-10-29T10:20:11.850Z",
+ "editCount": 0,
+ "postId": 617,
+ "id": 77,
+ "postCommentTypeId": "Unknown",
+ "userDisplayName": "Pintu Bhattacharya",
+ "text": "https://stackoverflowteams.com/c/kwikid/questions/824 - For nohup"
+}, {
+ "creationDate": "2024-10-29T10:43:25.017Z",
+ "editCount": 0,
+ "postId": 617,
+ "id": 78,
+ "postCommentTypeId": "Unknown",
+ "userDisplayName": "Pintu Bhattacharya",
+ "text": "https://kwikid.s3.ap-south-1.amazonaws.com/pion-port-range-x86_64 - Pion File"
+}, {
+ "creationDate": "2024-11-06T12:46:33.097Z",
+ "editCount": 1,
+ "postId": 627,
+ "id": 79,
+ "postCommentTypeId": "Unknown",
+ "deletionUserId": 25,
+ "deletionDate": "2024-11-06T12:47:45.637Z",
+ "userId": 25,
+ "text": "Time-Specific Language Availability:\n\n    9:00 AM - 10:00 AM: Only Hindi and English languages should be enabled for users.\n    10:00 AM - 6:00 PM: All languages should be enabled for users.\n    6:00 PM - 8:00 PM: Only Hindi and English languages should be enabled for users."
+}, {
+ "creationDate": "2024-11-06T14:33:28.693Z",
+ "editCount": 1,
+ "postId": 627,
+ "id": 80,
+ "postCommentTypeId": "Unknown",
+ "userId": 25,
+ "text": "How to configure language settings for BOB users?https://thinkanalyticsindia.sharepoint.com/:b:/s/KwikIDDocumentaion/ES6r4mn9IuFJj1GKMG66xtMBmdkvCBXeffvXoFzbrLeQIw?e=LX6hKT"
+}, {
+ "creationDate": "2024-11-07T06:45:43.520Z",
+ "editCount": 0,
+ "postId": 720,
+ "id": 81,
+ "postCommentTypeId": "Unknown",
+ "userDisplayName": "Pintu Bhattacharya",
+ "text": "du -shx ./* ./.??*  | sort -h"
+}, {
+ "creationDate": "2024-11-07T15:30:15.430Z",
+ "editCount": 0,
+ "postId": 318,
+ "id": 82,
+ "postCommentTypeId": "Unknown",
+ "userId": 38,
+ "text": "there is an issye with this script!!!"
+}, {
+ "creationDate": "2024-11-09T15:32:32.013Z",
+ "editCount": 0,
+ "postId": 669,
+ "id": 83,
+ "postCommentTypeId": "Unknown",
+ "userDisplayName": "Sourav",
+ "text": "not for BFL"
+}, {
+ "creationDate": "2024-12-23T07:53:21.123Z",
+ "editCount": 0,
+ "postId": 316,
+ "id": 84,
+ "postCommentTypeId": "Unknown",
+ "userId": 38,
+ "text": "This old script is not working properly....some one has change in config to keralagbbelow user the below script [update one for fino video reocovery]"
+}, {
+ "creationDate": "2024-12-24T04:57:09.3Z",
+ "editCount": 1,
+ "postId": 859,
+ "id": 85,
+ "postCommentTypeId": "Unknown",
+ "userId": 38,
+ "text": "user below script for digirment callback :digiremit_manual_callback_multiple.py"
+}, {
+ "creationDate": "2024-12-24T12:24:55.110Z",
+ "editCount": 0,
+ "postId": 511,
+ "id": 86,
+ "postCommentTypeId": "Unknown",
+ "userId": 26,
+ "text": "Please do not use the Digiremit callback step in these answers. Instead, use the steps provided in the link below.https://stackoverflowteams.com/c/kwikid/questions/872"
+}, {
+ "creationDate": "2024-12-27T05:29:11.407Z",
+ "editCount": 0,
+ "postId": 919,
+ "id": 87,
+ "postCommentTypeId": "Unknown",
+ "deletionUserId": 16,
+ "deletionDate": "2024-12-27T05:29:18.937Z",
+ "userDisplayName": "user16",
+ "text": "You can use the same process for moving data from DR to DC, only process becomes vice versa but procedure remains same."
+}, {
+ "creationDate": "2025-01-14T03:37:29.770Z",
+ "editCount": 0,
+ "postId": 857,
+ "id": 88,
+ "postCommentTypeId": "Unknown",
+ "userId": 38,
+ "text": "This is depcreated.. dont use this.."
+}, {
+ "creationDate": "2025-02-05T09:56:02.593Z",
+ "editCount": 0,
+ "postId": 998,
+ "id": 89,
+ "postCommentTypeId": "Unknown",
+ "userDisplayName": "Atal Deshmukh",
+ "text": "Once the highlighted port restriction is resolved on the Bajaj Fin network, you can verify the fix using the following link: https://bflvkyc.bajajfinserv.in/connection-test (Ask the client to open this on their browser)For successful connectivity, \"srflx\" and \"relay\" should be present in the ICE Server Results."
+}, {
+ "creationDate": "2025-02-07T08:11:35.037Z",
+ "editCount": 0,
+ "postId": 1001,
+ "id": 90,
+ "postCommentTypeId": "Unknown",
+ "score": 1,
+ "userDisplayName": "Pintu Bhattacharya",
+ "text": "https://stackoverflowteams.com/c/kwikid/questions/279/282#282 Check this also if you want this is the same."
+}, {
+ "creationDate": "2025-02-07T08:13:08.733Z",
+ "editCount": 0,
+ "postId": 999,
+ "id": 91,
+ "postCommentTypeId": "Unknown",
+ "userDisplayName": "Pintu Bhattacharya",
+ "text": "https://stackoverflowteams.com/c/kwikid/questions/738  this is also same"
+}, {
+ "creationDate": "2025-02-07T13:11:08.210Z",
+ "editCount": 0,
+ "postId": 1007,
+ "id": 92,
+ "postCommentTypeId": "Unknown",
+ "userDisplayName": "Sourav",
+ "text": "after login to root server"
+}, {
+ "creationDate": "2025-02-13T13:25:49.767Z",
+ "editCount": 0,
+ "postId": 1016,
+ "id": 93,
+ "postCommentTypeId": "Unknown",
+ "userId": 38,
+ "text": "For any dout releted to the code you can connect with me .."
+}, {
+ "creationDate": "2025-02-13T13:27:08.077Z",
+ "editCount": 0,
+ "postId": 1016,
+ "id": 94,
+ "postCommentTypeId": "Unknown",
+ "userId": 38,
+ "text": "currently i have deployed the code on below serverunitynrfsiauatcanara"
+}, {
+ "creationDate": "2025-02-23T04:30:32.767Z",
+ "editCount": 0,
+ "postId": 1027,
+ "id": 95,
+ "postCommentTypeId": "Unknown",
+ "userId": 38,
+ "text": "Check on both there server ... 14/43 -admin protal is hosted.."
+}, {
+ "creationDate": "2025-03-18T08:15:53.107Z",
+ "editCount": 0,
+ "postId": 1054,
+ "id": 96,
+ "postCommentTypeId": "Unknown",
+ "replyToUserId": 23,
+ "userId": 38,
+ "text": "@Sumit pls update the new code in this stack"
+}, {
+ "creationDate": "2025-03-21T06:26:33.670Z",
+ "editCount": 0,
+ "postId": 1065,
+ "id": 97,
+ "postCommentTypeId": "Unknown",
+ "userDisplayName": "Pintu Bhattacharya",
+ "text": "Also the get_cif_data is in app2 server - as a wrapper"
+}, {
+ "creationDate": "2025-03-21T06:27:04.387Z",
+ "editCount": 0,
+ "postId": 1065,
+ "id": 98,
+ "postCommentTypeId": "Unknown",
+ "userDisplayName": "Pintu Bhattacharya",
+ "text": "And apk is in app1 server"
+}, {
+ "creationDate": "2025-04-16T12:15:08.687Z",
+ "editCount": 0,
+ "postId": 1087,
+ "id": 99,
+ "postCommentTypeId": "Unknown",
+ "userId": 38,
+ "text": "@Rugvedpatil compare both the key add the additional key which was missing for the 1 agent create code ...secret_key when creating the agent id ..so you dont have to create 2 different code for the same ....if you incluse the key in the 1st step it self"
+}, {
+ "creationDate": "2025-04-16T16:38:20.127Z",
+ "editCount": 0,
+ "postId": 676,
+ "id": 100,
+ "postCommentTypeId": "Unknown",
+ "userId": 38,
+ "text": "Outdate stack not in use pls dont use this .."
+}, {
+ "creationDate": "2025-04-16T17:20:49.460Z",
+ "editCount": 0,
+ "postId": 859,
+ "id": 101,
+ "postCommentTypeId": "Unknown",
+ "deletionUserId": 38,
+ "deletionDate": "2025-09-24T15:50:39.8Z",
+ "userId": 38,
+ "text": "This is outdate stack pls ignore thiss"
+}, {
+ "creationDate": "2025-05-04T06:38:14.447Z",
+ "editCount": 0,
+ "postId": 1099,
+ "id": 102,
+ "postCommentTypeId": "Unknown",
+ "userId": 38,
+ "text": "Do let me know if you face any issue ...."
+}, {
+ "creationDate": "2025-05-04T06:41:33.773Z",
+ "editCount": 0,
+ "postId": 579,
+ "id": 103,
+ "postCommentTypeId": "Unknown",
+ "userId": 38,
+ "text": "This is the outdate stack Pls chcek the new stack which is update below ...."
+}, {
+ "creationDate": "2025-05-04T06:58:05.183Z",
+ "editCount": 0,
+ "postId": 1096,
+ "id": 104,
+ "postCommentTypeId": "Unknown",
+ "userId": 38,
+ "text": "Have update the steps @Rugvedpatil which should be there ..."
+}, {
+ "creationDate": "2025-05-06T07:49:57.820Z",
+ "editCount": 0,
+ "postId": 1102,
+ "id": 105,
+ "postCommentTypeId": "Unknown",
+ "userId": 38,
+ "text": "Note it will apped the new sendlink log in the same file so please created the old output in log file........"
+}, {
+ "creationDate": "2025-05-08T13:03:45.260Z",
+ "editCount": 0,
+ "postId": 765,
+ "id": 106,
+ "postCommentTypeId": "Unknown",
+ "replyToUserId": 26,
+ "userId": 38,
+ "text": "I have update the path previsos it was worikig on ubutu user --but right now it is having permission issue so now you need to acces the server fro root user to run the script @SwapnilSunilSabale"
+}, {
+ "creationDate": "2025-05-09T08:43:09.540Z",
+ "editCount": 0,
+ "postId": 1120,
+ "id": 107,
+ "postCommentTypeId": "Unknown",
+ "replyToUserId": 25,
+ "userId": 38,
+ "text": "@HarshkumarKoladiya Pls check this code and do let me know if face any issue ..."
+}, {
+ "creationDate": "2025-05-09T10:40:51.053Z",
+ "editCount": 0,
+ "postId": 1122,
+ "id": 108,
+ "postCommentTypeId": "Unknown",
+ "userId": 2,
+ "text": "http://15.207.250.89:8123/play?user=default#LS1VU0Uga2lkX2xvZ2dlcjsKU0VMRUNUICogRlJPTSBoeXBlcnRyYWlsX2V0Yl9sb2dzIFdIRVJFIGNsaWVudF9uYW1lIExJS0UgJ2ZseS1oaS1maW5hbmNpYWwtc2VydmljZXMtbHRkX3VhdCcgT1JERVIgQlkgd3JpdHRlbl9hdCBERVNDOw=="
+}, {
+ "creationDate": "2025-05-09T10:50:52.547Z",
+ "editCount": 1,
+ "postId": 1122,
+ "id": 109,
+ "postCommentTypeId": "Unknown",
+ "userId": 46,
+ "text": "Use this: With MobileNumber:SELECT * FROM hypertrail_etb_logs WHERE client_name LIKE 'fly-hi-financial-services-ltd_uat' AND kwargs LIKE '%Mobile_Number%' ORDER BY written_at DESC;"
+}, {
+ "creationDate": "2025-05-10T07:05:10.363Z",
+ "editCount": 1,
+ "postId": 915,
+ "id": 110,
+ "postCommentTypeId": "Unknown",
+ "replyToUserId": 39,
+ "userId": 38,
+ "text": "the video is visible in the admin protal using the above code......@Sourav"
+}, {
+ "creationDate": "2025-05-22T08:41:36.320Z",
+ "editCount": 0,
+ "postId": 1143,
+ "id": 111,
+ "postCommentTypeId": "Unknown",
+ "userDisplayName": "Jainam Zobaliya",
+ "text": "If in logs... getting issue due to redis...restart redis container, followed by rest other..."
+}, {
+ "creationDate": "2025-05-23T14:56:19.530Z",
+ "editCount": 0,
+ "postId": 986,
+ "id": 112,
+ "postCommentTypeId": "Unknown",
+ "userId": 38,
+ "text": "The above code can be use to create both agent id"
+}, {
+ "creationDate": "2025-05-23T17:00:14.9Z",
+ "editCount": 0,
+ "postId": 1157,
+ "id": 113,
+ "postCommentTypeId": "Unknown",
+ "replyToUserId": 40,
+ "score": 1,
+ "userId": 38,
+ "text": "@Rugvedpatil use this code after trigger you dkyc script..."
+}, {
+ "creationDate": "2025-05-23T17:52:07.867Z",
+ "editCount": 0,
+ "postId": 1117,
+ "id": 114,
+ "postCommentTypeId": "Unknown",
+ "replyToUserId": 44,
+ "userId": 38,
+ "text": "After running the script for you can run the below script to check the cif log directy note -- the input file for both the code are same so you do not need to enter the detail again ....@Rugvedpatil @Yogeshbhagwatbad"
+}, {
+ "creationDate": "2025-05-23T17:53:30.157Z",
+ "editCount": 0,
+ "postId": 895,
+ "id": 115,
+ "postCommentTypeId": "Unknown",
+ "userId": 38,
+ "text": "old code new code for video recoery has been update ..."
+}, {
+ "creationDate": "2025-05-26T10:35:51.890Z",
+ "editCount": 0,
+ "postId": 1159,
+ "id": 116,
+ "postCommentTypeId": "Unknown",
+ "userId": 38,
+ "text": "You can skip the step 2 & 3 step ---> type : startenv"
+}, {
+ "creationDate": "2025-05-26T14:51:12.673Z",
+ "editCount": 0,
+ "postId": 911,
+ "id": 117,
+ "postCommentTypeId": "Unknown",
+ "userId": 38,
+ "text": "Old method the code is workig ...only issue is it take time update te merge the video.."
+}, {
+ "creationDate": "2025-05-28T15:04:44.370Z",
+ "editCount": 0,
+ "postId": 1162,
+ "id": 118,
+ "postCommentTypeId": "Unknown",
+ "userId": 38,
+ "text": "@Rugvedpatil please add the input file in the stack which is used for removing audit lock"
+}, {
+ "creationDate": "2025-05-30T17:37:30.830Z",
+ "editCount": 0,
+ "postId": 1169,
+ "id": 119,
+ "postCommentTypeId": "Unknown",
+ "userId": 38,
+ "text": "This code only list the file in s3 bucket.....we can also add the logic to download the file form s3 path on pwd......."
+}, {
+ "creationDate": "2025-05-31T13:41:17.713Z",
+ "editCount": 0,
+ "postId": 1159,
+ "id": 120,
+ "postCommentTypeId": "Unknown",
+ "deletionUserId": 38,
+ "deletionDate": "2025-05-31T15:16:56.963Z",
+ "userId": 38,
+ "text": "The code has some issue Please do-not run this code for time-being"
+}, {
+ "creationDate": "2025-05-31T15:17:23.187Z",
+ "editCount": 0,
+ "postId": 1159,
+ "id": 121,
+ "postCommentTypeId": "Unknown",
+ "userId": 38,
+ "text": "The stack for the code has been update now you can download the report using this code.."
+}, {
+ "creationDate": "2025-06-04T20:47:07.740Z",
+ "editCount": 0,
+ "postId": 763,
+ "id": 122,
+ "postCommentTypeId": "Unknown",
+ "replyToUserId": 26,
+ "userId": 38,
+ "text": "Uncomment the upload path ..Be cautious when uncomenting the code .... @SwapnilSunilSabale"
+}, {
+ "creationDate": "2025-06-04T20:51:56.927Z",
+ "editCount": 0,
+ "postId": 693,
+ "id": 123,
+ "postCommentTypeId": "Unknown",
+ "userId": 38,
+ "text": "you can skip this step:/cd script\n\n/source venv/bin/activateby typing : startenv -- it will activate and change the env directly...@SwapnilSunilSabale"
+}, {
+ "creationDate": "2025-06-05T04:54:21.787Z",
+ "editCount": 0,
+ "postId": 917,
+ "id": 124,
+ "postCommentTypeId": "Unknown",
+ "userDisplayName": "Jainam Zobaliya",
+ "text": "For DKYC, Server: 10.1.43.213Path: /data/DKYC/Kwikid_ipv_poc/kwikid_dkyc_apk/app/"
+}, {
+ "creationDate": "2025-06-09T14:04:44.217Z",
+ "editCount": 1,
+ "postId": 937,
+ "id": 125,
+ "postCommentTypeId": "Unknown",
+ "deletionUserId": 40,
+ "deletionDate": "2025-06-10T11:55:30.717Z",
+ "userDisplayName": "Rugved patil",
+ "text": "source activation -   source venv3/bin/activate"
+}, {
+ "creationDate": "2025-06-18T11:44:34.643Z",
+ "editCount": 2,
+ "postId": 917,
+ "id": 126,
+ "postCommentTypeId": "Unknown",
+ "replyToUserId": 27,
+ "userId": 14,
+ "text": "create different stack for DKYC, I have edited the heading as VKYC for this stack. @JainamZobaliya @VishalJaiswar"
+}, {
+ "creationDate": "2025-06-30T10:29:04.1Z",
+ "editCount": 0,
+ "postId": 1067,
+ "id": 127,
+ "postCommentTypeId": "Unknown",
+ "replyToUserId": 26,
+ "deletionUserId": 38,
+ "deletionDate": "2025-07-06T14:33:24.963Z",
+ "userId": 38,
+ "text": "The code has some issue when creating the admin id ... will fix this issue the the letter iteration ... for now u can create agent /auditor ids using the abocecode...1.admin - option will enable letter @SwapnilSunilSabale"
+}, {
+ "creationDate": "2025-06-30T10:38:30.797Z",
+ "editCount": 0,
+ "postId": 316,
+ "id": 128,
+ "postCommentTypeId": "Unknown",
+ "userId": 38,
+ "text": "deprecate stack"
+}, {
+ "creationDate": "2025-06-30T10:42:47.127Z",
+ "editCount": 0,
+ "postId": 915,
+ "id": 129,
+ "postCommentTypeId": "Unknown",
+ "userId": 38,
+ "text": "There was some issue in the code earlier have fix the code now ... someone change the code"
+}, {
+ "creationDate": "2025-06-30T15:42:09.433Z",
+ "editCount": 0,
+ "postId": 1233,
+ "id": 130,
+ "postCommentTypeId": "Unknown",
+ "replyToUserId": 26,
+ "userId": 38,
+ "text": "@SwapnilSunilSabale @ShubhamSingh Please check the update code .."
+}, {
+ "creationDate": "2025-07-01T14:23:06.710Z",
+ "editCount": 0,
+ "postId": 1178,
+ "id": 131,
+ "postCommentTypeId": "Unknown",
+ "userId": 38,
+ "text": "Added the logic to remove the grp key in the code itself...."
+}, {
+ "creationDate": "2025-07-05T17:13:06.617Z",
+ "editCount": 1,
+ "postId": 1240,
+ "id": 132,
+ "postCommentTypeId": "Unknown",
+ "replyToUserId": 26,
+ "userId": 38,
+ "text": "Note this code only check the value and trigger the the CBS API ...it wont update the the missing value ... you should check the error in the docker ..check the logs use below command\ndocker logs -n 100 -f kwikid-celery-worker-set_audit_result_callback@SwapnilSunilSabale @ShubhamSingh"
+}, {
+ "creationDate": "2025-07-06T14:33:58.947Z",
+ "editCount": 0,
+ "postId": 1067,
+ "id": 133,
+ "postCommentTypeId": "Unknown",
+ "replyToUserId": 26,
+ "userId": 38,
+ "text": "Have added the logic for admin id creation + currently time stamp logic.@SwapnilSunilSabale @ShubhamSingh"
+}, {
+ "creationDate": "2025-07-06T14:51:19.067Z",
+ "editCount": 0,
+ "postId": 1225,
+ "id": 134,
+ "postCommentTypeId": "Unknown",
+ "deletionUserId": 38,
+ "deletionDate": "2025-07-06T15:10:09.137Z",
+ "userId": 38,
+ "text": "this code is note made for RBL_vpd id creation."
+}, {
+ "creationDate": "2025-07-06T15:10:11.913Z",
+ "editCount": 1,
+ "postId": 1225,
+ "id": 135,
+ "postCommentTypeId": "Unknown",
+ "replyToUserId": 26,
+ "userId": 38,
+ "text": "@SwapnilSunilSabale @ShubhamSingh @Yogeshbhagwatbad @Rugvedpatil  have added the logic for rbl vpd domain .. ."
+}, {
+ "creationDate": "2025-07-06T15:36:57.057Z",
+ "editCount": 1,
+ "postId": 1154,
+ "id": 136,
+ "postCommentTypeId": "Unknown",
+ "userId": 38,
+ "text": "This code is not used for finteck farm agent id creation .but you can use this code 1 and then used the other code .https://stackoverflowteams.com/c/kwikid/questions/1177.> that will modify the agent id according to finteck faram."
+}, {
+ "creationDate": "2025-07-06T15:43:16.960Z",
+ "editCount": 0,
+ "postId": 1154,
+ "id": 137,
+ "postCommentTypeId": "Unknown",
+ "userId": 38,
+ "text": "do check and let me know if this code work for fintek farm -- ping me when creation agent id for fintek farm"
+}, {
+ "creationDate": "2025-07-07T07:50:32.607Z",
+ "editCount": 0,
+ "postId": 1178,
+ "id": 138,
+ "postCommentTypeId": "Unknown",
+ "userId": 38,
+ "text": "have add the logic for hadling missing key.."
+}, {
+ "creationDate": "2025-07-10T10:39:05.580Z",
+ "editCount": 0,
+ "postId": 1247,
+ "id": 139,
+ "postCommentTypeId": "Unknown",
+ "userDisplayName": "Pintu Bhattacharya",
+ "text": "to verify if it is of the same session you can check the cbs  s3 file time and verify both of the timing it should match"
+}, {
+ "creationDate": "2025-07-11T07:57:56.607Z",
+ "editCount": 0,
+ "postId": 1239,
+ "id": 140,
+ "postCommentTypeId": "Unknown",
+ "userDisplayName": "Rugved patil",
+ "text": "@JainamZobaliya  Minio UAT is not accessible via UI hence you need share the exact path of aws cli for this"
+}, {
+ "creationDate": "2025-07-19T11:47:17.830Z",
+ "editCount": 0,
+ "postId": 844,
+ "id": 141,
+ "postCommentTypeId": "Unknown",
+ "replyToUserId": 26,
+ "userId": 38,
+ "text": "@SwapnilSunilSabale Allways use support id for recipent mail .... during sending......"
+}, {
+ "creationDate": "2025-07-20T13:00:22.490Z",
+ "editCount": 0,
+ "postId": 1154,
+ "id": 142,
+ "postCommentTypeId": "Unknown",
+ "replyToUserId": 9,
+ "userId": 38,
+ "text": "@PintuBhattacharya @SwapnilSunilSabale @ShubhamSingh choise based id creation + current time stamp logic added ..."
+}, {
+ "creationDate": "2025-07-22T13:02:18.723Z",
+ "editCount": 0,
+ "postId": 1258,
+ "id": 143,
+ "postCommentTypeId": "Unknown",
+ "userId": 38,
+ "text": "You can run this crul directy on server or on postman."
+}, {
+ "creationDate": "2025-07-28T15:42:18.520Z",
+ "editCount": 0,
+ "postId": 1270,
+ "id": 144,
+ "postCommentTypeId": "Unknown",
+ "replyToUserId": 26,
+ "userId": 38,
+ "text": "New code for lat long location missing value to update directly into the summary@SwapnilSunilSabale @ShubhamSingh"
+}, {
+ "creationDate": "2025-07-29T08:56:52.237Z",
+ "editCount": 0,
+ "postId": 1267,
+ "id": 145,
+ "postCommentTypeId": "Unknown",
+ "userId": 38,
+ "text": "Have added the auto log truncate code to manage the log truncatation .."
+}, {
+ "creationDate": "2025-08-02T15:40:23.113Z",
+ "editCount": 0,
+ "postId": 1240,
+ "id": 146,
+ "postCommentTypeId": "Unknown",
+ "replyToUserId": 26,
+ "userId": 38,
+ "text": "update summary data code has been deployed .. @SwapnilSunilSabale @ShubhamSingh"
+}, {
+ "creationDate": "2025-08-03T11:21:37.823Z",
+ "editCount": 0,
+ "postId": 1035,
+ "id": 147,
+ "postCommentTypeId": "Unknown",
+ "replyToUserId": 26,
+ "userId": 38,
+ "text": "@SwapnilSunilSabale The code api is not working on the server due to blocking by bajaj Team ie edge suite ... run the code locally on the system and update the step for the same...."
+}, {
+ "creationDate": "2025-08-05T10:51:08.317Z",
+ "editCount": 0,
+ "postId": 1120,
+ "id": 148,
+ "postCommentTypeId": "Unknown",
+ "replyToUserId": 26,
+ "userId": 38,
+ "text": "@SwapnilSunilSabale we have prefected the code ....whiduch was causing issue earlier.."
+}, {
+ "creationDate": "2025-08-08T09:15:51.773Z",
+ "editCount": 0,
+ "postId": 1067,
+ "id": 149,
+ "postCommentTypeId": "Unknown",
+ "replyToUserId": 49,
+ "userId": 38,
+ "text": "@ShubhamSingh new code as per shivam has been put here"
+}, {
+ "creationDate": "2025-08-14T00:46:37.530Z",
+ "editCount": 0,
+ "postId": 1297,
+ "id": 150,
+ "postCommentTypeId": "Unknown",
+ "deletionUserId": 37,
+ "deletionDate": "2025-08-29T12:42:32.197Z",
+ "userId": 37,
+ "text": "will update with more details as we go"
+}, {
+ "creationDate": "2025-08-29T12:42:07.657Z",
+ "editCount": 0,
+ "postId": 1297,
+ "id": 151,
+ "postCommentTypeId": "Unknown",
+ "deletionUserId": 37,
+ "deletionDate": "2025-08-29T12:47:57.213Z",
+ "userId": 37,
+ "text": "All the logs can be found out at below location on the WEB Server (10.1.134.54) itself/var/log/kwikship/There are 3 types of logs"
+}, {
+ "creationDate": "2025-09-04T17:07:59.527Z",
+ "editCount": 0,
+ "postId": 1312,
+ "id": 152,
+ "postCommentTypeId": "Unknown",
+ "userId": 38,
+ "text": "to get the date from 1-31 moth ---also put 1 day extra in the code ito get the exact date"
+}, {
+ "creationDate": "2025-09-05T16:52:37.447Z",
+ "editCount": 1,
+ "postId": 1292,
+ "id": 153,
+ "postCommentTypeId": "Unknown",
+ "userId": 38,
+ "text": "Tejesh has update the existing code --where only prod+org ----> region ---value is paased ..code is update ad working"
+}, {
+ "creationDate": "2025-09-06T13:28:57.283Z",
+ "editCount": 1,
+ "postId": 1311,
+ "id": 154,
+ "postCommentTypeId": "Unknown",
+ "userDisplayName": "Rugved patil",
+ "text": "cmd  python fix_customer_form.py --session-id e7a88818-81a9-4d49-82fa-ea28936c7d8f --customer-id 7489381662"
+}, {
+ "creationDate": "2025-09-06T16:20:23.950Z",
+ "editCount": 0,
+ "postId": 1316,
+ "id": 155,
+ "postCommentTypeId": "Unknown",
+ "userId": 38,
+ "text": "Note : this code is only for checking you need to get the ip form other session and user the orignal stack to recover the ip value by munaul editing -https://stackoverflowteams.com/c/kwikid/questions/750as the cases are less also this issue is fix no need to automating this thing right now.."
+}, {
+ "creationDate": "2025-09-06T16:50:33.223Z",
+ "editCount": 0,
+ "postId": 1316,
+ "id": 156,
+ "postCommentTypeId": "Unknown",
+ "userId": 38,
+ "text": "It will only add the key in the db -you need to a=manual edit the summary-data and genrate the pdf --"
+}, {
+ "creationDate": "2025-09-06T17:33:11.940Z",
+ "editCount": 0,
+ "postId": 1316,
+ "id": 157,
+ "postCommentTypeId": "Unknown",
+ "userId": 38,
+ "text": "https://stackoverflowteams.com/c/kwikid/a/1318/38"
+}, {
+ "creationDate": "2025-09-10T15:32:45.297Z",
+ "editCount": 0,
+ "postId": 1154,
+ "id": 158,
+ "postCommentTypeId": "Unknown",
+ "replyToUserId": 26,
+ "userId": 38,
+ "text": "@SwapnilSunilSabale @AnilMitkari @PintuBhattacharya MFA,Email key added in the code itself ---it tested and working perfectly"
+}, {
+ "creationDate": "2025-09-16T04:36:51.557Z",
+ "editCount": 0,
+ "postId": 1312,
+ "id": 159,
+ "postCommentTypeId": "Unknown",
+ "userId": 38,
+ "text": "for the 2 nd mentiond we do not requred to put 1 dat extra to get the the dump data the code will extra exact date from the epoch...."
+}, {
+ "creationDate": "2025-09-18T17:44:21.423Z",
+ "editCount": 0,
+ "postId": 676,
+ "id": 160,
+ "postCommentTypeId": "Unknown",
+ "userId": 57,
+ "text": "There are 2 container where the code is hosted for rbl callback.\n1.continer contain code for -----other product code excluding [cc] / digiremit>> is this hosted by you in this container or this is a architecture containers ?"
+}, {
+ "creationDate": "2025-09-22T05:40:41.960Z",
+ "editCount": 0,
+ "postId": 1360,
+ "id": 161,
+ "postCommentTypeId": "Unknown",
+ "replyToUserId": 9,
+ "userId": 38,
+ "text": "@PintuBhattacharya Please add whcih dev server [ip] and continer name or id"
+}, {
+ "creationDate": "2025-09-22T06:55:43.417Z",
+ "editCount": 0,
+ "postId": 1360,
+ "id": 162,
+ "postCommentTypeId": "Unknown",
+ "userDisplayName": "Pintu Bhattacharya",
+ "text": "dev.vkyc.getkwikid.com  - private ip:- 172-31-0-59    public ip:-  3.7.28.126"
+}, {
+ "creationDate": "2025-09-22T09:07:35.950Z",
+ "editCount": 0,
+ "postId": 1366,
+ "id": 163,
+ "postCommentTypeId": "Unknown",
+ "userDisplayName": "Jainam Zobaliya",
+ "text": "The above code with run with the input xlsx file of format shared in: https://app.asana.com/1/1200709063324892/project/1207549876102743/task/1211406071779673if format is changed, then code changes will be required."
+}, {
+ "creationDate": "2025-09-24T15:51:01.910Z",
+ "editCount": 0,
+ "postId": 859,
+ "id": 164,
+ "postCommentTypeId": "Unknown",
+ "userId": 38,
+ "text": "RA - old code is till working for old prouduct code -- Not for new product cod"
+}, {
+ "creationDate": "2025-10-03T11:22:25.887Z",
+ "editCount": 0,
+ "postId": 1353,
+ "id": 165,
+ "postCommentTypeId": "Unknown",
+ "deletionUserId": 57,
+ "deletionDate": "2025-11-17T16:19:07.447Z",
+ "userId": 57,
+ "text": "user this latest script for client based user creation. e.g unity,unity_uat\r\n/home/ubuntu/script/data/create_userid_v2.0.py"
+}, {
+ "creationDate": "2025-10-08T06:45:23.030Z",
+ "editCount": 0,
+ "postId": 784,
+ "id": 166,
+ "postCommentTypeId": "Unknown",
+ "userId": 57,
+ "text": "Added another script which take directly inputs from terminal itself no need to do vi \r\n\r\nubuntu@ip-172-29-11-111:~/script$ pwd \r\n/home/ubuntu/script\r\nubuntu@ip-172-29-11-111:~/script$ python remove_audit_lock_v2.py"
+}, {
+ "creationDate": "2025-10-09T07:57:03.427Z",
+ "editCount": 0,
+ "postId": 1050,
+ "id": 167,
+ "postCommentTypeId": "Unknown",
+ "deletionUserId": 40,
+ "deletionDate": "2025-10-09T07:58:00.310Z",
+ "userDisplayName": "Rugved patil",
+ "text": "If MinIO performance is slow, the same tasks can be accomplished using the AWS CLI:"
+}, {
+ "creationDate": "2025-11-03T10:54:10.740Z",
+ "editCount": 0,
+ "postId": 1435,
+ "id": 168,
+ "postCommentTypeId": "Unknown",
+ "userDisplayName": "Rugved patil",
+ "text": "@Yogeshbad Run this is auat not in CBI server"
+}, {
+ "creationDate": "2025-11-03T18:59:36.513Z",
+ "editCount": 0,
+ "postId": 1379,
+ "id": 169,
+ "postCommentTypeId": "Unknown",
+ "userId": 57,
+ "text": "docker logs --tail 10000 notificaion-service | grep \"d5163816-564f-434d-b8a1-ffac4472efe6\" -C 100 > temp.log\r\n\r\nif given command not work then use this command"
+}, {
+ "creationDate": "2025-11-14T10:14:37.367Z",
+ "editCount": 0,
+ "postId": 515,
+ "id": 170,
+ "postCommentTypeId": "Unknown",
+ "deletionUserId": 40,
+ "deletionDate": "2025-11-14T10:14:45.947Z",
+ "userDisplayName": "Rugved patil",
+ "text": "abe tuh kasa karo wise hi kar kal jaise kiya tha"
+}, {
+ "creationDate": "2025-11-17T16:19:13.350Z",
+ "editCount": 0,
+ "postId": 1353,
+ "id": 171,
+ "postCommentTypeId": "Unknown",
+ "userId": 57,
+ "text": "user this latest script for client based user creation. e.g unity,unity_uat /home/ubuntu/script/data/create_userid_v2.0.py"
+}, {
+ "creationDate": "2025-11-24T06:12:01.627Z",
+ "editCount": 0,
+ "postId": 607,
+ "id": 172,
+ "postCommentTypeId": "Unknown",
+ "deletionUserId": 25,
+ "deletionDate": "2025-11-24T06:12:52.327Z",
+ "userId": 25,
+ "text": "If script not work then download image from s3 from this path"
+}, {
+ "creationDate": "2025-11-24T11:08:29.850Z",
+ "editCount": 0,
+ "postId": 1469,
+ "id": 173,
+ "postCommentTypeId": "Unknown",
+ "userId": 57,
+ "text": "https://stackoverflowteams.com/c/kwikid/questions/1474/1475#1475 use this script if needed more easy to handle script."
+}, {
+ "creationDate": "2025-11-25T05:44:47.127Z",
+ "editCount": 0,
+ "postId": 1407,
+ "id": 174,
+ "postCommentTypeId": "Unknown",
+ "userId": 55,
+ "text": "how to add multiple session id's?"
+}, {
+ "creationDate": "2026-01-02T08:09:27.583Z",
+ "editCount": 0,
+ "postId": 1498,
+ "id": 175,
+ "postCommentTypeId": "Unknown",
+ "userId": 57,
+ "text": "root@ip-172-29-11-111: python /home/ubuntu/script/data/deactivate_userid_v2.py"
+}, {
+ "creationDate": "2026-01-16T18:31:37.153Z",
+ "editCount": 0,
+ "postId": 932,
+ "id": 176,
+ "postCommentTypeId": "Unknown",
+ "replyToUserId": 49,
+ "userId": 38,
+ "text": "@ShubhamSingh@SwapnilSunilSabale step has been added for the same RBL_VPD"
+}, {
+ "creationDate": "2026-02-12T06:22:20.567Z",
+ "editCount": 0,
+ "postId": 913,
+ "id": 177,
+ "postCommentTypeId": "Unknown",
+ "userId": 57,
+ "text": "sudo nohup ./port-range \\\r\n  -public-ip 52.66.68.0 \\\r\n  -private-ip 172.29.11.85 \\\r\n  -port 443 \\\r\n  -alt-port-public 49155 \\\r\n  -minPort 11162 \\\r\n  -maxPort 65535 \\\r\n  -users taipvu=taipvp \\\r\n  -tcp-port 443 \\\r\n  >> turn.out 2>> turn.err &"
+}, {
+ "creationDate": "2026-02-26T10:50:14.970Z",
+ "editCount": 0,
+ "postId": 265,
+ "id": 178,
+ "postCommentTypeId": "Unknown",
+ "userId": 2,
+ "text": "Latest saas ice tester: https://icetest.app.getkwikid.com/"
+}, {
+ "creationDate": "2026-02-26T10:51:26.283Z",
+ "editCount": 0,
+ "postId": 264,
+ "id": 179,
+ "postCommentTypeId": "Unknown",
+ "userId": 2,
+ "text": "Latest saas ice tester: icetest.app.getkwikid.com"
+}, {
+ "creationDate": "2026-02-27T10:15:18.497Z",
+ "editCount": 0,
+ "postId": 1443,
+ "id": 180,
+ "postCommentTypeId": "Unknown",
+ "userId": 2,
+ "text": "/root/script/rbl_video_recovery.py"
+}, {
+ "creationDate": "2026-03-04T09:46:40.173Z",
+ "editCount": 0,
+ "postId": 1601,
+ "id": 181,
+ "postCommentTypeId": "Unknown",
+ "userId": 69,
+ "text": "Use the following curl:"
+}, {
+ "creationDate": "2026-03-19T11:01:10.233Z",
+ "editCount": 0,
+ "postId": 916,
+ "id": 182,
+ "postCommentTypeId": "Unknown",
+ "userId": 55,
+ "text": "restart this container - kwikid_vkyc_apk"
+}, {
+ "creationDate": "2026-03-19T11:01:38.827Z",
+ "editCount": 0,
+ "postId": 917,
+ "id": 183,
+ "postCommentTypeId": "Unknown",
+ "userId": 55,
+ "text": "restart this container - kwikid_vkyc_apk\r\n after file input"
+}, {
+ "creationDate": "2026-03-20T06:31:55.373Z",
+ "editCount": 0,
+ "postId": 1250,
+ "id": 184,
+ "postCommentTypeId": "Unknown",
+ "deletionUserId": 54,
+ "deletionDate": "2026-03-20T06:39:13.580Z",
+ "userId": 54,
+ "text": "As we have three APP Servers for DKYC so need to deploy changes on APP2 (10.1.43.245) and APP3 (10.1.43.246)\r\n\r\nhttps://stackoverflowteams.com/c/kwikid/questions/1296/1297#1297\r\nfor containers"
+}, {
+ "creationDate": "2026-03-25T12:09:29.780Z",
+ "editCount": 0,
+ "postId": 1637,
+ "id": 185,
+ "postCommentTypeId": "Unknown",
+ "userId": 57,
+ "text": "https://stackoverflowteams.com/c/kwikid/questions/1579\r\n\r\nto understand the code refer this stack"
+}, {
+ "creationDate": "2026-03-29T18:55:45.247Z",
+ "editCount": 1,
+ "postId": 1634,
+ "id": 186,
+ "postCommentTypeId": "Unknown",
+ "userId": 38,
+ "text": "@AnilMitkari Pleaes Mentioned the server name- it missing\r\nAlso mentioned Any venv requird for your code to run"
+}, {
+ "creationDate": "2026-04-10T10:50:28.253Z",
+ "editCount": 0,
+ "postId": 872,
+ "id": 187,
+ "postCommentTypeId": "Unknown",
+ "userId": 38,
+ "text": "Outdated Stack"
+}, {
+ "creationDate": "2026-05-02T08:13:26.253Z",
+ "editCount": 0,
+ "postId": 1610,
+ "id": 188,
+ "postCommentTypeId": "Unknown",
+ "userId": 55,
+ "text": "as per new deployment pan is optional now"
+}, {
+ "creationDate": "2026-05-18T12:13:54.060Z",
+ "editCount": 0,
+ "postId": 1686,
+ "id": 189,
+ "postCommentTypeId": "Unknown",
+ "deletionUserId": 55,
+ "deletionDate": "2026-05-18T12:13:59.140Z",
+ "userId": 55,
+ "text": "to redact aadhar pdf run below command"
+}, {
+ "creationDate": "2026-05-18T12:24:03.443Z",
+ "editCount": 1,
+ "postId": 1686,
+ "id": 190,
+ "postCommentTypeId": "Unknown",
+ "userId": 55,
+ "text": "To run this command go to - https://emqui.vkyc.cbi.dc.getkwikid.com/\r\nstep 1 - cd  /data/VKYC/scripts/rekyc_aadhar\r\n\r\nstep 2 - aws s3 cp s3://kwikid/videokyc/aadhaar/CBI/9461930567/9461930567_aadhaar_redacted.pdf . --endpoint-url http://10.1.45.41:9000 --no-verify-ssl"
+}, {
+ "creationDate": "2026-05-26T08:02:36.833Z",
+ "editCount": 0,
+ "postId": 1100,
+ "id": 191,
+ "postCommentTypeId": "Unknown",
+ "replyToUserId": 14,
+ "userId": 37,
+ "text": "@SumatiNadar Obsolete, please clean up this SOP"
+}, {
+ "creationDate": "2026-06-05T06:36:41.187Z",
+ "editCount": 2,
+ "postId": 1538,
+ "id": 192,
+ "postCommentTypeId": "Unknown",
+ "deletionUserId": 63,
+ "deletionDate": "2026-06-05T11:18:50.697Z",
+ "userId": 63,
+ "text": "Server_Name: bajaj.new.prod.worker\r\nAccess Through - New_teleport_link: https://license360.getkwikid.com/web/cluster/ip-172-31-47-239.ap-south-1.compute.internal/resources"
+}]

@@ -33,7 +33,12 @@ from datetime import datetime, timezone
 from typing import Any, TYPE_CHECKING
 
 from case_engine.case_state import CaseState
-from case_engine.runtime.agent_models import AgentExecutionResult, AgentStatus
+from case_engine.runtime.agent_models import (
+    AgentExecutionResult,
+    AgentStatus,
+    SupportAgentMode,
+    _mode_from_env,
+)
 from case_engine.response_generation.models import ResponseContext, ResponseType
 
 if TYPE_CHECKING:
@@ -178,11 +183,13 @@ class SupportAgentRuntime:
         response_generation_service: "ResponseGenerationService | None" = None,
         engineering_escalation_service: "EngineeringEscalationService | None" = None,
         audit_logger:                "AuditLogger | None" = None,
+        mode:                        SupportAgentMode = SupportAgentMode.DRY_RUN,
     ) -> None:
         self._case_svc      = case_service
         self._response_svc  = response_generation_service
         self._engineering   = engineering_escalation_service
         self._audit         = audit_logger
+        self._mode          = mode
 
     # ── Primary API ───────────────────────────────────────────────────────────
 
@@ -378,6 +385,10 @@ class SupportAgentRuntime:
                     case.case_id, exc,
                 )
 
+        # Emit DRY_RUN_EXECUTION if workflow ran in dry-run mode
+        if self._mode == SupportAgentMode.DRY_RUN and workflow_result is not None:
+            self._emit_dry_run_execution(case, workflow_result)
+
         # ── Step 5: NOTEGEN + L2CHECK ────────────────────────────────────────
         steps_completed.append("NOTEGEN")
         needs_l2   = _needs_engineering_escalation(case.topic, workflow_result)
@@ -386,37 +397,46 @@ class SupportAgentRuntime:
         # ── Step 6: ASANACREATE (if L2 needed) ───────────────────────────────
         engineering_result: dict[str, Any] | None = None
         if needs_l2 and self._engineering is not None:
-            steps_completed.append("ASANACREATE")
-            investigation = _extract_investigation(workflow_result)
-            root_cause    = _extract_root_cause(investigation)
-            knowledge     = _extract_workflow_knowledge(workflow_result)
-            sop_steps     = list(knowledge.get("sop_steps") or [])
-
-            escalation_reason = (
-                (workflow_result or {}).get("escalation_reason")
-                or "Automated L1 resolution unsuccessful — engineering review required."
-            )
-
-            try:
-                eng_result = self._engineering.create_ticket(
-                    case=case,
-                    topic=case.topic or "UNKNOWN",
-                    freshdesk_ticket_id=case.ticket_id,
-                    investigation_result=investigation,
-                    root_cause=root_cause,
-                    sop_steps=sop_steps,
-                    escalation_reason=escalation_reason,
-                )
-                engineering_result = eng_result.to_dict()
+            if self._mode == SupportAgentMode.DRY_RUN:
+                # DRY_RUN: skip actual Asana creation, emit audit event
+                steps_completed.append("ASANACREATE_DRY_RUN")
+                self._emit_dry_run_action(case, "engineering_escalation", "ASANACREATE")
                 LOGGER.info(
-                    "support_agent_runtime.engineering_escalation case_id=%s ticket_id=%s",
-                    case.case_id, eng_result.ticket.ticket_id,
+                    "support_agent_runtime.asanacreate dry_run case_id=%s — skipped",
+                    case.case_id,
                 )
-            except Exception as exc:
-                LOGGER.warning(
-                    "support_agent_runtime.asanacreate failed case_id=%s error=%s",
-                    case.case_id, exc,
+            else:
+                steps_completed.append("ASANACREATE")
+                investigation = _extract_investigation(workflow_result)
+                root_cause    = _extract_root_cause(investigation)
+                knowledge     = _extract_workflow_knowledge(workflow_result)
+                sop_steps     = list(knowledge.get("sop_steps") or [])
+
+                escalation_reason = (
+                    (workflow_result or {}).get("escalation_reason")
+                    or "Automated L1 resolution unsuccessful — engineering review required."
                 )
+
+                try:
+                    eng_result = self._engineering.create_ticket(
+                        case=case,
+                        topic=case.topic or "UNKNOWN",
+                        freshdesk_ticket_id=case.ticket_id,
+                        investigation_result=investigation,
+                        root_cause=root_cause,
+                        sop_steps=sop_steps,
+                        escalation_reason=escalation_reason,
+                    )
+                    engineering_result = eng_result.to_dict()
+                    LOGGER.info(
+                        "support_agent_runtime.engineering_escalation case_id=%s ticket_id=%s",
+                        case.case_id, eng_result.ticket.ticket_id,
+                    )
+                except Exception as exc:
+                    LOGGER.warning(
+                        "support_agent_runtime.asanacreate failed case_id=%s error=%s",
+                        case.case_id, exc,
+                    )
 
         # ── Step 7: USERRESPONSE ──────────────────────────────────────────────
         steps_completed.append("USERRESPONSE")
@@ -553,6 +573,44 @@ class SupportAgentRuntime:
 
     # ── Audit ─────────────────────────────────────────────────────────────────
 
+    def _emit_dry_run_execution(
+        self,
+        case: "Case",
+        workflow_result: dict[str, Any],
+    ) -> None:
+        """Emit DRY_RUN_EXECUTION audit event. Never raises."""
+        if self._audit is None:
+            return
+        try:
+            step_results = workflow_result.get("step_results") or []
+            executed_actions = [
+                s.get("action_type", "")
+                for s in step_results
+                if isinstance(s, dict) and s.get("step_type") == "EXECUTE"
+            ]
+            action_summary = ", ".join(executed_actions) if executed_actions else "workflow"
+            self._audit.log_dry_run_execution(
+                case=case,
+                action_type=action_summary,
+                workflow_id=workflow_result.get("workflow_id", ""),
+            )
+        except Exception as exc:
+            LOGGER.debug("support_agent_runtime: dry_run_execution emit failed: %s", exc)
+
+    def _emit_dry_run_action(
+        self,
+        case: "Case",
+        action_type: str,
+        step: str,
+    ) -> None:
+        """Emit DRY_RUN_ACTION audit event. Never raises."""
+        if self._audit is None:
+            return
+        try:
+            self._audit.log_dry_run_action(case=case, action_type=action_type, step=step)
+        except Exception as exc:
+            LOGGER.debug("support_agent_runtime: dry_run_action emit failed: %s", exc)
+
     def _emit_agent_started(self, case: "Case") -> None:
         """Emit audit event for agent run start. Never raises."""
         if self._audit is None:
@@ -585,6 +643,7 @@ def build_support_agent_runtime(
     response_generation_service: Any = None,
     engineering_escalation_service: Any = None,
     audit_logger:                Any = None,
+    mode:                        Any = None,
 ) -> SupportAgentRuntime:
     """
     Factory: build a SupportAgentRuntime.
@@ -594,10 +653,14 @@ def build_support_agent_runtime(
         response_generation_service:   ResponseGenerationService (optional; skips USERRESPONSE if None).
         engineering_escalation_service: EngineeringEscalationService (optional; skips ASANACREATE if None).
         audit_logger:                  Optional AuditLogger.
+        mode:                          SupportAgentMode (defaults to env var SUPPORT_AGENT_MODE, else DRY_RUN).
 
     Returns:
         SupportAgentRuntime ready to process cases.
     """
+    if mode is None:
+        mode = _mode_from_env()
+
     # Build defaults if services not provided
     if response_generation_service is None:
         try:
@@ -617,9 +680,11 @@ def build_support_agent_runtime(
         except Exception as exc:
             LOGGER.warning("build_support_agent_runtime: engineering_svc failed error=%s", exc)
 
+    LOGGER.info("build_support_agent_runtime mode=%s", mode.value)
     return SupportAgentRuntime(
         case_service=case_service,
         response_generation_service=response_generation_service,
         engineering_escalation_service=engineering_escalation_service,
         audit_logger=audit_logger,
+        mode=mode,
     )

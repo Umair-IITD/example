@@ -1,0 +1,7412 @@
+[{
+ "creationDate": "2021-06-19T14:25:33.783Z",
+ "voteTypeId": 1,
+ "userId": 2,
+ "postId": 12,
+ "id": 1,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 2
+}, {
+ "creationDate": "2021-07-02T09:18:54.450Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 16,
+ "id": 6,
+ "targetRepChange": 10,
+ "targetUserId": 2,
+ "comment": "User Deleted: 1"
+}, {
+ "creationDate": "2021-07-06T13:26:49.917Z",
+ "voteTypeId": 2,
+ "userId": 2,
+ "postId": 17,
+ "id": 8,
+ "targetRepChange": 10
+}, {
+ "creationDate": "2021-07-23T11:27:35.860Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 25,
+ "id": 9,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2021-08-09T12:42:40.093Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 27,
+ "id": 10,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2021-09-16T08:48:15.520Z",
+ "voteTypeId": 1,
+ "userId": 2,
+ "postId": 29,
+ "id": 11,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 2
+}, {
+ "creationDate": "2021-10-28T06:24:36.647Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 33,
+ "id": 12,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2021-12-31T08:29:51.853Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 38,
+ "id": 13,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2022-01-14T07:33:59.957Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 25,
+ "id": 14,
+ "targetRepChange": 10,
+ "comment": "User Deleted: 7"
+}, {
+ "creationDate": "2022-02-17T14:59:27.623Z",
+ "voteTypeId": 2,
+ "userId": 2,
+ "postId": 14,
+ "id": 15,
+ "targetRepChange": 10
+}, {
+ "creationDate": "2022-02-17T17:19:23.923Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 40,
+ "id": 16,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2022-02-17T17:21:08.590Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 42,
+ "id": 17,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2022-06-21T05:25:28.817Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 44,
+ "id": 18,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2022-07-05T06:05:51.450Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 46,
+ "id": 19,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2022-08-09T11:08:26.027Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 50,
+ "id": 20,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2022-08-09T11:25:56.780Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 52,
+ "id": 21,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2022-08-11T10:22:00.223Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 54,
+ "id": 22,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2022-08-16T10:02:40.487Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 56,
+ "id": 23,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "deletionDate": "2022-08-16T10:04:21.757Z"
+}, {
+ "creationDate": "2022-08-16T10:04:23.063Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 56,
+ "id": 24,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2022-08-19T09:13:37.613Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 58,
+ "id": 25,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2022-08-19T10:11:45.697Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 60,
+ "id": 26,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2022-08-22T15:11:28.620Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 62,
+ "id": 27,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2022-08-24T10:14:47.597Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 64,
+ "id": 28,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2022-08-24T10:35:19.597Z",
+ "voteTypeId": 2,
+ "userId": 2,
+ "postId": 64,
+ "id": 29,
+ "targetRepChange": 10
+}, {
+ "creationDate": "2022-09-14T06:39:31.797Z",
+ "voteTypeId": 2,
+ "userId": 2,
+ "postId": 68,
+ "id": 30,
+ "targetRepChange": 10
+}, {
+ "creationDate": "2022-10-07T10:44:42.390Z",
+ "voteTypeId": 1,
+ "userId": 2,
+ "postId": 80,
+ "id": 31,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 2
+}, {
+ "creationDate": "2022-10-18T08:32:54.977Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 83,
+ "id": 32,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2022-10-21T07:18:57.767Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 85,
+ "id": 33,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2022-10-21T07:28:16.5Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 87,
+ "id": 34,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2022-10-28T07:45:40.280Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 92,
+ "id": 35,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2022-10-29T06:25:53.957Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 94,
+ "id": 36,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2022-11-01T06:11:23.283Z",
+ "voteTypeId": 1,
+ "userId": 2,
+ "postId": 98,
+ "id": 37,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 2
+}, {
+ "creationDate": "2022-11-09T14:13:02.093Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 102,
+ "id": 38,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2022-11-11T06:58:49.017Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 101,
+ "id": 39,
+ "targetRepChange": 10,
+ "comment": "User Deleted: 18"
+}, {
+ "creationDate": "2022-11-11T10:32:04.073Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 105,
+ "id": 40,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2022-11-15T10:15:33.603Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 107,
+ "id": 41,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2022-11-16T12:33:22.613Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 116,
+ "id": 42,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2022-11-18T07:36:08.027Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 122,
+ "id": 43,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2022-11-18T07:58:04.813Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 121,
+ "id": 44,
+ "targetRepChange": 10,
+ "comment": "User Deleted: 19"
+}, {
+ "creationDate": "2022-11-18T08:06:31.840Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 121,
+ "id": 45,
+ "targetRepChange": 10,
+ "comment": "User Deleted: 17"
+}, {
+ "creationDate": "2022-11-18T10:36:59.443Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 124,
+ "id": 46,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2022-11-23T06:09:14.627Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 106,
+ "id": 47,
+ "targetRepChange": 10,
+ "comment": "User Deleted: 17"
+}, {
+ "creationDate": "2022-11-26T19:22:42.763Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 129,
+ "id": 48,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2022-12-09T11:13:21.930Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 138,
+ "id": 49,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2022-12-20T12:00:03.687Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 141,
+ "id": 50,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-01-05T17:58:39.917Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 146,
+ "id": 51,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-01-06T05:24:54.887Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 144,
+ "id": 52,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-01-11T06:52:33.117Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 148,
+ "id": 53,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-01-16T08:17:18.917Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 155,
+ "id": 54,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-01-17T07:45:42.650Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 159,
+ "id": 55,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-01-18T09:14:58.657Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 162,
+ "id": 56,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-01-18T18:14:10.903Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 164,
+ "id": 57,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-01-18T19:04:10.883Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 166,
+ "id": 58,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-01-19T18:47:15.990Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 169,
+ "id": 59,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-01-26T10:00:53.117Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 174,
+ "id": 60,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-01-31T06:48:18.633Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 176,
+ "id": 61,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-02-02T18:26:14.357Z",
+ "voteTypeId": 1,
+ "userId": 2,
+ "postId": 181,
+ "id": 62,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 2
+}, {
+ "creationDate": "2023-02-08T08:26:16.480Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 189,
+ "id": 63,
+ "voterRepChange": 2,
+ "targetRepChange": 15
+}, {
+ "creationDate": "2023-02-13T12:22:22.457Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 194,
+ "id": 64,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-02-15T11:07:40.127Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 196,
+ "id": 65,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-02-23T07:46:21.073Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 199,
+ "id": 66,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-03-16T11:45:44.043Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 202,
+ "id": 67,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-03-17T12:30:26.860Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 204,
+ "id": 68,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-03-17T12:36:48.380Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 206,
+ "id": 69,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-03-29T09:30:09.003Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 212,
+ "id": 70,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-04-02T18:53:04.313Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 215,
+ "id": 71,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-04-10T05:25:40.953Z",
+ "voteTypeId": 1,
+ "userId": 2,
+ "postId": 222,
+ "id": 72,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 2
+}, {
+ "creationDate": "2023-04-10T15:29:52.320Z",
+ "voteTypeId": 1,
+ "userId": 2,
+ "postId": 224,
+ "id": 73,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 2
+}, {
+ "creationDate": "2023-04-24T10:34:43.587Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 231,
+ "id": 74,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-04-27T09:42:45.117Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 233,
+ "id": 75,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-04-29T08:10:28.8Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 235,
+ "id": 76,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "deletionDate": "2023-09-14T07:52:53.667Z"
+}, {
+ "creationDate": "2023-05-02T12:13:27.720Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 238,
+ "id": 77,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-05-11T12:24:17.260Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 240,
+ "id": 78,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-05-17T06:23:14.843Z",
+ "voteTypeId": 1,
+ "userId": 2,
+ "postId": 243,
+ "id": 79,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 2
+}, {
+ "creationDate": "2023-05-18T08:23:41.147Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 247,
+ "id": 80,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-05-26T09:11:46.707Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 249,
+ "id": 81,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-05-26T09:13:09.840Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 251,
+ "id": 82,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-06-09T09:20:11.187Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 254,
+ "id": 83,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-06-21T10:59:57.787Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 256,
+ "id": 84,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-07-13T11:49:25.297Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 258,
+ "id": 85,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-07-13T12:31:23.770Z",
+ "voteTypeId": 1,
+ "userId": 2,
+ "postId": 260,
+ "id": 86,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 2
+}, {
+ "creationDate": "2023-07-15T16:48:16.470Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 262,
+ "id": 87,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-07-17T09:37:43.720Z",
+ "voteTypeId": 1,
+ "userId": 2,
+ "postId": 265,
+ "id": 88,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 2
+}, {
+ "creationDate": "2023-08-20T21:28:26.990Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 276,
+ "id": 89,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-08-25T10:47:10.523Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 278,
+ "id": 90,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-08-25T10:49:29.913Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 280,
+ "id": 91,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-08-29T07:12:31.133Z",
+ "voteTypeId": 1,
+ "userId": 2,
+ "postId": 284,
+ "id": 92,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 2
+}, {
+ "creationDate": "2023-08-29T08:35:22.970Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 286,
+ "id": 93,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-08-29T09:13:14.507Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 288,
+ "id": 94,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-08-30T10:10:10.627Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 290,
+ "id": 95,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-08-31T05:24:51.767Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 292,
+ "id": 96,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-08-31T05:26:36.767Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 294,
+ "id": 97,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-09-01T07:15:45.653Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 297,
+ "id": 98,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-09-01T07:44:07.953Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 299,
+ "id": 99,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-09-01T12:57:35.757Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 301,
+ "id": 100,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-09-06T08:10:36.707Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 303,
+ "id": 101,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-09-06T13:39:52.1Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 305,
+ "id": 102,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-09-10T19:47:22.770Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 308,
+ "id": 103,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-09-12T08:22:48.257Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 311,
+ "id": 104,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-09-12T18:00:45.160Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 313,
+ "id": 105,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-09-13T16:45:39.430Z",
+ "voteTypeId": 24,
+ "userId": 14,
+ "postId": 77,
+ "id": 106,
+ "targetUserId": 2
+}, {
+ "creationDate": "2023-09-14T05:46:02.417Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 316,
+ "id": 107,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-09-14T05:50:36.660Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 318,
+ "id": 108,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-09-14T07:52:53.667Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 319,
+ "id": 109,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-09-14T08:00:00.037Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 321,
+ "id": 110,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-09-14T10:46:22.140Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 323,
+ "id": 111,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-09-14T12:25:44.283Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 325,
+ "id": 112,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-09-14T13:50:00.927Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 327,
+ "id": 113,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-09-14T14:30:07.207Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 329,
+ "id": 114,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "deletionDate": "2023-09-20T15:06:49.097Z"
+}, {
+ "creationDate": "2023-09-14T17:49:34.330Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 333,
+ "id": 115,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-09-15T08:31:58.277Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 335,
+ "id": 116,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-09-15T10:52:11.350Z",
+ "voteTypeId": 1,
+ "userId": 2,
+ "postId": 337,
+ "id": 117,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 2
+}, {
+ "creationDate": "2023-09-16T19:57:19.987Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 339,
+ "id": 118,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-09-17T09:11:17.287Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 341,
+ "id": 119,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-09-18T11:22:40.2Z",
+ "voteTypeId": 1,
+ "userId": 2,
+ "postId": 343,
+ "id": 120,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 2
+}, {
+ "creationDate": "2023-09-20T08:31:28.363Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 345,
+ "id": 121,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-09-20T13:31:28.757Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 348,
+ "id": 122,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-09-20T15:06:49.097Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 346,
+ "id": 123,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-09-21T07:56:45.677Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 350,
+ "id": 124,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-09-22T09:59:25.590Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 352,
+ "id": 125,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-09-26T06:20:27.640Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 354,
+ "id": 126,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-09-26T10:51:04.767Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 356,
+ "id": 127,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-09-27T10:21:38.157Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 359,
+ "id": 128,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-10-03T12:20:12.270Z",
+ "voteTypeId": 2,
+ "userId": 2,
+ "postId": 210,
+ "id": 129,
+ "targetRepChange": 10,
+ "targetUserId": 8,
+ "deletionDate": "2023-10-03T12:20:13.950Z"
+}, {
+ "creationDate": "2023-10-03T12:20:13.950Z",
+ "voteTypeId": 3,
+ "userId": 2,
+ "postId": 210,
+ "id": 130,
+ "voterRepChange": -1,
+ "targetRepChange": 0,
+ "targetUserId": 8,
+ "deletionDate": "2023-10-03T12:20:14.993Z"
+}, {
+ "creationDate": "2023-10-03T12:20:14.993Z",
+ "voteTypeId": 2,
+ "userId": 2,
+ "postId": 210,
+ "id": 131,
+ "targetRepChange": 10,
+ "targetUserId": 8,
+ "deletionDate": "2023-10-03T12:20:19.837Z"
+}, {
+ "creationDate": "2023-10-03T12:20:19.837Z",
+ "voteTypeId": 3,
+ "userId": 2,
+ "postId": 210,
+ "id": 132,
+ "voterRepChange": -1,
+ "targetRepChange": 0,
+ "targetUserId": 8,
+ "deletionDate": "2023-10-03T12:20:20.437Z"
+}, {
+ "creationDate": "2023-10-03T12:20:20.437Z",
+ "voteTypeId": 2,
+ "userId": 2,
+ "postId": 210,
+ "id": 133,
+ "targetRepChange": 10,
+ "targetUserId": 8,
+ "deletionDate": "2023-10-03T12:20:21.407Z"
+}, {
+ "creationDate": "2023-10-03T16:13:59.423Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 363,
+ "id": 134,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-10-04T07:16:24.397Z",
+ "voteTypeId": 1,
+ "userId": 2,
+ "postId": 365,
+ "id": 136,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 2
+}, {
+ "creationDate": "2023-10-04T11:06:44.810Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 367,
+ "id": 137,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-10-06T08:47:57.077Z",
+ "voteTypeId": 1,
+ "userId": 2,
+ "postId": 369,
+ "id": 138,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 2
+}, {
+ "creationDate": "2023-10-06T09:21:06.387Z",
+ "voteTypeId": 1,
+ "userId": 2,
+ "postId": 371,
+ "id": 139,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 2
+}, {
+ "creationDate": "2023-10-10T10:32:50.593Z",
+ "voteTypeId": 1,
+ "userId": 8,
+ "postId": 373,
+ "id": 140,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 8
+}, {
+ "creationDate": "2023-10-12T07:09:50.523Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 375,
+ "id": 141,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-10-19T05:58:08.990Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 377,
+ "id": 142,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-10-28T10:15:55.617Z",
+ "voteTypeId": 1,
+ "userId": 2,
+ "postId": 382,
+ "id": 143,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 2
+}, {
+ "creationDate": "2023-10-30T08:24:47.910Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 384,
+ "id": 144,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-10-30T08:36:04.1Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 386,
+ "id": 145,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-10-31T07:34:59.863Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 390,
+ "id": 146,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-10-31T08:12:03.250Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 392,
+ "id": 147,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-11-07T12:48:40.670Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 395,
+ "id": 148,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-11-07T13:14:17.610Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 397,
+ "id": 149,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-11-18T12:55:33.650Z",
+ "voteTypeId": 1,
+ "userId": 2,
+ "postId": 399,
+ "id": 150,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 2
+}, {
+ "creationDate": "2023-11-20T20:36:27.757Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 401,
+ "id": 151,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-11-22T16:19:29.643Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 403,
+ "id": 152,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-11-28T19:06:41.313Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 406,
+ "id": 153,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-11-30T07:28:42.380Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 408,
+ "id": 154,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-11-30T07:42:51.473Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 410,
+ "id": 155,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-12-12T08:19:36.667Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 412,
+ "id": 156,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-12-12T15:17:27.570Z",
+ "voteTypeId": 1,
+ "userId": 2,
+ "postId": 414,
+ "id": 157,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 2
+}, {
+ "creationDate": "2023-12-13T06:01:00.420Z",
+ "voteTypeId": 1,
+ "userId": 2,
+ "postId": 416,
+ "id": 158,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 2
+}, {
+ "creationDate": "2023-12-13T08:07:15.320Z",
+ "voteTypeId": 1,
+ "userId": 2,
+ "postId": 418,
+ "id": 159,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 2
+}, {
+ "creationDate": "2023-12-14T12:51:01.947Z",
+ "voteTypeId": 1,
+ "userId": 2,
+ "postId": 421,
+ "id": 160,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 2,
+ "deletionDate": "2024-10-30T04:46:09.877Z"
+}, {
+ "creationDate": "2023-12-14T16:53:15.910Z",
+ "voteTypeId": 1,
+ "userId": 14,
+ "postId": 423,
+ "id": 161,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 14
+}, {
+ "creationDate": "2023-12-22T06:19:20.370Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 425,
+ "id": 162,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-12-26T06:11:51.850Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 427,
+ "id": 163,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2023-12-28T10:31:13.263Z",
+ "voteTypeId": 1,
+ "userId": 14,
+ "postId": 429,
+ "id": 164,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 14
+}, {
+ "creationDate": "2023-12-28T10:38:28.943Z",
+ "voteTypeId": 1,
+ "userId": 14,
+ "postId": 431,
+ "id": 165,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 14
+}, {
+ "creationDate": "2024-01-06T18:36:39.310Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 435,
+ "id": 166,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-01-07T09:34:23.337Z",
+ "voteTypeId": 1,
+ "userId": 2,
+ "postId": 437,
+ "id": 167,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 2
+}, {
+ "creationDate": "2024-01-09T12:13:46.803Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 439,
+ "id": 168,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-01-09T12:26:59.480Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 441,
+ "id": 169,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-01-22T11:21:53.840Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 443,
+ "id": 170,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-01-24T08:54:15.230Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 445,
+ "id": 171,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-01-24T15:31:58.003Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 447,
+ "id": 172,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-02-02T07:44:22.843Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 451,
+ "id": 173,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-02-04T07:41:24.617Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 454,
+ "id": 174,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-02-05T04:13:52.803Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 456,
+ "id": 175,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-02-06T11:04:03.333Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 458,
+ "id": 176,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-02-09T06:16:39.177Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 460,
+ "id": 177,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-02-11T16:58:25.070Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 462,
+ "id": 178,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-02-12T10:01:41.890Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 464,
+ "id": 179,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-02-15T04:35:52.403Z",
+ "voteTypeId": 2,
+ "userId": 26,
+ "postId": 424,
+ "id": 180,
+ "targetRepChange": 10
+}, {
+ "creationDate": "2024-02-15T04:50:28.543Z",
+ "voteTypeId": 2,
+ "userId": 26,
+ "postId": 311,
+ "id": 181,
+ "targetRepChange": 10,
+ "deletionDate": "2024-02-15T04:50:38.510Z"
+}, {
+ "creationDate": "2024-02-19T05:39:13.943Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 469,
+ "id": 182,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-02-19T11:23:00.047Z",
+ "voteTypeId": 2,
+ "userId": 26,
+ "postId": 441,
+ "id": 183,
+ "targetRepChange": 10,
+ "deletionDate": "2024-02-19T11:23:02.447Z"
+}, {
+ "creationDate": "2024-02-21T14:21:31.357Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 472,
+ "id": 184,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-02-21T14:43:17.417Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 474,
+ "id": 185,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-02-21T15:20:33.793Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 476,
+ "id": 186,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-02-21T15:43:37.413Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 478,
+ "id": 187,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-02-23T09:18:20.580Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 480,
+ "id": 188,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-02-26T06:39:43.930Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 482,
+ "id": 189,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-02-26T08:37:59.177Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 484,
+ "id": 190,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-02-29T11:30:50.763Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 487,
+ "id": 191,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-03-02T11:55:43.557Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 489,
+ "id": 192,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-03-06T05:48:33.170Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 492,
+ "id": 193,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-03-13T06:36:30.080Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 494,
+ "id": 194,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-03-13T06:45:40.540Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 496,
+ "id": 195,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-03-13T08:24:31.440Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 499,
+ "id": 196,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-03-13T09:49:06.003Z",
+ "voteTypeId": 1,
+ "userId": 2,
+ "postId": 501,
+ "id": 197,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 2
+}, {
+ "creationDate": "2024-03-13T15:34:03.727Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 503,
+ "id": 198,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-03-13T16:55:54.340Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 505,
+ "id": 199,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-03-15T06:31:06.650Z",
+ "voteTypeId": 1,
+ "userId": 2,
+ "postId": 508,
+ "id": 200,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 2
+}, {
+ "creationDate": "2024-03-15T09:19:00.893Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 510,
+ "id": 201,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-03-18T14:28:13.267Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 513,
+ "id": 202,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-03-18T17:59:19.687Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 515,
+ "id": 203,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-03-18T19:50:19.793Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 517,
+ "id": 204,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-03-20T08:29:52.083Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 519,
+ "id": 205,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-03-21T05:21:37.020Z",
+ "voteTypeId": 1,
+ "userId": 2,
+ "postId": 522,
+ "id": 206,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 2
+}, {
+ "creationDate": "2024-03-21T18:58:09.160Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 526,
+ "id": 207,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-03-25T07:12:56.160Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 528,
+ "id": 208,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-03-25T09:18:57.087Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 530,
+ "id": 209,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-03-25T10:54:52.833Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 532,
+ "id": 210,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-03-26T06:39:27.087Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 534,
+ "id": 211,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-03-27T09:42:22.473Z",
+ "voteTypeId": 2,
+ "userId": 26,
+ "postId": 44,
+ "id": 212
+}, {
+ "creationDate": "2024-03-27T09:43:36.4Z",
+ "voteTypeId": 2,
+ "userId": 26,
+ "postId": 497,
+ "id": 213,
+ "targetRepChange": 10,
+ "deletionDate": "2024-03-27T09:43:37.270Z"
+}, {
+ "creationDate": "2024-03-28T08:13:08.017Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 537,
+ "id": 214,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-04-01T17:57:06.230Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 421,
+ "id": 215,
+ "targetRepChange": 10,
+ "targetUserId": 2,
+ "comment": "User Deleted: 10"
+}, {
+ "creationDate": "2024-04-02T06:32:20.683Z",
+ "voteTypeId": 1,
+ "userId": 2,
+ "postId": 540,
+ "id": 216,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 2
+}, {
+ "creationDate": "2024-04-05T08:01:30.377Z",
+ "voteTypeId": 1,
+ "userId": 2,
+ "postId": 542,
+ "id": 217,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 2
+}, {
+ "creationDate": "2024-04-05T10:24:29.960Z",
+ "voteTypeId": 1,
+ "userId": 26,
+ "postId": 544,
+ "id": 218,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 26
+}, {
+ "creationDate": "2024-04-09T05:18:37.430Z",
+ "voteTypeId": 1,
+ "userId": 2,
+ "postId": 550,
+ "id": 219,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 2
+}, {
+ "creationDate": "2024-04-09T08:26:22.630Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 552,
+ "id": 220,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-04-15T06:47:50.047Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 556,
+ "id": 221,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-04-15T18:28:33.847Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 559,
+ "id": 222,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-04-17T05:41:17.580Z",
+ "voteTypeId": 1,
+ "userId": 26,
+ "postId": 561,
+ "id": 223,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 26
+}, {
+ "creationDate": "2024-04-25T09:12:55.090Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 564,
+ "id": 224,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-04-26T21:12:33.043Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 567,
+ "id": 225,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-04-26T22:39:10.273Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 569,
+ "id": 226,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-04-29T09:37:03.180Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 571,
+ "id": 227,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-04-29T10:52:36.607Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 573,
+ "id": 228,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-05-01T05:44:33.747Z",
+ "voteTypeId": 2,
+ "userId": 25,
+ "postId": 373,
+ "id": 229,
+ "targetRepChange": 10,
+ "targetUserId": 8
+}, {
+ "creationDate": "2024-05-02T08:00:17.567Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 575,
+ "id": 230,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-05-02T09:01:22.160Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 577,
+ "id": 231,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-05-03T06:26:05.863Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 579,
+ "id": 232,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-05-04T12:30:57.187Z",
+ "voteTypeId": 1,
+ "userId": 2,
+ "postId": 581,
+ "id": 233,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 2
+}, {
+ "creationDate": "2024-05-06T06:25:48.060Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 581,
+ "id": 234,
+ "targetRepChange": 10,
+ "targetUserId": 2,
+ "comment": "User Deleted: 16"
+}, {
+ "creationDate": "2024-05-07T11:39:17.857Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 583,
+ "id": 235,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-05-07T12:08:46.070Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 583,
+ "id": 236,
+ "targetRepChange": 10,
+ "comment": "User Deleted: 27"
+}, {
+ "creationDate": "2024-05-10T22:21:20.373Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 585,
+ "id": 237,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-05-14T07:31:21.003Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 587,
+ "id": 238,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-05-15T14:59:32.560Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 589,
+ "id": 239,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-05-17T09:28:47.177Z",
+ "voteTypeId": 1,
+ "userId": 2,
+ "postId": 591,
+ "id": 240,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 2
+}, {
+ "creationDate": "2024-05-21T10:21:47.583Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 593,
+ "id": 241,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-05-27T14:31:24.5Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 596,
+ "id": 242,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-05-28T12:25:07.580Z",
+ "voteTypeId": 2,
+ "userId": 37,
+ "postId": 540,
+ "id": 243,
+ "targetRepChange": 10,
+ "targetUserId": 2,
+ "deletionDate": "2024-05-28T12:25:08.970Z"
+}, {
+ "creationDate": "2024-05-31T13:47:13.740Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 598,
+ "id": 244,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-06-01T05:42:09.653Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 600,
+ "id": 245,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-06-04T07:34:48.190Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 602,
+ "id": 246,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-06-05T07:02:57.8Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 582,
+ "id": 247,
+ "targetRepChange": 10,
+ "deletionDate": "2024-06-05T07:03:00.737Z",
+ "comment": "User Deleted: 35"
+}, {
+ "creationDate": "2024-06-05T07:03:01.637Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 583,
+ "id": 248,
+ "targetRepChange": 10,
+ "comment": "User Deleted: 35"
+}, {
+ "creationDate": "2024-06-07T07:25:07.763Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 610,
+ "id": 249,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-06-10T10:33:19.847Z",
+ "voteTypeId": 1,
+ "userId": 14,
+ "postId": 612,
+ "id": 250,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 14
+}, {
+ "creationDate": "2024-06-11T07:41:12.993Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 614,
+ "id": 251,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-06-13T07:18:15.883Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 561,
+ "id": 252,
+ "targetRepChange": 10,
+ "targetUserId": 26,
+ "deletionDate": "2024-06-13T07:18:16.567Z"
+}, {
+ "creationDate": "2024-06-13T07:18:17.647Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 561,
+ "id": 253,
+ "targetRepChange": 10,
+ "targetUserId": 26,
+ "deletionDate": "2024-06-13T07:18:21.073Z"
+}, {
+ "creationDate": "2024-06-13T13:18:46.510Z",
+ "voteTypeId": 1,
+ "userId": 14,
+ "postId": 620,
+ "id": 254,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 14
+}, {
+ "creationDate": "2024-06-14T07:13:26.057Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 622,
+ "id": 255,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-06-24T12:59:53.540Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 632,
+ "id": 256,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-06-26T06:56:55.963Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 635,
+ "id": 257,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-06-27T10:14:17.760Z",
+ "voteTypeId": 1,
+ "userId": 26,
+ "postId": 638,
+ "id": 258,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 26
+}, {
+ "creationDate": "2024-07-01T08:22:30.797Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 643,
+ "id": 259,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-07-02T09:11:56.420Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 648,
+ "id": 260,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-07-04T11:01:56.907Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 653,
+ "id": 261,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-07-08T05:44:02.027Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 656,
+ "id": 262,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-07-08T12:34:41.593Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 658,
+ "id": 263,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-07-08T12:44:28.220Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 660,
+ "id": 264,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-07-08T13:15:05.247Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 662,
+ "id": 265,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-07-09T10:20:41.667Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 664,
+ "id": 266,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-07-10T07:18:24.067Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 666,
+ "id": 267,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-07-12T10:17:28.260Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 669,
+ "id": 268,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-07-15T08:03:47.527Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 671,
+ "id": 269,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38
+}, {
+ "creationDate": "2024-07-15T10:13:59.863Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 673,
+ "id": 270,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38
+}, {
+ "creationDate": "2024-07-16T11:41:42.990Z",
+ "voteTypeId": 1,
+ "userId": 2,
+ "postId": 675,
+ "id": 271,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 2,
+ "deletionDate": "2025-02-20T20:57:52.007Z"
+}, {
+ "creationDate": "2024-07-17T15:43:06.723Z",
+ "voteTypeId": 1,
+ "userId": 26,
+ "postId": 678,
+ "id": 272,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 26
+}, {
+ "creationDate": "2024-07-18T12:50:42.847Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 680,
+ "id": 273,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38
+}, {
+ "creationDate": "2024-07-21T06:13:50.177Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 682,
+ "id": 274,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38
+}, {
+ "creationDate": "2024-07-24T13:28:22.157Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 686,
+ "id": 275,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38
+}, {
+ "creationDate": "2024-07-29T05:06:53.140Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 154,
+ "id": 276,
+ "targetRepChange": 10,
+ "comment": "User Deleted: 35"
+}, {
+ "creationDate": "2024-08-05T05:47:54.847Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 689,
+ "id": 277,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-08-05T12:22:09.807Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 691,
+ "id": 278,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-08-07T08:26:57.763Z",
+ "voteTypeId": 1,
+ "userId": 26,
+ "postId": 693,
+ "id": 279,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 26
+}, {
+ "creationDate": "2024-08-08T09:39:32.993Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 695,
+ "id": 280,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-08-09T05:47:52.477Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 698,
+ "id": 281,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-08-09T09:15:21.580Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 701,
+ "id": 282,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-08-09T18:22:33.057Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 699,
+ "id": 284,
+ "targetRepChange": 10,
+ "deletionDate": "2024-08-09T18:23:07.143Z",
+ "comment": "User Deleted: 20"
+}, {
+ "creationDate": "2024-08-12T12:43:21.720Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 702,
+ "id": 285,
+ "targetRepChange": 10,
+ "comment": "User Deleted: 10"
+}, {
+ "creationDate": "2024-08-12T12:43:27.457Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 702,
+ "id": 286,
+ "voterRepChange": 2,
+ "targetRepChange": 15
+}, {
+ "creationDate": "2024-08-13T10:57:39.563Z",
+ "voteTypeId": 1,
+ "userId": 26,
+ "postId": 706,
+ "id": 287,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 26
+}, {
+ "creationDate": "2024-08-14T08:27:43.280Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 710,
+ "id": 288,
+ "voterRepChange": 2,
+ "targetRepChange": 15,
+ "targetUserId": 8
+}, {
+ "creationDate": "2024-08-14T08:27:43.617Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 710,
+ "id": 289,
+ "targetRepChange": 10,
+ "targetUserId": 8,
+ "comment": "User Deleted: 10"
+}, {
+ "creationDate": "2024-08-18T11:22:33.830Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 712,
+ "id": 290,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38
+}, {
+ "creationDate": "2024-08-19T16:01:35.497Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 718,
+ "id": 291,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-08-20T05:48:27.293Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 721,
+ "id": 292,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-08-20T18:42:09.747Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 730,
+ "id": 293,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38
+}, {
+ "creationDate": "2024-08-24T13:17:04.377Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 737,
+ "id": 294,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-08-26T15:36:12.797Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 741,
+ "id": 295,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38
+}, {
+ "creationDate": "2024-09-01T15:39:51.350Z",
+ "voteTypeId": 1,
+ "userId": 26,
+ "postId": 744,
+ "id": 296,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 26
+}, {
+ "creationDate": "2024-09-03T14:41:41.953Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 746,
+ "id": 297,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-09-05T10:41:08.103Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 749,
+ "id": 298,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-09-05T14:01:45.077Z",
+ "voteTypeId": 2,
+ "userId": 26,
+ "postId": 628,
+ "id": 299,
+ "targetRepChange": 10,
+ "deletionDate": "2024-09-05T14:01:46.457Z"
+}, {
+ "creationDate": "2024-09-06T12:14:34.857Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 751,
+ "id": 300,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-09-07T14:14:33.130Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 753,
+ "id": 301,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38
+}, {
+ "creationDate": "2024-09-11T04:33:39.710Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 757,
+ "id": 302,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-09-11T10:17:58.953Z",
+ "voteTypeId": 10,
+ "userId": 14,
+ "postId": 618,
+ "id": 303
+}, {
+ "creationDate": "2024-09-15T06:22:05.093Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 763,
+ "id": 304,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38
+}, {
+ "creationDate": "2024-09-15T12:34:34.373Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 744,
+ "id": 305,
+ "targetRepChange": 10,
+ "targetUserId": 26,
+ "deletionDate": "2024-09-15T12:34:37.137Z"
+}, {
+ "creationDate": "2024-09-15T12:34:37.957Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 744,
+ "id": 306,
+ "targetRepChange": 10,
+ "targetUserId": 26
+}, {
+ "creationDate": "2024-09-15T16:44:39.083Z",
+ "voteTypeId": 10,
+ "userId": 38,
+ "postId": 767,
+ "id": 307
+}, {
+ "creationDate": "2024-09-15T17:08:34.670Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 750,
+ "id": 308,
+ "targetRepChange": 10
+}, {
+ "creationDate": "2024-09-15T17:08:38.173Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 751,
+ "id": 309,
+ "targetRepChange": 10,
+ "deletionDate": "2024-09-15T17:08:47.947Z"
+}, {
+ "creationDate": "2024-09-15T17:08:54.187Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 751,
+ "id": 310,
+ "targetRepChange": 10
+}, {
+ "creationDate": "2024-09-16T07:56:25.813Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 770,
+ "id": 311,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-09-16T09:26:08.470Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 773,
+ "id": 312,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-09-17T05:59:39.847Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 776,
+ "id": 313,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-09-17T12:35:34.580Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 779,
+ "id": 314,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-09-18T08:17:30.020Z",
+ "voteTypeId": 1,
+ "userId": 34,
+ "postId": 782,
+ "id": 316,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 34
+}, {
+ "creationDate": "2024-09-19T13:23:35.727Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 754,
+ "id": 317,
+ "targetRepChange": 10,
+ "targetUserId": 14,
+ "comment": "User Deleted: 10"
+}, {
+ "creationDate": "2024-09-19T13:23:38.037Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 742,
+ "id": 318,
+ "targetRepChange": 10,
+ "targetUserId": 14,
+ "comment": "User Deleted: 10"
+}, {
+ "creationDate": "2024-09-19T13:23:38.717Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 723,
+ "id": 319,
+ "targetRepChange": 10,
+ "deletionDate": "2024-09-20T06:13:27.003Z",
+ "comment": "User Deleted: 10"
+}, {
+ "creationDate": "2024-09-19T16:51:20.677Z",
+ "voteTypeId": 2,
+ "userId": 14,
+ "postId": 723,
+ "id": 320,
+ "targetRepChange": 10,
+ "deletionDate": "2024-09-19T16:51:21.297Z"
+}, {
+ "creationDate": "2024-09-19T16:51:22.860Z",
+ "voteTypeId": 2,
+ "userId": 14,
+ "postId": 723,
+ "id": 321,
+ "targetRepChange": 10,
+ "deletionDate": "2024-09-19T16:51:55.210Z"
+}, {
+ "creationDate": "2024-09-19T16:51:55.877Z",
+ "voteTypeId": 2,
+ "userId": 14,
+ "postId": 723,
+ "id": 322,
+ "targetRepChange": 10,
+ "deletionDate": "2024-09-19T16:54:34.827Z"
+}, {
+ "creationDate": "2024-09-19T16:53:29.020Z",
+ "voteTypeId": 10,
+ "userId": 14,
+ "postId": 723,
+ "id": 323,
+ "deletionDate": "2024-09-19T16:53:44.507Z"
+}, {
+ "creationDate": "2024-09-19T16:53:44.507Z",
+ "voteTypeId": 11,
+ "userId": 14,
+ "postId": 723,
+ "id": 324,
+ "deletionDate": "2026-05-06T10:12:52.423Z"
+}, {
+ "creationDate": "2024-09-19T16:54:34.827Z",
+ "voteTypeId": 3,
+ "userId": 14,
+ "postId": 723,
+ "id": 325,
+ "voterRepChange": -1,
+ "targetRepChange": -2
+}, {
+ "creationDate": "2024-09-20T06:13:27.003Z",
+ "voteTypeId": 3,
+ "userId": -1,
+ "postId": 723,
+ "id": 326,
+ "voterRepChange": -1,
+ "targetRepChange": 0,
+ "deletionDate": "2024-09-20T06:13:28.327Z",
+ "comment": "User Deleted: 10"
+}, {
+ "creationDate": "2024-09-20T06:13:28.993Z",
+ "voteTypeId": 3,
+ "userId": -1,
+ "postId": 723,
+ "id": 327,
+ "voterRepChange": -1,
+ "targetRepChange": 0,
+ "comment": "User Deleted: 10"
+}, {
+ "creationDate": "2024-09-20T06:13:31.740Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 755,
+ "id": 328,
+ "targetRepChange": 10,
+ "targetUserId": 14,
+ "comment": "User Deleted: 10"
+}, {
+ "creationDate": "2024-09-22T08:00:13.560Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 790,
+ "id": 329,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38,
+ "deletionDate": "2024-09-22T08:22:23.667Z"
+}, {
+ "creationDate": "2024-09-22T08:16:46.610Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 716,
+ "id": 330,
+ "targetRepChange": 10
+}, {
+ "creationDate": "2024-09-22T08:22:25.877Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 790,
+ "id": 331,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38
+}, {
+ "creationDate": "2024-09-23T09:10:30.137Z",
+ "voteTypeId": 10,
+ "userId": 38,
+ "postId": 759,
+ "id": 332
+}, {
+ "creationDate": "2024-09-26T08:53:20.403Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 794,
+ "id": 333,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-09-27T07:47:13.640Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 796,
+ "id": 334,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-10-03T06:38:07.070Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 802,
+ "id": 335,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-10-03T11:51:05.617Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 373,
+ "id": 336,
+ "targetRepChange": 10,
+ "targetUserId": 8,
+ "comment": "User Deleted: 15"
+}, {
+ "creationDate": "2024-10-03T12:21:11.410Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 804,
+ "id": 337,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38
+}, {
+ "creationDate": "2024-10-09T14:47:20.013Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 808,
+ "id": 338,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-10-11T01:47:43.037Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 811,
+ "id": 339,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-10-11T01:55:39.040Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 813,
+ "id": 340,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-10-11T02:02:53.450Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 815,
+ "id": 341,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-10-11T14:55:07.550Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 819,
+ "id": 342,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-10-14T15:46:05.503Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 821,
+ "id": 343,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-10-15T06:54:36.257Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 823,
+ "id": 344,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-10-15T07:08:51.493Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 825,
+ "id": 345,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-10-16T21:13:30.120Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 830,
+ "id": 346,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-10-17T13:13:32.797Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 317,
+ "id": 347,
+ "targetRepChange": 10
+}, {
+ "creationDate": "2024-10-17T13:13:35.333Z",
+ "voteTypeId": 5,
+ "userId": 38,
+ "postId": 317,
+ "id": 348
+}, {
+ "creationDate": "2024-10-23T05:30:33.370Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 833,
+ "id": 349,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-10-24T10:43:51.653Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 835,
+ "id": 350,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38
+}, {
+ "creationDate": "2024-10-25T15:20:43.603Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 837,
+ "id": 351,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-10-30T04:46:09.877Z",
+ "voteTypeId": 1,
+ "userId": 2,
+ "postId": 840,
+ "id": 353,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 2
+}, {
+ "creationDate": "2024-10-31T10:14:24.4Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 842,
+ "id": 354,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-11-02T04:57:05.893Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 844,
+ "id": 355,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38
+}, {
+ "creationDate": "2024-11-03T05:02:06.683Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 846,
+ "id": 356,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38
+}, {
+ "creationDate": "2024-11-04T05:43:48.637Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 848,
+ "id": 357,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-11-04T11:52:51.4Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 101,
+ "id": 358,
+ "targetRepChange": 10,
+ "comment": "User Deleted: 35"
+}, {
+ "creationDate": "2024-11-04T12:07:06.347Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 13,
+ "id": 361,
+ "targetRepChange": 10,
+ "targetUserId": 2,
+ "comment": "User Deleted: 35"
+}, {
+ "creationDate": "2024-11-04T12:07:19.070Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 21,
+ "id": 362,
+ "targetRepChange": 10,
+ "deletionDate": "2024-11-04T12:07:21.140Z",
+ "comment": "User Deleted: 35"
+}, {
+ "creationDate": "2024-11-04T12:07:46.320Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 417,
+ "id": 364,
+ "targetRepChange": 10,
+ "targetUserId": 2,
+ "comment": "User Deleted: 35"
+}, {
+ "creationDate": "2024-11-07T09:55:50.147Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 850,
+ "id": 366,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-11-08T14:01:30.950Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 853,
+ "id": 367,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-11-09T07:26:14.657Z",
+ "voteTypeId": 1,
+ "userId": 8,
+ "postId": 855,
+ "id": 368,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 8
+}, {
+ "creationDate": "2024-11-13T10:11:53.407Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 861,
+ "id": 369,
+ "targetRepChange": 10,
+ "targetUserId": 14,
+ "comment": "User Deleted: 9"
+}, {
+ "creationDate": "2024-11-14T08:20:12.247Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 863,
+ "id": 370,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-11-14T11:13:42.127Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 865,
+ "id": 371,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-11-15T17:08:01.177Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 867,
+ "id": 372,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-11-15T21:21:50.880Z",
+ "voteTypeId": 3,
+ "userId": -1,
+ "postId": 556,
+ "id": 373,
+ "voterRepChange": -1,
+ "targetRepChange": -2,
+ "deletionDate": "2024-11-15T21:21:52.250Z",
+ "comment": "User Deleted: 10"
+}, {
+ "creationDate": "2024-11-15T21:21:52.250Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 556,
+ "id": 374,
+ "targetRepChange": 10,
+ "deletionDate": "2024-11-15T21:21:54.413Z",
+ "comment": "User Deleted: 10"
+}, {
+ "creationDate": "2024-11-18T11:34:51.443Z",
+ "voteTypeId": 1,
+ "userId": 26,
+ "postId": 869,
+ "id": 375,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 26
+}, {
+ "creationDate": "2024-11-18T13:27:10.103Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 871,
+ "id": 376,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-11-18T14:47:50.753Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 873,
+ "id": 377,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-11-19T16:17:43.750Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 875,
+ "id": 378,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-11-19T18:10:02.447Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 877,
+ "id": 379,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-11-21T06:11:22.393Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 879,
+ "id": 380,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-11-21T17:08:05.1Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 883,
+ "id": 381,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-11-22T04:30:13.560Z",
+ "voteTypeId": 10,
+ "userId": 2,
+ "postId": 884,
+ "id": 382
+}, {
+ "creationDate": "2024-11-24T07:31:24.137Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 160,
+ "id": 383,
+ "targetRepChange": 10,
+ "deletionDate": "2024-11-24T07:31:24.933Z"
+}, {
+ "creationDate": "2024-11-25T04:51:43.177Z",
+ "voteTypeId": 1,
+ "userId": 26,
+ "postId": 886,
+ "id": 384,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 26
+}, {
+ "creationDate": "2024-11-25T13:32:32.463Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 888,
+ "id": 385,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-11-26T18:29:38.5Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 891,
+ "id": 386,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-11-28T07:40:50.740Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 894,
+ "id": 387,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-12-03T05:16:36.753Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 897,
+ "id": 388,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-12-10T04:27:11.167Z",
+ "voteTypeId": 1,
+ "userId": 26,
+ "postId": 900,
+ "id": 389,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 26
+}, {
+ "creationDate": "2024-12-12T11:33:39.507Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 31,
+ "id": 390,
+ "targetRepChange": 10,
+ "deletionDate": "2024-12-12T11:33:48.780Z",
+ "comment": "User Deleted: 41"
+}, {
+ "creationDate": "2024-12-12T11:34:04.183Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 31,
+ "id": 391,
+ "targetRepChange": 10,
+ "deletionDate": "2024-12-12T11:34:06.250Z",
+ "comment": "User Deleted: 41"
+}, {
+ "creationDate": "2024-12-12T11:34:04.937Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 902,
+ "id": 392,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-12-12T11:34:06.770Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 31,
+ "id": 393,
+ "targetRepChange": 10,
+ "deletionDate": "2024-12-12T11:34:07.867Z",
+ "comment": "User Deleted: 41"
+}, {
+ "creationDate": "2024-12-14T10:47:12.077Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 904,
+ "id": 394,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-12-18T04:37:49.487Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 906,
+ "id": 395,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-12-18T14:43:27.187Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 909,
+ "id": 396,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-12-18T14:58:04.910Z",
+ "voteTypeId": 2,
+ "userId": 14,
+ "postId": 909,
+ "id": 397,
+ "targetRepChange": 10
+}, {
+ "creationDate": "2024-12-19T17:48:00.247Z",
+ "voteTypeId": 2,
+ "userId": 14,
+ "postId": 895,
+ "id": 398,
+ "targetRepChange": 10,
+ "targetUserId": 23
+}, {
+ "creationDate": "2024-12-20T10:10:36.547Z",
+ "voteTypeId": 10,
+ "userId": 38,
+ "postId": 860,
+ "id": 399
+}, {
+ "creationDate": "2024-12-27T05:27:19.520Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 919,
+ "id": 400,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-12-27T06:18:17.433Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 922,
+ "id": 401,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2024-12-27T06:21:43.103Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 906,
+ "id": 402,
+ "targetRepChange": 10
+}, {
+ "creationDate": "2025-01-02T10:40:12.443Z",
+ "voteTypeId": 1,
+ "userId": 23,
+ "postId": 926,
+ "id": 403,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 23
+}, {
+ "creationDate": "2025-01-07T10:55:18.947Z",
+ "voteTypeId": 1,
+ "userId": 26,
+ "postId": 930,
+ "id": 404,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 26
+}, {
+ "creationDate": "2025-01-08T07:15:46.650Z",
+ "voteTypeId": 1,
+ "userId": 26,
+ "postId": 932,
+ "id": 405,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 26
+}, {
+ "creationDate": "2025-01-08T08:28:03.107Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 932,
+ "id": 406,
+ "targetRepChange": 10,
+ "targetUserId": 26
+}, {
+ "creationDate": "2025-01-08T10:27:11.420Z",
+ "voteTypeId": 1,
+ "userId": 23,
+ "postId": 934,
+ "id": 407,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 23
+}, {
+ "creationDate": "2025-01-08T17:01:39.910Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 937,
+ "id": 408,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38
+}, {
+ "creationDate": "2025-01-09T16:53:22.053Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 941,
+ "id": 409,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38
+}, {
+ "creationDate": "2025-01-10T10:37:37.4Z",
+ "voteTypeId": 2,
+ "userId": 14,
+ "postId": 939,
+ "id": 410,
+ "targetRepChange": 10,
+ "targetUserId": 37
+}, {
+ "creationDate": "2025-01-11T12:37:51.3Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 943,
+ "id": 411,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38
+}, {
+ "creationDate": "2025-01-15T10:42:45.130Z",
+ "voteTypeId": 1,
+ "userId": 23,
+ "postId": 948,
+ "id": 412,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 23
+}, {
+ "creationDate": "2025-01-15T16:26:23.770Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 950,
+ "id": 413,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-01-16T06:24:01.197Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 952,
+ "id": 414,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-01-16T15:27:12.643Z",
+ "voteTypeId": 1,
+ "userId": 26,
+ "postId": 954,
+ "id": 415,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 26
+}, {
+ "creationDate": "2025-01-17T13:07:57.043Z",
+ "voteTypeId": 1,
+ "userId": 2,
+ "postId": 958,
+ "id": 416,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 2
+}, {
+ "creationDate": "2025-01-18T08:26:30.807Z",
+ "voteTypeId": 1,
+ "userId": 2,
+ "postId": 960,
+ "id": 417,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 2
+}, {
+ "creationDate": "2025-01-20T10:40:39.923Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 962,
+ "id": 418,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-01-20T15:10:22.227Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 966,
+ "id": 419,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38
+}, {
+ "creationDate": "2025-01-20T15:30:59.770Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 968,
+ "id": 420,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-01-20T16:33:21.163Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 195,
+ "id": 421,
+ "targetRepChange": 10
+}, {
+ "creationDate": "2025-01-20T16:33:24.583Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 196,
+ "id": 422,
+ "targetRepChange": 10,
+ "deletionDate": "2025-01-20T16:33:28.420Z"
+}, {
+ "creationDate": "2025-01-20T16:33:29.307Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 196,
+ "id": 423,
+ "targetRepChange": 10
+}, {
+ "creationDate": "2025-01-20T16:37:29.077Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 882,
+ "id": 424,
+ "targetRepChange": 10
+}, {
+ "creationDate": "2025-01-23T04:50:06.607Z",
+ "voteTypeId": 1,
+ "userId": 2,
+ "postId": 970,
+ "id": 425,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 2
+}, {
+ "creationDate": "2025-01-26T11:34:09.153Z",
+ "voteTypeId": 1,
+ "userId": 26,
+ "postId": 972,
+ "id": 426,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 26
+}, {
+ "creationDate": "2025-01-26T11:43:31.820Z",
+ "voteTypeId": 1,
+ "userId": 26,
+ "postId": 974,
+ "id": 427,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 26
+}, {
+ "creationDate": "2025-01-28T07:05:29.753Z",
+ "voteTypeId": 1,
+ "userId": 26,
+ "postId": 976,
+ "id": 428,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 26
+}, {
+ "creationDate": "2025-01-28T13:11:04.223Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 979,
+ "id": 429,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-01-30T06:49:21.627Z",
+ "voteTypeId": 10,
+ "userId": 23,
+ "postId": 983,
+ "id": 430
+}, {
+ "creationDate": "2025-01-30T06:54:07.757Z",
+ "voteTypeId": 1,
+ "userId": 23,
+ "postId": 985,
+ "id": 431,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 23
+}, {
+ "creationDate": "2025-01-30T10:21:12.843Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 988,
+ "id": 432,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-01-31T19:30:18.913Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 990,
+ "id": 433,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-02-03T06:30:39.393Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 992,
+ "id": 434,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-02-04T22:02:18.397Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 994,
+ "id": 435,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-02-05T08:50:05.460Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 996,
+ "id": 436,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-02-05T09:55:39.887Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 998,
+ "id": 437,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-02-05T10:54:59.820Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 1000,
+ "id": 438,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38
+}, {
+ "creationDate": "2025-02-06T21:01:14.420Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1002,
+ "id": 439,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-02-07T09:27:08.210Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1005,
+ "id": 440,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-02-07T13:06:45.770Z",
+ "voteTypeId": 1,
+ "userId": 26,
+ "postId": 1007,
+ "id": 441,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 26
+}, {
+ "creationDate": "2025-02-07T13:13:03.730Z",
+ "voteTypeId": 1,
+ "userId": 26,
+ "postId": 1009,
+ "id": 442,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 26
+}, {
+ "creationDate": "2025-02-08T11:40:28.460Z",
+ "voteTypeId": 1,
+ "userId": 26,
+ "postId": 1011,
+ "id": 443,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 26
+}, {
+ "creationDate": "2025-02-13T06:27:05.423Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1014,
+ "id": 444,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-02-13T13:25:27.570Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 1016,
+ "id": 445,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38
+}, {
+ "creationDate": "2025-02-17T08:57:42.460Z",
+ "voteTypeId": 1,
+ "userId": 14,
+ "postId": 1023,
+ "id": 446,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 14
+}, {
+ "creationDate": "2025-02-20T20:57:54.743Z",
+ "voteTypeId": 1,
+ "userId": 2,
+ "postId": 675,
+ "id": 447,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 2
+}, {
+ "creationDate": "2025-02-23T04:29:46.177Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 1027,
+ "id": 448,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38
+}, {
+ "creationDate": "2025-02-24T10:57:44.430Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1029,
+ "id": 449,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-02-27T12:33:35.567Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1031,
+ "id": 450,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-03-02T10:05:20.937Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 1012,
+ "id": 451,
+ "targetRepChange": 10
+}, {
+ "creationDate": "2025-03-02T11:12:37.667Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 1039,
+ "id": 452,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38
+}, {
+ "creationDate": "2025-03-04T10:11:41.567Z",
+ "voteTypeId": 1,
+ "userId": 26,
+ "postId": 1042,
+ "id": 453,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 26
+}, {
+ "creationDate": "2025-03-04T14:18:47.733Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1044,
+ "id": 454,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-03-07T10:12:59.490Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1047,
+ "id": 455,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-03-17T17:35:04.370Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 1054,
+ "id": 456,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38
+}, {
+ "creationDate": "2025-03-17T20:12:19.167Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1056,
+ "id": 457,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-03-18T09:01:01.330Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 1059,
+ "id": 458,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38
+}, {
+ "creationDate": "2025-03-18T19:06:51.873Z",
+ "voteTypeId": 1,
+ "userId": 8,
+ "postId": 1063,
+ "id": 459,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 8
+}, {
+ "creationDate": "2025-03-21T05:27:26.087Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1065,
+ "id": 460,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-03-24T15:48:35.663Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 1067,
+ "id": 461,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38
+}, {
+ "creationDate": "2025-03-24T16:32:35.267Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 1069,
+ "id": 462,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38
+}, {
+ "creationDate": "2025-03-27T07:56:03.860Z",
+ "voteTypeId": 1,
+ "userId": 23,
+ "postId": 1072,
+ "id": 463,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 23
+}, {
+ "creationDate": "2025-04-05T13:07:02.020Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 1078,
+ "id": 464,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38
+}, {
+ "creationDate": "2025-04-12T07:25:45.080Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 1080,
+ "id": 465,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38
+}, {
+ "creationDate": "2025-04-15T08:56:34.657Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1085,
+ "id": 466,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-04-21T06:42:42.063Z",
+ "voteTypeId": 1,
+ "userId": 26,
+ "postId": 1090,
+ "id": 467,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 26
+}, {
+ "creationDate": "2025-04-23T16:06:05.397Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 1092,
+ "id": 468,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38
+}, {
+ "creationDate": "2025-04-25T09:44:00.133Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 999,
+ "id": 469,
+ "targetRepChange": 10,
+ "targetUserId": 38,
+ "deletionDate": "2025-04-25T09:44:01.507Z",
+ "comment": "User Deleted: 44"
+}, {
+ "creationDate": "2025-04-29T10:45:02.103Z",
+ "voteTypeId": 1,
+ "userId": 26,
+ "postId": 1095,
+ "id": 470,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 26
+}, {
+ "creationDate": "2025-04-30T05:34:47.993Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1079,
+ "id": 471,
+ "targetRepChange": 10,
+ "targetUserId": 38,
+ "comment": "User Deleted: 44"
+}, {
+ "creationDate": "2025-04-30T05:36:22.510Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1067,
+ "id": 472,
+ "targetRepChange": 10,
+ "targetUserId": 38,
+ "comment": "User Deleted: 44"
+}, {
+ "creationDate": "2025-05-03T10:05:07.830Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 1097,
+ "id": 473,
+ "targetRepChange": 10,
+ "targetUserId": 14
+}, {
+ "creationDate": "2025-05-04T06:45:47.760Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 1096,
+ "id": 474,
+ "targetRepChange": 10
+}, {
+ "creationDate": "2025-05-04T06:58:47.663Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 1095,
+ "id": 475,
+ "targetRepChange": 10,
+ "targetUserId": 26
+}, {
+ "creationDate": "2025-05-04T06:59:36.763Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 1090,
+ "id": 476,
+ "targetRepChange": 10,
+ "targetUserId": 26
+}, {
+ "creationDate": "2025-05-04T07:01:19.877Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 1087,
+ "id": 477,
+ "targetRepChange": 10
+}, {
+ "creationDate": "2025-05-04T07:21:18.797Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 895,
+ "id": 478,
+ "targetRepChange": 10,
+ "targetUserId": 23
+}, {
+ "creationDate": "2025-05-04T07:22:07.153Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 893,
+ "id": 479,
+ "targetRepChange": 10
+}, {
+ "creationDate": "2025-05-04T07:24:17.467Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 870,
+ "id": 480,
+ "targetRepChange": 10
+}, {
+ "creationDate": "2025-05-04T07:24:18.690Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 872,
+ "id": 481,
+ "targetRepChange": 10
+}, {
+ "creationDate": "2025-05-04T07:24:21.713Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 868,
+ "id": 482,
+ "targetRepChange": 10,
+ "targetUserId": 26
+}, {
+ "creationDate": "2025-05-04T07:24:25.240Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 866,
+ "id": 483,
+ "targetRepChange": 10
+}, {
+ "creationDate": "2025-05-04T07:24:52.090Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 865,
+ "id": 484,
+ "targetRepChange": 10
+}, {
+ "creationDate": "2025-05-05T16:59:22.027Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 430,
+ "id": 485,
+ "targetRepChange": 10,
+ "targetUserId": 14
+}, {
+ "creationDate": "2025-05-05T16:59:54.777Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 428,
+ "id": 486,
+ "targetRepChange": 10,
+ "targetUserId": 14
+}, {
+ "creationDate": "2025-05-06T07:45:36.983Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 1102,
+ "id": 487,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38
+}, {
+ "creationDate": "2025-05-06T11:13:56.297Z",
+ "voteTypeId": 1,
+ "userId": 14,
+ "postId": 1104,
+ "id": 488,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 14
+}, {
+ "creationDate": "2025-05-08T03:57:15.737Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1107,
+ "id": 489,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-05-08T04:21:03.237Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1109,
+ "id": 490,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-05-08T04:58:15.890Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1111,
+ "id": 491,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-05-08T05:13:24.680Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1113,
+ "id": 492,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-05-08T12:13:00.807Z",
+ "voteTypeId": 1,
+ "userId": 14,
+ "postId": 1116,
+ "id": 493,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 14
+}, {
+ "creationDate": "2025-05-08T13:04:34.527Z",
+ "voteTypeId": 10,
+ "userId": 38,
+ "postId": 764,
+ "id": 494
+}, {
+ "creationDate": "2025-05-09T08:04:45.433Z",
+ "voteTypeId": 1,
+ "userId": 14,
+ "postId": 1119,
+ "id": 495,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 14
+}, {
+ "creationDate": "2025-05-09T09:32:38.237Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1122,
+ "id": 496,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-05-10T07:44:33.197Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1126,
+ "id": 497,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-05-13T06:43:59.957Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1129,
+ "id": 498,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-05-13T08:02:03.730Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1131,
+ "id": 499,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-05-13T10:32:40.340Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1133,
+ "id": 500,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-05-13T15:55:58.587Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1137,
+ "id": 501,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-05-14T07:21:32.660Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1117,
+ "id": 502,
+ "targetRepChange": 10,
+ "deletionDate": "2025-05-14T07:21:33.587Z",
+ "comment": "User Deleted: 44"
+}, {
+ "creationDate": "2025-05-15T04:34:01.143Z",
+ "voteTypeId": 1,
+ "userId": 26,
+ "postId": 1139,
+ "id": 503,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 26
+}, {
+ "creationDate": "2025-05-17T08:23:31.003Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1143,
+ "id": 504,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-05-18T08:28:12.763Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 1141,
+ "id": 505,
+ "targetRepChange": 10
+}, {
+ "creationDate": "2025-05-19T07:30:22.667Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 915,
+ "id": 506,
+ "targetRepChange": 10,
+ "targetUserId": 38,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-05-20T04:14:53.427Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1043,
+ "id": 507,
+ "targetRepChange": 10,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-05-21T06:32:12.880Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 927,
+ "id": 508,
+ "targetRepChange": 10,
+ "targetUserId": 38,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-05-21T12:24:24.923Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 763,
+ "id": 509,
+ "targetRepChange": 10,
+ "targetUserId": 38,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-05-22T07:28:15.480Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1145,
+ "id": 510,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-05-22T10:59:36.133Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1147,
+ "id": 511,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-05-23T07:34:32.927Z",
+ "voteTypeId": 1,
+ "userId": 2,
+ "postId": 1149,
+ "id": 512,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 2
+}, {
+ "creationDate": "2025-05-23T10:55:51.593Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1151,
+ "id": 513,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-05-23T10:57:04.980Z",
+ "voteTypeId": 2,
+ "userId": 37,
+ "postId": 1151,
+ "id": 514,
+ "targetRepChange": 10
+}, {
+ "creationDate": "2025-05-23T10:57:09.577Z",
+ "voteTypeId": 22,
+ "userId": 37,
+ "postId": 1151,
+ "id": 515
+}, {
+ "creationDate": "2025-05-23T13:30:48.977Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1153,
+ "id": 516,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-05-23T15:12:54.403Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 1156,
+ "id": 517,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38
+}, {
+ "creationDate": "2025-05-23T17:55:47.577Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 1131,
+ "id": 518,
+ "targetRepChange": 10
+}, {
+ "creationDate": "2025-05-23T18:01:36.043Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 1149,
+ "id": 519,
+ "targetRepChange": 10,
+ "targetUserId": 2
+}, {
+ "creationDate": "2025-05-23T18:04:56.417Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 1070,
+ "id": 520,
+ "targetRepChange": 10,
+ "targetUserId": 24
+}, {
+ "creationDate": "2025-05-26T11:02:02.987Z",
+ "voteTypeId": 1,
+ "userId": 23,
+ "postId": 1161,
+ "id": 521,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 23
+}, {
+ "creationDate": "2025-05-28T05:33:13.510Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 712,
+ "id": 522,
+ "targetRepChange": 10,
+ "targetUserId": 38,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-05-29T06:41:50.187Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1123,
+ "id": 523,
+ "targetRepChange": 10,
+ "targetUserId": 38,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-05-29T11:25:00.520Z",
+ "voteTypeId": 1,
+ "userId": 14,
+ "postId": 1164,
+ "id": 524,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 14
+}, {
+ "creationDate": "2025-05-29T16:11:27.037Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 1166,
+ "id": 525,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38
+}, {
+ "creationDate": "2025-05-29T16:15:32.3Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 1159,
+ "id": 526,
+ "targetRepChange": 10,
+ "targetUserId": 49
+}, {
+ "creationDate": "2025-05-30T17:20:47.030Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 1167,
+ "id": 527,
+ "targetRepChange": 10
+}, {
+ "creationDate": "2025-05-30T17:21:54.533Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 1163,
+ "id": 528,
+ "targetRepChange": 10,
+ "targetUserId": 14
+}, {
+ "creationDate": "2025-05-30T17:34:19.253Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 1169,
+ "id": 529,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38
+}, {
+ "creationDate": "2025-05-31T10:18:33.027Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1171,
+ "id": 530,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-05-31T17:19:27.207Z",
+ "voteTypeId": 1,
+ "userId": 2,
+ "postId": 1173,
+ "id": 531,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 2
+}, {
+ "creationDate": "2025-06-01T11:23:40.590Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 1175,
+ "id": 532,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38
+}, {
+ "creationDate": "2025-06-01T11:32:51.853Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 1172,
+ "id": 533,
+ "targetRepChange": 10,
+ "targetUserId": 2
+}, {
+ "creationDate": "2025-06-01T11:33:02.693Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 1158,
+ "id": 534,
+ "targetRepChange": 10,
+ "targetUserId": 49
+}, {
+ "creationDate": "2025-06-01T15:04:10.327Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 1178,
+ "id": 535,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38
+}, {
+ "creationDate": "2025-06-02T05:30:38.203Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 844,
+ "id": 536,
+ "targetRepChange": 10,
+ "targetUserId": 38,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-06-02T05:39:06.983Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1176,
+ "id": 537,
+ "targetRepChange": 10,
+ "targetUserId": 38,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-06-02T16:53:45.807Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 627,
+ "id": 538,
+ "targetRepChange": 10,
+ "targetUserId": 25
+}, {
+ "creationDate": "2025-06-03T08:25:23.927Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1095,
+ "id": 539,
+ "targetRepChange": 10,
+ "targetUserId": 26,
+ "deletionDate": "2025-06-03T08:25:25.197Z",
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-06-03T08:25:26.080Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1095,
+ "id": 540,
+ "targetRepChange": 10,
+ "targetUserId": 26,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-06-04T08:35:18.777Z",
+ "voteTypeId": 10,
+ "userId": 14,
+ "postId": 1182,
+ "id": 541
+}, {
+ "creationDate": "2025-06-04T13:51:05.197Z",
+ "voteTypeId": 1,
+ "userId": 14,
+ "postId": 1184,
+ "id": 542,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 14
+}, {
+ "creationDate": "2025-06-04T15:25:15.047Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 1184,
+ "id": 543,
+ "targetRepChange": 10,
+ "targetUserId": 14
+}, {
+ "creationDate": "2025-06-05T11:33:06.293Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 944,
+ "id": 544,
+ "targetRepChange": 10,
+ "targetUserId": 38,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-06-05T18:06:45.607Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 1186,
+ "id": 545,
+ "targetRepChange": 10
+}, {
+ "creationDate": "2025-06-05T18:06:46.937Z",
+ "voteTypeId": 5,
+ "userId": 38,
+ "postId": 1186,
+ "id": 546
+}, {
+ "creationDate": "2025-06-06T08:53:14.9Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1044,
+ "id": 547,
+ "targetRepChange": 10,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-06-06T11:19:48.223Z",
+ "voteTypeId": 1,
+ "userId": 14,
+ "postId": 1188,
+ "id": 548,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 14
+}, {
+ "creationDate": "2025-06-07T09:38:38.560Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 765,
+ "id": 549,
+ "targetRepChange": 10,
+ "targetUserId": 38,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-06-09T06:46:48.477Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1082,
+ "id": 551,
+ "targetRepChange": 10,
+ "targetUserId": 38,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-06-09T06:46:57.730Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1088,
+ "id": 553,
+ "targetRepChange": 10,
+ "targetUserId": 38,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-06-09T12:08:52.950Z",
+ "voteTypeId": 1,
+ "userId": 14,
+ "postId": 1194,
+ "id": 554,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 14
+}, {
+ "creationDate": "2025-06-09T14:05:05.927Z",
+ "voteTypeId": 1,
+ "userId": 14,
+ "postId": 1196,
+ "id": 555,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 14
+}, {
+ "creationDate": "2025-06-10T04:37:54.587Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1120,
+ "id": 556,
+ "targetRepChange": 10,
+ "targetUserId": 38,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-06-12T16:49:59.183Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1200,
+ "id": 557,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-06-12T17:10:55.783Z",
+ "voteTypeId": 2,
+ "userId": 14,
+ "postId": 1200,
+ "id": 558,
+ "targetRepChange": 10
+}, {
+ "creationDate": "2025-06-13T03:25:28.470Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 682,
+ "id": 559,
+ "targetRepChange": 10,
+ "targetUserId": 38,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-06-13T12:00:58.820Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 1202,
+ "id": 560,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38
+}, {
+ "creationDate": "2025-06-13T12:08:16.760Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1204,
+ "id": 561,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-06-15T12:15:11.590Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1206,
+ "id": 562,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-06-16T13:23:26.257Z",
+ "voteTypeId": 1,
+ "userId": 2,
+ "postId": 1208,
+ "id": 563,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 2
+}, {
+ "creationDate": "2025-06-18T12:18:30.390Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1210,
+ "id": 564,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-06-19T10:40:57.403Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 646,
+ "id": 565,
+ "targetRepChange": 10,
+ "targetUserId": 38,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-06-20T08:43:00.373Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1213,
+ "id": 566,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-06-20T08:52:30.627Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1215,
+ "id": 567,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-06-20T13:22:23.187Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1218,
+ "id": 568,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-06-22T13:35:57.670Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1221,
+ "id": 569,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-06-23T05:01:50.887Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1223,
+ "id": 570,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-06-24T09:05:13.190Z",
+ "voteTypeId": 1,
+ "userId": 26,
+ "postId": 1227,
+ "id": 571,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 26
+}, {
+ "creationDate": "2025-06-27T07:42:02.537Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1227,
+ "id": 572,
+ "targetRepChange": 10,
+ "targetUserId": 26,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-06-27T07:42:05.397Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1226,
+ "id": 573,
+ "targetRepChange": 10,
+ "targetUserId": 26,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-06-29T08:25:42.890Z",
+ "voteTypeId": 10,
+ "userId": 2,
+ "postId": 746,
+ "id": 574
+}, {
+ "creationDate": "2025-06-29T12:14:23.263Z",
+ "voteTypeId": 1,
+ "userId": 26,
+ "postId": 1232,
+ "id": 575,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 26
+}, {
+ "creationDate": "2025-06-29T13:06:19.183Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 1232,
+ "id": 576,
+ "targetRepChange": 10,
+ "targetUserId": 26
+}, {
+ "creationDate": "2025-06-29T13:09:18.150Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 1180,
+ "id": 577,
+ "targetRepChange": 10
+}, {
+ "creationDate": "2025-06-29T13:09:20.460Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 1105,
+ "id": 578,
+ "targetRepChange": 10
+}, {
+ "creationDate": "2025-06-29T13:09:24.283Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 1185,
+ "id": 579,
+ "targetRepChange": 10
+}, {
+ "creationDate": "2025-06-29T13:09:32.920Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 121,
+ "id": 580,
+ "targetRepChange": 10
+}, {
+ "creationDate": "2025-06-29T13:14:23.650Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 1231,
+ "id": 581,
+ "targetRepChange": 10,
+ "targetUserId": 26
+}, {
+ "creationDate": "2025-06-29T13:14:26.930Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 1226,
+ "id": 582,
+ "targetRepChange": 10,
+ "targetUserId": 26
+}, {
+ "creationDate": "2025-06-29T13:14:30.9Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 1222,
+ "id": 583,
+ "targetRepChange": 10
+}, {
+ "creationDate": "2025-06-29T13:14:35.467Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 1220,
+ "id": 584,
+ "targetRepChange": 10
+}, {
+ "creationDate": "2025-06-29T13:14:37.210Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 1219,
+ "id": 585,
+ "targetRepChange": 10
+}, {
+ "creationDate": "2025-06-29T13:14:41.103Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 1217,
+ "id": 586,
+ "targetRepChange": 10
+}, {
+ "creationDate": "2025-06-29T13:14:46.447Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 1214,
+ "id": 587,
+ "targetRepChange": 10
+}, {
+ "creationDate": "2025-06-30T10:38:10.553Z",
+ "voteTypeId": 3,
+ "userId": 38,
+ "postId": 316,
+ "id": 588,
+ "voterRepChange": -1,
+ "targetRepChange": -2
+}, {
+ "creationDate": "2025-07-01T07:13:23.707Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1235,
+ "id": 589,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-07-03T16:13:49.677Z",
+ "voteTypeId": 1,
+ "userId": 2,
+ "postId": 1237,
+ "id": 590,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 2
+}, {
+ "creationDate": "2025-07-04T08:57:13.890Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1239,
+ "id": 591,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-07-05T15:21:39.573Z",
+ "voteTypeId": 10,
+ "userId": 38,
+ "postId": 1240,
+ "id": 592,
+ "deletionDate": "2025-07-05T17:06:01.723Z"
+}, {
+ "creationDate": "2025-07-05T17:06:01.723Z",
+ "voteTypeId": 11,
+ "userId": 38,
+ "postId": 1240,
+ "id": 593
+}, {
+ "creationDate": "2025-07-06T12:21:00.457Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 1242,
+ "id": 594,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38
+}, {
+ "creationDate": "2025-07-07T07:21:40.257Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 788,
+ "id": 595,
+ "targetRepChange": 10,
+ "deletionDate": "2025-07-07T07:21:40.837Z",
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-07-10T09:57:23.290Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 986,
+ "id": 596,
+ "targetRepChange": 10,
+ "targetUserId": 38,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-07-10T10:38:17.743Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1247,
+ "id": 597,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-07-10T16:43:43.940Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 1249,
+ "id": 598,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38
+}, {
+ "creationDate": "2025-07-15T05:32:19.473Z",
+ "voteTypeId": 1,
+ "userId": 26,
+ "postId": 1252,
+ "id": 599,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 26
+}, {
+ "creationDate": "2025-07-16T08:13:40.037Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1254,
+ "id": 600,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-07-19T03:22:05.250Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1240,
+ "id": 601,
+ "targetRepChange": 10,
+ "targetUserId": 38,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-07-19T04:09:50.593Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 742,
+ "id": 602,
+ "targetRepChange": 10,
+ "targetUserId": 14,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-07-19T15:34:42.083Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 434,
+ "id": 603,
+ "targetRepChange": 10
+}, {
+ "creationDate": "2025-07-19T15:34:44.147Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 861,
+ "id": 604,
+ "targetRepChange": 10,
+ "targetUserId": 14
+}, {
+ "creationDate": "2025-07-20T13:03:15.407Z",
+ "voteTypeId": 10,
+ "userId": 38,
+ "postId": 986,
+ "id": 605
+}, {
+ "creationDate": "2025-07-20T14:03:00.460Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 1256,
+ "id": 606,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38
+}, {
+ "creationDate": "2025-07-23T14:06:10.923Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1262,
+ "id": 607,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-07-24T07:20:44.873Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1258,
+ "id": 608,
+ "targetRepChange": 10,
+ "targetUserId": 38,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-07-24T17:30:20.850Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 1265,
+ "id": 609,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38
+}, {
+ "creationDate": "2025-07-25T07:52:01.393Z",
+ "voteTypeId": 1,
+ "userId": 23,
+ "postId": 1267,
+ "id": 610,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 23
+}, {
+ "creationDate": "2025-07-28T10:59:05.610Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1269,
+ "id": 611,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-07-28T16:19:21.813Z",
+ "voteTypeId": 10,
+ "userId": 38,
+ "postId": 1270,
+ "id": 612
+}, {
+ "creationDate": "2025-07-28T20:00:37.350Z",
+ "voteTypeId": 1,
+ "userId": 2,
+ "postId": 1274,
+ "id": 613,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 2
+}, {
+ "creationDate": "2025-07-29T05:54:11.273Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 1274,
+ "id": 614,
+ "targetRepChange": 10,
+ "targetUserId": 2
+}, {
+ "creationDate": "2025-07-30T06:06:19.2Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1276,
+ "id": 615,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-07-31T03:17:49.507Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1232,
+ "id": 617,
+ "targetRepChange": 10,
+ "targetUserId": 26,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-08-02T10:53:54.717Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 1279,
+ "id": 618,
+ "targetRepChange": 10
+}, {
+ "creationDate": "2025-08-03T08:47:39.040Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 1282,
+ "id": 619,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38
+}, {
+ "creationDate": "2025-08-03T09:27:30.690Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 1260,
+ "id": 620,
+ "targetRepChange": 10
+}, {
+ "creationDate": "2025-08-05T08:09:38.247Z",
+ "voteTypeId": 1,
+ "userId": 48,
+ "postId": 1284,
+ "id": 621,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 48
+}, {
+ "creationDate": "2025-08-05T08:36:59.397Z",
+ "voteTypeId": 1,
+ "userId": 48,
+ "postId": 1286,
+ "id": 622,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 48
+}, {
+ "creationDate": "2025-08-05T09:01:13.347Z",
+ "voteTypeId": 1,
+ "userId": 48,
+ "postId": 1288,
+ "id": 623,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 48
+}, {
+ "creationDate": "2025-08-05T13:04:09.273Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1290,
+ "id": 624,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "deletionDate": "2025-08-07T12:11:43.553Z"
+}, {
+ "creationDate": "2025-08-07T12:11:43.553Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1291,
+ "id": 625,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "deletionDate": "2025-08-07T12:11:45.6Z"
+}, {
+ "creationDate": "2025-08-07T12:11:45.6Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1290,
+ "id": 626,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "deletionDate": "2025-08-07T12:11:47.610Z"
+}, {
+ "creationDate": "2025-08-07T12:11:47.610Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1291,
+ "id": 627,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "deletionDate": "2025-08-07T12:11:50.273Z"
+}, {
+ "creationDate": "2025-08-08T09:02:14.337Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 1292,
+ "id": 628,
+ "targetRepChange": 10,
+ "targetUserId": 2
+}, {
+ "creationDate": "2025-08-08T15:08:14.687Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 1294,
+ "id": 629,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38
+}, {
+ "creationDate": "2025-08-19T02:51:32.627Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 955,
+ "id": 630,
+ "targetRepChange": 10,
+ "targetUserId": 25,
+ "deletionDate": "2025-08-19T02:51:40.663Z",
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-08-19T02:51:40.663Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 955,
+ "id": 631,
+ "targetRepChange": 10,
+ "targetUserId": 25,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-08-20T09:14:12.983Z",
+ "voteTypeId": 1,
+ "userId": 26,
+ "postId": 1300,
+ "id": 632,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 26
+}, {
+ "creationDate": "2025-08-24T11:12:13.263Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1272,
+ "id": 633,
+ "targetRepChange": 10,
+ "targetUserId": 38,
+ "comment": "User Deleted: 44"
+}, {
+ "creationDate": "2025-08-24T11:22:04.107Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1211,
+ "id": 634,
+ "targetRepChange": 10,
+ "targetUserId": 38,
+ "comment": "User Deleted: 44"
+}, {
+ "creationDate": "2025-08-26T14:50:27.433Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1302,
+ "id": 635,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-08-28T11:33:49.970Z",
+ "voteTypeId": 1,
+ "userId": 54,
+ "postId": 1305,
+ "id": 636,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 54
+}, {
+ "creationDate": "2025-08-29T12:25:58.647Z",
+ "voteTypeId": 1,
+ "userId": 37,
+ "postId": 1297,
+ "id": 637,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 37,
+ "deletionDate": "2025-08-29T12:25:59.677Z"
+}, {
+ "creationDate": "2025-08-29T12:26:00.410Z",
+ "voteTypeId": 1,
+ "userId": 37,
+ "postId": 1297,
+ "id": 638,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 37
+}, {
+ "creationDate": "2025-08-29T13:18:38.097Z",
+ "voteTypeId": 1,
+ "userId": 26,
+ "postId": 1307,
+ "id": 639,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 26
+}, {
+ "creationDate": "2025-08-30T10:31:14.170Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1303,
+ "id": 640,
+ "targetRepChange": 10,
+ "targetUserId": 38,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-08-30T11:11:56.980Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1300,
+ "id": 641,
+ "targetRepChange": 10,
+ "targetUserId": 26,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-08-30T14:39:00.390Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1288,
+ "id": 642,
+ "targetRepChange": 10,
+ "targetUserId": 48,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-09-03T20:21:31.303Z",
+ "voteTypeId": 1,
+ "userId": 37,
+ "postId": 1311,
+ "id": 643,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 37
+}, {
+ "creationDate": "2025-09-04T05:30:34.057Z",
+ "voteTypeId": 2,
+ "userId": 54,
+ "postId": 1311,
+ "id": 644,
+ "targetRepChange": 10,
+ "targetUserId": 37
+}, {
+ "creationDate": "2025-09-04T09:27:57.987Z",
+ "voteTypeId": 1,
+ "userId": 37,
+ "postId": 917,
+ "id": 645,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 37
+}, {
+ "creationDate": "2025-09-04T11:09:00.620Z",
+ "voteTypeId": 2,
+ "userId": 55,
+ "postId": 646,
+ "id": 646,
+ "targetRepChange": 10,
+ "targetUserId": 38,
+ "deletionDate": "2025-09-04T11:09:03.217Z"
+}, {
+ "creationDate": "2025-09-04T11:09:04.2Z",
+ "voteTypeId": 2,
+ "userId": 55,
+ "postId": 646,
+ "id": 647,
+ "targetRepChange": 10,
+ "targetUserId": 38
+}, {
+ "creationDate": "2025-09-05T17:05:12.517Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 1314,
+ "id": 648,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38
+}, {
+ "creationDate": "2025-09-06T16:16:10.493Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 1316,
+ "id": 649,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38
+}, {
+ "creationDate": "2025-09-08T10:17:32.483Z",
+ "voteTypeId": 10,
+ "userId": 38,
+ "postId": 1197,
+ "id": 650
+}, {
+ "creationDate": "2025-09-08T13:42:06.8Z",
+ "voteTypeId": 2,
+ "userId": 55,
+ "postId": 1303,
+ "id": 651,
+ "targetRepChange": 10,
+ "targetUserId": 38
+}, {
+ "creationDate": "2025-09-08T17:10:37.7Z",
+ "voteTypeId": 3,
+ "userId": 38,
+ "postId": 676,
+ "id": 652,
+ "voterRepChange": -1
+}, {
+ "creationDate": "2025-09-09T07:43:15.147Z",
+ "voteTypeId": 1,
+ "userId": 48,
+ "postId": 1321,
+ "id": 653,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 48
+}, {
+ "creationDate": "2025-09-09T09:56:37.257Z",
+ "voteTypeId": 2,
+ "userId": 55,
+ "postId": 964,
+ "id": 654,
+ "targetRepChange": 10,
+ "deletionDate": "2025-09-09T09:56:38.393Z"
+}, {
+ "creationDate": "2025-09-09T09:56:49.107Z",
+ "voteTypeId": 2,
+ "userId": 55,
+ "postId": 964,
+ "id": 655,
+ "targetRepChange": 10
+}, {
+ "creationDate": "2025-09-10T04:54:36.220Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1067,
+ "id": 656,
+ "targetRepChange": 10,
+ "targetUserId": 38,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-09-10T06:10:13.253Z",
+ "voteTypeId": 1,
+ "userId": 57,
+ "postId": 1323,
+ "id": 657,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 57
+}, {
+ "creationDate": "2025-09-10T06:19:47.290Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1323,
+ "id": 658,
+ "targetRepChange": 10,
+ "targetUserId": 57,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-09-10T07:12:18.330Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1034,
+ "id": 659,
+ "targetRepChange": 10,
+ "targetUserId": 38,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-09-10T14:43:52.950Z",
+ "voteTypeId": 2,
+ "userId": 55,
+ "postId": 1312,
+ "id": 660,
+ "targetRepChange": 10,
+ "targetUserId": 38,
+ "deletionDate": "2025-09-10T14:44:06.910Z"
+}, {
+ "creationDate": "2025-09-10T14:44:08.637Z",
+ "voteTypeId": 2,
+ "userId": 55,
+ "postId": 1312,
+ "id": 661,
+ "targetRepChange": 10,
+ "targetUserId": 38,
+ "deletionDate": "2025-09-10T14:44:09.457Z"
+}, {
+ "creationDate": "2025-09-10T14:44:11.190Z",
+ "voteTypeId": 2,
+ "userId": 55,
+ "postId": 1312,
+ "id": 662,
+ "targetRepChange": 10,
+ "targetUserId": 38
+}, {
+ "creationDate": "2025-09-10T15:31:25.463Z",
+ "voteTypeId": 2,
+ "userId": 55,
+ "postId": 1178,
+ "id": 663,
+ "targetRepChange": 10,
+ "targetUserId": 38,
+ "deletionDate": "2025-09-10T15:31:29.340Z"
+}, {
+ "creationDate": "2025-09-10T15:31:30.247Z",
+ "voteTypeId": 2,
+ "userId": 55,
+ "postId": 1178,
+ "id": 664,
+ "targetRepChange": 10,
+ "targetUserId": 38
+}, {
+ "creationDate": "2025-09-10T15:31:38.997Z",
+ "voteTypeId": 2,
+ "userId": 55,
+ "postId": 1177,
+ "id": 665,
+ "targetRepChange": 10,
+ "targetUserId": 38
+}, {
+ "creationDate": "2025-09-10T15:31:50.357Z",
+ "voteTypeId": 2,
+ "userId": 55,
+ "postId": 1154,
+ "id": 666,
+ "targetRepChange": 10,
+ "targetUserId": 38
+}, {
+ "creationDate": "2025-09-10T17:10:13.147Z",
+ "voteTypeId": 2,
+ "userId": 55,
+ "postId": 1088,
+ "id": 667,
+ "targetRepChange": 10,
+ "targetUserId": 38
+}, {
+ "creationDate": "2025-09-11T05:24:39.260Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1039,
+ "id": 668,
+ "targetRepChange": 10,
+ "targetUserId": 38,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-09-12T05:47:10.553Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 966,
+ "id": 669,
+ "targetRepChange": 10,
+ "targetUserId": 38,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-09-12T06:24:03.407Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1328,
+ "id": 670,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-09-12T09:50:35.133Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1329,
+ "id": 671,
+ "targetRepChange": 10,
+ "targetUserId": 38,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-09-12T16:27:42.587Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 1331,
+ "id": 672,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38
+}, {
+ "creationDate": "2025-09-13T08:29:48.277Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1294,
+ "id": 673,
+ "targetRepChange": 10,
+ "targetUserId": 38,
+ "comment": "User Deleted: 44"
+}, {
+ "creationDate": "2025-09-13T13:27:37Z",
+ "voteTypeId": 1,
+ "userId": 14,
+ "postId": 1334,
+ "id": 674,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 14
+}, {
+ "creationDate": "2025-09-13T14:00:00.003Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 424,
+ "id": 675,
+ "targetRepChange": 10,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-09-15T08:09:04.783Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1336,
+ "id": 676,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-09-15T09:52:10.513Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1338,
+ "id": 677,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-09-15T10:39:54.383Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1340,
+ "id": 678,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-09-15T10:47:49.603Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1342,
+ "id": 679,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-09-16T12:26:48.670Z",
+ "voteTypeId": 1,
+ "userId": 37,
+ "postId": 1344,
+ "id": 680,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 37
+}, {
+ "creationDate": "2025-09-16T18:00:39.873Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1048,
+ "id": 681,
+ "targetRepChange": 10,
+ "targetUserId": 38,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-09-17T12:06:53.423Z",
+ "voteTypeId": 1,
+ "userId": 57,
+ "postId": 1350,
+ "id": 682,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 57
+}, {
+ "creationDate": "2025-09-18T12:05:39.403Z",
+ "voteTypeId": 1,
+ "userId": 57,
+ "postId": 1353,
+ "id": 683,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 57
+}, {
+ "creationDate": "2025-09-18T16:15:53.517Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1352,
+ "id": 684,
+ "targetRepChange": 10,
+ "targetUserId": 57,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-09-20T08:37:58.543Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 1356,
+ "id": 685,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38
+}, {
+ "creationDate": "2025-09-20T09:16:16.013Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 1358,
+ "id": 686,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38
+}, {
+ "creationDate": "2025-09-22T08:36:41.867Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 1364,
+ "id": 687,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38
+}, {
+ "creationDate": "2025-09-22T08:51:49.133Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1366,
+ "id": 688,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-09-22T09:15:55.583Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1363,
+ "id": 689,
+ "targetRepChange": 10,
+ "targetUserId": 38,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-09-22T09:29:47.903Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1366,
+ "id": 690,
+ "targetRepChange": 10,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-09-23T06:28:23.280Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 399,
+ "id": 691,
+ "targetRepChange": 10,
+ "targetUserId": 2
+}, {
+ "creationDate": "2025-09-23T07:37:47.090Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1372,
+ "id": 692,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-09-25T04:58:48.520Z",
+ "voteTypeId": 1,
+ "userId": 42,
+ "postId": 1377,
+ "id": 693,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 42
+}, {
+ "creationDate": "2025-09-26T07:47:23.963Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1379,
+ "id": 694,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-09-27T06:57:31.990Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1332,
+ "id": 695,
+ "targetRepChange": 10,
+ "targetUserId": 38,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-09-29T10:44:45.020Z",
+ "voteTypeId": 10,
+ "userId": 38,
+ "postId": 1380,
+ "id": 696,
+ "deletionDate": "2025-09-30T05:36:59.467Z"
+}, {
+ "creationDate": "2025-09-30T05:36:59.467Z",
+ "voteTypeId": 11,
+ "userId": 38,
+ "postId": 1380,
+ "id": 697
+}, {
+ "creationDate": "2025-10-01T08:25:36.187Z",
+ "voteTypeId": 1,
+ "userId": 23,
+ "postId": 1384,
+ "id": 698,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 23
+}, {
+ "creationDate": "2025-10-03T09:45:31.463Z",
+ "voteTypeId": 1,
+ "userId": 23,
+ "postId": 1389,
+ "id": 699,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 23
+}, {
+ "creationDate": "2025-10-03T09:59:24.410Z",
+ "voteTypeId": 1,
+ "userId": 23,
+ "postId": 1392,
+ "id": 700,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 23
+}, {
+ "creationDate": "2025-10-03T16:27:21.547Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 1394,
+ "id": 701,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38
+}, {
+ "creationDate": "2025-10-04T02:47:36.333Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1179,
+ "id": 702,
+ "targetRepChange": 10,
+ "targetUserId": 38,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-10-06T06:51:41.393Z",
+ "voteTypeId": 1,
+ "userId": 57,
+ "postId": 1396,
+ "id": 703,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 57
+}, {
+ "creationDate": "2025-10-06T06:51:42.560Z",
+ "voteTypeId": 1,
+ "userId": 57,
+ "postId": 1398,
+ "id": 704,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 57
+}, {
+ "creationDate": "2025-10-08T14:09:45.627Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1400,
+ "id": 705,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-10-11T10:56:31.303Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1252,
+ "id": 706,
+ "targetRepChange": 10,
+ "targetUserId": 26,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-10-14T06:36:24.530Z",
+ "voteTypeId": 1,
+ "userId": 26,
+ "postId": 1404,
+ "id": 707,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 26
+}, {
+ "creationDate": "2025-10-14T06:56:50.353Z",
+ "voteTypeId": 1,
+ "userId": 42,
+ "postId": 1406,
+ "id": 708,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 42
+}, {
+ "creationDate": "2025-10-14T07:35:08.383Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 1404,
+ "id": 709,
+ "targetRepChange": 10,
+ "targetUserId": 26
+}, {
+ "creationDate": "2025-10-16T10:07:42.763Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1409,
+ "id": 710,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-10-16T17:11:15.623Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1407,
+ "id": 711,
+ "targetRepChange": 10,
+ "targetUserId": 57,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-10-20T07:56:33.807Z",
+ "voteTypeId": 1,
+ "userId": 57,
+ "postId": 1414,
+ "id": 712,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 57
+}, {
+ "creationDate": "2025-10-22T09:33:21.517Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 1417,
+ "id": 713,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38
+}, {
+ "creationDate": "2025-10-22T11:50:39.170Z",
+ "voteTypeId": 1,
+ "userId": 26,
+ "postId": 1419,
+ "id": 714,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 26
+}, {
+ "creationDate": "2025-10-22T11:55:08.013Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 1419,
+ "id": 715,
+ "targetRepChange": 10,
+ "targetUserId": 26
+}, {
+ "creationDate": "2025-10-22T11:55:10.990Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 1418,
+ "id": 716,
+ "targetRepChange": 10,
+ "targetUserId": 26
+}, {
+ "creationDate": "2025-10-24T17:33:02.390Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1420,
+ "id": 717,
+ "targetRepChange": 10,
+ "targetUserId": 57,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-10-24T18:11:54.027Z",
+ "voteTypeId": 1,
+ "userId": 57,
+ "postId": 1422,
+ "id": 718,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 57
+}, {
+ "creationDate": "2025-10-27T08:58:35.343Z",
+ "voteTypeId": 1,
+ "userId": 26,
+ "postId": 1425,
+ "id": 719,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 26
+}, {
+ "creationDate": "2025-10-27T09:25:10.090Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1424,
+ "id": 720,
+ "targetRepChange": 10,
+ "targetUserId": 26,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-10-27T09:25:21.773Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1425,
+ "id": 721,
+ "targetRepChange": 10,
+ "targetUserId": 26,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-10-28T07:54:51.920Z",
+ "voteTypeId": 1,
+ "userId": 57,
+ "postId": 1429,
+ "id": 722,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 57
+}, {
+ "creationDate": "2025-10-28T11:31:29.623Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 579,
+ "id": 723,
+ "targetRepChange": 10,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-10-29T15:20:59.130Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1225,
+ "id": 724,
+ "targetRepChange": 10,
+ "targetUserId": 38,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-10-31T08:07:26.080Z",
+ "voteTypeId": 1,
+ "userId": 57,
+ "postId": 1432,
+ "id": 725,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 57
+}, {
+ "creationDate": "2025-11-01T07:06:53.727Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1386,
+ "id": 727,
+ "targetRepChange": 10,
+ "targetUserId": 38,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-11-04T10:40:21.760Z",
+ "voteTypeId": 1,
+ "userId": 26,
+ "postId": 1437,
+ "id": 728,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 26
+}, {
+ "creationDate": "2025-11-06T15:24:54.277Z",
+ "voteTypeId": 1,
+ "userId": 26,
+ "postId": 1443,
+ "id": 729,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 26
+}, {
+ "creationDate": "2025-11-07T10:17:57.183Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1442,
+ "id": 730,
+ "targetRepChange": 10,
+ "targetUserId": 26,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-11-07T10:17:58.913Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1443,
+ "id": 731,
+ "targetRepChange": 10,
+ "targetUserId": 26,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-11-08T18:34:00.273Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 1445,
+ "id": 734,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38
+}, {
+ "creationDate": "2025-11-09T08:33:51.373Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1437,
+ "id": 735,
+ "targetRepChange": 10,
+ "targetUserId": 26,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-11-11T15:34:19.973Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 1448,
+ "id": 736,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38
+}, {
+ "creationDate": "2025-11-13T05:10:58.577Z",
+ "voteTypeId": 1,
+ "userId": 2,
+ "postId": 1450,
+ "id": 737,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 2
+}, {
+ "creationDate": "2025-11-20T06:21:24.123Z",
+ "voteTypeId": 1,
+ "userId": 57,
+ "postId": 1465,
+ "id": 739,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 57
+}, {
+ "creationDate": "2025-11-20T09:23:36.047Z",
+ "voteTypeId": 1,
+ "userId": 26,
+ "postId": 1467,
+ "id": 740,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 26
+}, {
+ "creationDate": "2025-11-21T06:12:41.523Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1468,
+ "id": 741,
+ "targetRepChange": 10,
+ "targetUserId": 14,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-11-21T06:54:53.223Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1311,
+ "id": 742,
+ "targetRepChange": 10,
+ "targetUserId": 37,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-11-21T11:05:03.483Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1465,
+ "id": 743,
+ "targetRepChange": 10,
+ "targetUserId": 57,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-11-24T06:09:54.577Z",
+ "voteTypeId": 1,
+ "userId": 26,
+ "postId": 1470,
+ "id": 745,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 26
+}, {
+ "creationDate": "2025-11-24T06:21:10.667Z",
+ "voteTypeId": 1,
+ "userId": 57,
+ "postId": 1473,
+ "id": 746,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 57
+}, {
+ "creationDate": "2025-11-25T05:15:53.930Z",
+ "voteTypeId": 1,
+ "userId": 23,
+ "postId": 1477,
+ "id": 747,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 23
+}, {
+ "creationDate": "2025-11-25T06:01:33.567Z",
+ "voteTypeId": 1,
+ "userId": 57,
+ "postId": 1479,
+ "id": 748,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 57
+}, {
+ "creationDate": "2025-11-25T06:07:23.790Z",
+ "voteTypeId": 1,
+ "userId": 23,
+ "postId": 1481,
+ "id": 749,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 23
+}, {
+ "creationDate": "2025-11-26T06:06:17.407Z",
+ "voteTypeId": 1,
+ "userId": 57,
+ "postId": 1485,
+ "id": 750,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 57
+}, {
+ "creationDate": "2025-11-26T07:18:37.463Z",
+ "voteTypeId": 2,
+ "userId": 14,
+ "postId": 1345,
+ "id": 751,
+ "targetRepChange": 10
+}, {
+ "creationDate": "2025-11-27T10:00:01.630Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1100,
+ "id": 752,
+ "targetRepChange": 10,
+ "targetUserId": 38,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-11-27T13:10:55.057Z",
+ "voteTypeId": 1,
+ "userId": 57,
+ "postId": 1489,
+ "id": 753,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 57
+}, {
+ "creationDate": "2025-11-28T09:08:45.193Z",
+ "voteTypeId": 1,
+ "userId": 14,
+ "postId": 1491,
+ "id": 754,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 14
+}, {
+ "creationDate": "2025-12-01T07:13:20.127Z",
+ "voteTypeId": 1,
+ "userId": 57,
+ "postId": 1499,
+ "id": 755,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 57
+}, {
+ "creationDate": "2025-12-02T12:34:54.997Z",
+ "voteTypeId": 1,
+ "userId": 26,
+ "postId": 1501,
+ "id": 756,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 26
+}, {
+ "creationDate": "2025-12-03T07:37:58.687Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1503,
+ "id": 757,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2025-12-04T07:50:32.9Z",
+ "voteTypeId": 1,
+ "userId": 23,
+ "postId": 1505,
+ "id": 758,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 23
+}, {
+ "creationDate": "2025-12-05T08:42:12.217Z",
+ "voteTypeId": 3,
+ "userId": 38,
+ "postId": 303,
+ "id": 759,
+ "voterRepChange": -1,
+ "targetRepChange": -2
+}, {
+ "creationDate": "2025-12-08T11:51:09.780Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1507,
+ "id": 760,
+ "targetRepChange": 10,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-12-11T04:18:20.817Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1387,
+ "id": 761,
+ "targetRepChange": 10,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-12-11T09:20:53.423Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1115,
+ "id": 762,
+ "targetRepChange": 10,
+ "targetUserId": 14,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-12-11T12:59:39.050Z",
+ "voteTypeId": 1,
+ "userId": 23,
+ "postId": 1509,
+ "id": 763,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 23
+}, {
+ "creationDate": "2025-12-12T09:56:24.203Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1457,
+ "id": 764,
+ "targetRepChange": 10,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-12-15T11:19:20.870Z",
+ "voteTypeId": 1,
+ "userId": 23,
+ "postId": 1513,
+ "id": 767,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 23
+}, {
+ "creationDate": "2025-12-17T06:01:50.593Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1310,
+ "id": 768,
+ "targetRepChange": 10,
+ "targetUserId": 37,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-12-17T09:06:52.420Z",
+ "voteTypeId": 1,
+ "userId": 26,
+ "postId": 1515,
+ "id": 769,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 26,
+ "deletionDate": "2026-02-27T09:22:22.503Z"
+}, {
+ "creationDate": "2025-12-18T10:00:06.990Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 1518,
+ "id": 770,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38
+}, {
+ "creationDate": "2025-12-22T06:45:26.073Z",
+ "voteTypeId": 1,
+ "userId": 57,
+ "postId": 1520,
+ "id": 771,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 57
+}, {
+ "creationDate": "2025-12-22T08:52:16.090Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1110,
+ "id": 772,
+ "targetRepChange": 10,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-12-22T08:52:29.510Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1369,
+ "id": 773,
+ "targetRepChange": 10,
+ "targetUserId": 37,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-12-23T04:02:39.850Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1517,
+ "id": 774,
+ "targetRepChange": 10,
+ "targetUserId": 38,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-12-23T08:27:14.783Z",
+ "voteTypeId": 3,
+ "userId": 26,
+ "postId": 684,
+ "id": 775,
+ "voterRepChange": -1,
+ "targetRepChange": -2,
+ "targetUserId": 38
+}, {
+ "creationDate": "2025-12-23T09:21:00.563Z",
+ "voteTypeId": 1,
+ "userId": 57,
+ "postId": 1522,
+ "id": 776,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 57
+}, {
+ "creationDate": "2025-12-24T06:15:41.667Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1466,
+ "id": 777,
+ "targetRepChange": 10,
+ "targetUserId": 26,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-12-29T10:30:51.687Z",
+ "voteTypeId": 1,
+ "userId": 57,
+ "postId": 1527,
+ "id": 778,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 57
+}, {
+ "creationDate": "2025-12-30T10:40:57.520Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1320,
+ "id": 781,
+ "targetRepChange": 10,
+ "targetUserId": 48,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2025-12-30T13:19:18.173Z",
+ "voteTypeId": 1,
+ "userId": 57,
+ "postId": 1530,
+ "id": 782,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 57
+}, {
+ "creationDate": "2026-01-02T07:07:10.147Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1167,
+ "id": 783,
+ "targetRepChange": 10,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2026-01-05T03:25:44.133Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1142,
+ "id": 784,
+ "targetRepChange": 10,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2026-01-08T16:59:30.663Z",
+ "voteTypeId": 1,
+ "userId": 26,
+ "postId": 1533,
+ "id": 785,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 26
+}, {
+ "creationDate": "2026-01-12T07:18:00.493Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1462,
+ "id": 786,
+ "targetRepChange": 10,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2026-01-12T12:51:11.890Z",
+ "voteTypeId": 10,
+ "userId": 26,
+ "postId": 1536,
+ "id": 787
+}, {
+ "creationDate": "2026-01-12T12:53:47.110Z",
+ "voteTypeId": 1,
+ "userId": 26,
+ "postId": 1538,
+ "id": 788,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 26
+}, {
+ "creationDate": "2026-01-12T13:28:08.830Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1540,
+ "id": 789,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2026-01-13T07:13:44.023Z",
+ "voteTypeId": 1,
+ "userId": 26,
+ "postId": 1542,
+ "id": 790,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 26
+}, {
+ "creationDate": "2026-01-14T04:31:46.213Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 625,
+ "id": 791,
+ "targetRepChange": 10,
+ "targetUserId": 14,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2026-01-14T06:46:42.407Z",
+ "voteTypeId": 1,
+ "userId": 26,
+ "postId": 1544,
+ "id": 792,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 26
+}, {
+ "creationDate": "2026-01-14T07:03:05.360Z",
+ "voteTypeId": 1,
+ "userId": 26,
+ "postId": 1546,
+ "id": 793,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 26
+}, {
+ "creationDate": "2026-01-14T08:07:46.9Z",
+ "voteTypeId": 1,
+ "userId": 26,
+ "postId": 1548,
+ "id": 794,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 26
+}, {
+ "creationDate": "2026-01-14T08:28:25.553Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1548,
+ "id": 795,
+ "targetRepChange": 10,
+ "targetUserId": 26,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2026-01-14T11:05:06.590Z",
+ "voteTypeId": 10,
+ "userId": 25,
+ "postId": 898,
+ "id": 796
+}, {
+ "creationDate": "2026-01-14T17:24:42.163Z",
+ "voteTypeId": 1,
+ "userId": 49,
+ "postId": 1551,
+ "id": 797,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 49
+}, {
+ "creationDate": "2026-01-16T15:48:38.260Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1555,
+ "id": 798,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2026-01-18T05:32:46.730Z",
+ "voteTypeId": 1,
+ "userId": 26,
+ "postId": 1557,
+ "id": 799,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 26
+}, {
+ "creationDate": "2026-01-19T07:09:51.020Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1559,
+ "id": 800,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2026-01-20T07:38:57.7Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 511,
+ "id": 801,
+ "targetRepChange": 10,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2026-01-20T07:57:34.347Z",
+ "voteTypeId": 1,
+ "userId": 57,
+ "postId": 1564,
+ "id": 802,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 57
+}, {
+ "creationDate": "2026-01-21T06:14:41.673Z",
+ "voteTypeId": 1,
+ "userId": 57,
+ "postId": 1566,
+ "id": 803,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 57
+}, {
+ "creationDate": "2026-01-22T14:13:03.467Z",
+ "voteTypeId": 1,
+ "userId": 57,
+ "postId": 1569,
+ "id": 804,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 57
+}, {
+ "creationDate": "2026-01-24T03:15:02.033Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1556,
+ "id": 805,
+ "targetRepChange": 10,
+ "targetUserId": 26,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2026-01-29T05:40:53.580Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 1541,
+ "id": 806,
+ "targetRepChange": 10,
+ "targetUserId": 26,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2026-01-29T07:03:36.727Z",
+ "voteTypeId": 2,
+ "userId": -1,
+ "postId": 910,
+ "id": 807,
+ "targetRepChange": 10,
+ "targetUserId": 38,
+ "comment": "User Deleted: 40"
+}, {
+ "creationDate": "2026-01-29T08:17:04.657Z",
+ "voteTypeId": 2,
+ "userId": 55,
+ "postId": 1443,
+ "id": 808,
+ "targetRepChange": 10,
+ "targetUserId": 26
+}, {
+ "creationDate": "2026-01-30T10:27:02.017Z",
+ "voteTypeId": 2,
+ "userId": 55,
+ "postId": 1093,
+ "id": 813,
+ "targetRepChange": 10
+}, {
+ "creationDate": "2026-01-31T05:09:18.320Z",
+ "voteTypeId": 2,
+ "userId": 55,
+ "postId": 1345,
+ "id": 814,
+ "targetRepChange": 10
+}, {
+ "creationDate": "2026-01-31T06:12:36.953Z",
+ "voteTypeId": 2,
+ "userId": 55,
+ "postId": 367,
+ "id": 815
+}, {
+ "creationDate": "2026-01-31T06:23:50.417Z",
+ "voteTypeId": 2,
+ "userId": 55,
+ "postId": 1309,
+ "id": 816,
+ "targetRepChange": 10
+}, {
+ "creationDate": "2026-01-31T10:56:49.983Z",
+ "voteTypeId": 2,
+ "userId": 55,
+ "postId": 1457,
+ "id": 817
+}, {
+ "creationDate": "2026-02-02T00:19:03.960Z",
+ "voteTypeId": 1,
+ "userId": 37,
+ "postId": 1573,
+ "id": 818,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 37
+}, {
+ "creationDate": "2026-02-02T10:39:22.420Z",
+ "voteTypeId": 1,
+ "userId": 42,
+ "postId": 1575,
+ "id": 819,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 42
+}, {
+ "creationDate": "2026-02-03T04:08:05.640Z",
+ "voteTypeId": 2,
+ "userId": 55,
+ "postId": 1117,
+ "id": 820,
+ "targetRepChange": 10
+}, {
+ "creationDate": "2026-02-03T06:00:26.497Z",
+ "voteTypeId": 2,
+ "userId": 55,
+ "postId": 1279,
+ "id": 821,
+ "targetRepChange": 10
+}, {
+ "creationDate": "2026-02-03T06:51:16.470Z",
+ "voteTypeId": 1,
+ "userId": 37,
+ "postId": 1571,
+ "id": 822,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 37
+}, {
+ "creationDate": "2026-02-03T10:45:39.813Z",
+ "voteTypeId": 2,
+ "userId": 55,
+ "postId": 1493,
+ "id": 823,
+ "targetRepChange": 10,
+ "targetUserId": 37
+}, {
+ "creationDate": "2026-02-03T13:18:40.970Z",
+ "voteTypeId": 2,
+ "userId": 55,
+ "postId": 935,
+ "id": 824,
+ "targetRepChange": 10,
+ "targetUserId": 38,
+ "deletionDate": "2026-02-03T13:18:43.207Z"
+}, {
+ "creationDate": "2026-02-03T13:18:43.720Z",
+ "voteTypeId": 2,
+ "userId": 55,
+ "postId": 935,
+ "id": 825,
+ "targetRepChange": 10,
+ "targetUserId": 38
+}, {
+ "creationDate": "2026-02-04T06:01:41.383Z",
+ "voteTypeId": 2,
+ "userId": 55,
+ "postId": 699,
+ "id": 826,
+ "targetRepChange": 10
+}, {
+ "creationDate": "2026-02-04T07:25:34.123Z",
+ "voteTypeId": 1,
+ "userId": 57,
+ "postId": 1578,
+ "id": 827,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 57
+}, {
+ "creationDate": "2026-02-04T10:47:42.160Z",
+ "voteTypeId": 2,
+ "userId": 55,
+ "postId": 1100,
+ "id": 828,
+ "targetRepChange": 10,
+ "targetUserId": 38
+}, {
+ "creationDate": "2026-02-05T05:50:14.210Z",
+ "voteTypeId": 2,
+ "userId": 55,
+ "postId": 1311,
+ "id": 829,
+ "targetRepChange": 10,
+ "targetUserId": 37
+}, {
+ "creationDate": "2026-02-05T06:13:06.853Z",
+ "voteTypeId": 2,
+ "userId": 55,
+ "postId": 1318,
+ "id": 830,
+ "targetRepChange": 10,
+ "targetUserId": 38,
+ "deletionDate": "2026-02-05T06:13:07.927Z"
+}, {
+ "creationDate": "2026-02-05T06:13:08.6Z",
+ "voteTypeId": 2,
+ "userId": 55,
+ "postId": 1318,
+ "id": 831,
+ "targetRepChange": 10,
+ "targetUserId": 38
+}, {
+ "creationDate": "2026-02-05T10:07:03.320Z",
+ "voteTypeId": 2,
+ "userId": 55,
+ "postId": 1515,
+ "id": 832,
+ "targetRepChange": 10,
+ "targetUserId": 26
+}, {
+ "creationDate": "2026-02-05T11:38:59.923Z",
+ "voteTypeId": 1,
+ "userId": 57,
+ "postId": 1580,
+ "id": 833,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 57
+}, {
+ "creationDate": "2026-02-13T12:00:16.797Z",
+ "voteTypeId": 1,
+ "userId": 57,
+ "postId": 1586,
+ "id": 834,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 57
+}, {
+ "creationDate": "2026-02-15T14:34:36.660Z",
+ "voteTypeId": 2,
+ "userId": 55,
+ "postId": 1381,
+ "id": 835,
+ "targetRepChange": 10,
+ "targetUserId": 26
+}, {
+ "creationDate": "2026-02-15T14:34:42.657Z",
+ "voteTypeId": 2,
+ "userId": 55,
+ "postId": 1380,
+ "id": 836,
+ "targetRepChange": 10,
+ "targetUserId": 38
+}, {
+ "creationDate": "2026-02-16T11:16:30.187Z",
+ "voteTypeId": 2,
+ "userId": 55,
+ "postId": 1012,
+ "id": 837,
+ "targetRepChange": 10
+}, {
+ "creationDate": "2026-02-17T08:55:39.020Z",
+ "voteTypeId": 1,
+ "userId": 37,
+ "postId": 1588,
+ "id": 838,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 37
+}, {
+ "creationDate": "2026-02-18T08:01:14.407Z",
+ "voteTypeId": 2,
+ "userId": 55,
+ "postId": 1462,
+ "id": 839
+}, {
+ "creationDate": "2026-02-25T03:31:35.193Z",
+ "voteTypeId": 2,
+ "userId": 55,
+ "postId": 1442,
+ "id": 840,
+ "targetRepChange": 10,
+ "targetUserId": 26
+}, {
+ "creationDate": "2026-02-25T07:37:50.873Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 1590,
+ "id": 841,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38
+}, {
+ "creationDate": "2026-02-27T04:43:33.570Z",
+ "voteTypeId": 1,
+ "userId": 63,
+ "postId": 1592,
+ "id": 842,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 63
+}, {
+ "creationDate": "2026-02-27T09:22:16.533Z",
+ "voteTypeId": 3,
+ "userId": 2,
+ "postId": 1515,
+ "id": 843,
+ "voterRepChange": -1,
+ "targetRepChange": -2,
+ "targetUserId": 26
+}, {
+ "creationDate": "2026-02-27T09:22:22.503Z",
+ "voteTypeId": 1,
+ "userId": 2,
+ "postId": 1593,
+ "id": 844,
+ "voterRepChange": 0,
+ "targetRepChange": 15,
+ "targetUserId": 2
+}, {
+ "creationDate": "2026-03-02T10:39:21.180Z",
+ "voteTypeId": 1,
+ "userId": 23,
+ "postId": 1595,
+ "id": 845,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 23
+}, {
+ "creationDate": "2026-03-04T09:01:32.923Z",
+ "voteTypeId": 1,
+ "userId": 55,
+ "postId": 1600,
+ "id": 846,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 55
+}, {
+ "creationDate": "2026-03-05T07:58:58.343Z",
+ "voteTypeId": 1,
+ "userId": 26,
+ "postId": 1603,
+ "id": 847,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 26
+}, {
+ "creationDate": "2026-03-06T06:08:30.380Z",
+ "voteTypeId": 1,
+ "userId": 23,
+ "postId": 1605,
+ "id": 848,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 23
+}, {
+ "creationDate": "2026-03-06T10:48:08.787Z",
+ "voteTypeId": 1,
+ "userId": 23,
+ "postId": 1607,
+ "id": 849,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 23
+}, {
+ "creationDate": "2026-03-10T10:30:23.493Z",
+ "voteTypeId": 2,
+ "userId": 55,
+ "postId": 1516,
+ "id": 850,
+ "targetRepChange": 10,
+ "targetUserId": 25
+}, {
+ "creationDate": "2026-03-10T12:49:33.990Z",
+ "voteTypeId": 1,
+ "userId": 14,
+ "postId": 1610,
+ "id": 851,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 14
+}, {
+ "creationDate": "2026-03-10T13:01:52.807Z",
+ "voteTypeId": 1,
+ "userId": -1,
+ "postId": 1612,
+ "id": 852,
+ "voterRepChange": 0,
+ "targetRepChange": 0
+}, {
+ "creationDate": "2026-03-10T13:37:48.593Z",
+ "voteTypeId": 2,
+ "userId": 55,
+ "postId": 1067,
+ "id": 853,
+ "targetRepChange": 10,
+ "targetUserId": 38
+}, {
+ "creationDate": "2026-03-11T10:38:56.103Z",
+ "voteTypeId": 1,
+ "userId": 57,
+ "postId": 1615,
+ "id": 854,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 57
+}, {
+ "creationDate": "2026-03-12T11:37:16.1Z",
+ "voteTypeId": 2,
+ "userId": 55,
+ "postId": 1458,
+ "id": 855,
+ "targetRepChange": 10,
+ "targetUserId": 14
+}, {
+ "creationDate": "2026-03-13T10:38:35.827Z",
+ "voteTypeId": 2,
+ "userId": 48,
+ "postId": 1612,
+ "id": 856,
+ "targetRepChange": 10,
+ "deletionDate": "2026-03-13T10:38:39.550Z"
+}, {
+ "creationDate": "2026-03-13T10:38:40.040Z",
+ "voteTypeId": 2,
+ "userId": 48,
+ "postId": 1612,
+ "id": 857,
+ "targetRepChange": 10
+}, {
+ "creationDate": "2026-03-16T12:41:02.660Z",
+ "voteTypeId": 3,
+ "userId": 24,
+ "postId": 1380,
+ "id": 858,
+ "voterRepChange": -1,
+ "targetRepChange": -2,
+ "targetUserId": 38,
+ "deletionDate": "2026-03-16T12:41:03.690Z"
+}, {
+ "creationDate": "2026-03-16T12:41:03.690Z",
+ "voteTypeId": 2,
+ "userId": 24,
+ "postId": 1380,
+ "id": 859,
+ "targetRepChange": 10,
+ "targetUserId": 38
+}, {
+ "creationDate": "2026-03-17T06:33:48.957Z",
+ "voteTypeId": 1,
+ "userId": 23,
+ "postId": 1618,
+ "id": 860,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 23
+}, {
+ "creationDate": "2026-03-17T13:21:32.260Z",
+ "voteTypeId": 1,
+ "userId": 23,
+ "postId": 1622,
+ "id": 861,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 23
+}, {
+ "creationDate": "2026-03-21T07:29:47.610Z",
+ "voteTypeId": 2,
+ "userId": 55,
+ "postId": 1626,
+ "id": 862,
+ "targetRepChange": 10
+}, {
+ "creationDate": "2026-03-23T08:35:01.397Z",
+ "voteTypeId": 1,
+ "userId": 26,
+ "postId": 1628,
+ "id": 863,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 26
+}, {
+ "creationDate": "2026-03-24T10:18:29.063Z",
+ "voteTypeId": 2,
+ "userId": 55,
+ "postId": 1590,
+ "id": 864,
+ "targetRepChange": 10,
+ "targetUserId": 38
+}, {
+ "creationDate": "2026-03-24T14:45:03.173Z",
+ "voteTypeId": 1,
+ "userId": 55,
+ "postId": 1634,
+ "id": 865,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 55
+}, {
+ "creationDate": "2026-03-25T12:06:03.180Z",
+ "voteTypeId": 1,
+ "userId": 26,
+ "postId": 1637,
+ "id": 866,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 26
+}, {
+ "creationDate": "2026-03-25T15:29:56.397Z",
+ "voteTypeId": 1,
+ "userId": 26,
+ "postId": 1639,
+ "id": 867,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 26
+}, {
+ "creationDate": "2026-03-27T13:14:26.013Z",
+ "voteTypeId": 2,
+ "userId": 49,
+ "postId": 1644,
+ "id": 868,
+ "targetRepChange": 10
+}, {
+ "creationDate": "2026-03-28T08:43:57.377Z",
+ "voteTypeId": 2,
+ "userId": 55,
+ "postId": 1639,
+ "id": 869,
+ "targetRepChange": 10,
+ "targetUserId": 26
+}, {
+ "creationDate": "2026-03-30T03:36:36.673Z",
+ "voteTypeId": 1,
+ "userId": 57,
+ "postId": 1647,
+ "id": 870,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 57
+}, {
+ "creationDate": "2026-03-30T09:59:02.687Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 1377,
+ "id": 871,
+ "targetRepChange": 10,
+ "targetUserId": 42
+}, {
+ "creationDate": "2026-03-30T11:08:16.753Z",
+ "voteTypeId": 1,
+ "userId": 26,
+ "postId": 1649,
+ "id": 872,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 26
+}, {
+ "creationDate": "2026-03-31T05:33:57.803Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 1406,
+ "id": 873,
+ "targetRepChange": 10,
+ "targetUserId": 42
+}, {
+ "creationDate": "2026-03-31T10:22:05.180Z",
+ "voteTypeId": 10,
+ "userId": 23,
+ "postId": 1040,
+ "id": 874
+}, {
+ "creationDate": "2026-03-31T10:51:15.303Z",
+ "voteTypeId": 2,
+ "userId": 58,
+ "postId": 1377,
+ "id": 875,
+ "targetRepChange": 10,
+ "targetUserId": 42
+}, {
+ "creationDate": "2026-04-01T09:21:54.873Z",
+ "voteTypeId": 2,
+ "userId": 58,
+ "postId": 1612,
+ "id": 876,
+ "targetRepChange": 10,
+ "deletionDate": "2026-04-01T09:21:56.720Z"
+}, {
+ "creationDate": "2026-04-01T09:21:58.240Z",
+ "voteTypeId": 2,
+ "userId": 58,
+ "postId": 1612,
+ "id": 877,
+ "targetRepChange": 10
+}, {
+ "creationDate": "2026-04-01T10:26:34.567Z",
+ "voteTypeId": 1,
+ "userId": 57,
+ "postId": 1651,
+ "id": 878,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 57
+}, {
+ "creationDate": "2026-04-01T15:12:24.163Z",
+ "voteTypeId": 2,
+ "userId": 55,
+ "postId": 1495,
+ "id": 879
+}, {
+ "creationDate": "2026-04-06T08:57:31.857Z",
+ "voteTypeId": 2,
+ "userId": 55,
+ "postId": 1638,
+ "id": 880,
+ "targetRepChange": 10,
+ "targetUserId": 26
+}, {
+ "creationDate": "2026-04-07T14:14:16.217Z",
+ "voteTypeId": 2,
+ "userId": 55,
+ "postId": 1082,
+ "id": 881,
+ "targetRepChange": 10,
+ "targetUserId": 38
+}, {
+ "creationDate": "2026-04-07T15:50:08.417Z",
+ "voteTypeId": 2,
+ "userId": 55,
+ "postId": 1558,
+ "id": 882
+}, {
+ "creationDate": "2026-04-07T15:50:16.877Z",
+ "voteTypeId": 2,
+ "userId": 55,
+ "postId": 1576,
+ "id": 883
+}, {
+ "creationDate": "2026-04-07T15:50:49.273Z",
+ "voteTypeId": 2,
+ "userId": 55,
+ "postId": 1559,
+ "id": 884
+}, {
+ "creationDate": "2026-04-09T10:22:37.413Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 1653,
+ "id": 885,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38
+}, {
+ "creationDate": "2026-04-09T12:22:02.723Z",
+ "voteTypeId": 1,
+ "userId": 55,
+ "postId": 1655,
+ "id": 886,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 55
+}, {
+ "creationDate": "2026-04-13T05:47:53.837Z",
+ "voteTypeId": 2,
+ "userId": 65,
+ "postId": 1655,
+ "id": 887,
+ "targetRepChange": 10,
+ "targetUserId": 55,
+ "deletionDate": "2026-04-13T05:47:58.263Z"
+}, {
+ "creationDate": "2026-04-13T05:48:01.240Z",
+ "voteTypeId": 2,
+ "userId": 65,
+ "postId": 1655,
+ "id": 888,
+ "targetRepChange": 10,
+ "targetUserId": 55,
+ "deletionDate": "2026-04-13T05:48:02.053Z"
+}, {
+ "creationDate": "2026-04-15T06:32:09.920Z",
+ "voteTypeId": 1,
+ "userId": 23,
+ "postId": 1658,
+ "id": 889,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 23
+}, {
+ "creationDate": "2026-04-15T12:36:53.720Z",
+ "voteTypeId": 1,
+ "userId": 55,
+ "postId": 1660,
+ "id": 890,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 55
+}, {
+ "creationDate": "2026-04-15T16:00:36.523Z",
+ "voteTypeId": 1,
+ "userId": 38,
+ "postId": 1662,
+ "id": 891,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 38
+}, {
+ "creationDate": "2026-04-16T04:47:25.420Z",
+ "voteTypeId": 2,
+ "userId": 68,
+ "postId": 765,
+ "id": 892,
+ "targetRepChange": 10,
+ "targetUserId": 38
+}, {
+ "creationDate": "2026-04-18T09:47:52.007Z",
+ "voteTypeId": 10,
+ "userId": 23,
+ "postId": 895,
+ "id": 893
+}, {
+ "creationDate": "2026-04-18T10:35:38.603Z",
+ "voteTypeId": 1,
+ "userId": 55,
+ "postId": 1664,
+ "id": 894,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 55
+}, {
+ "creationDate": "2026-04-21T10:04:31.553Z",
+ "voteTypeId": 2,
+ "userId": 55,
+ "postId": 1394,
+ "id": 895,
+ "targetRepChange": 10,
+ "targetUserId": 38
+}, {
+ "creationDate": "2026-04-22T14:04:09.057Z",
+ "voteTypeId": 10,
+ "userId": 49,
+ "postId": 1667,
+ "id": 896
+}, {
+ "creationDate": "2026-04-24T08:37:24.707Z",
+ "voteTypeId": 1,
+ "userId": 26,
+ "postId": 1669,
+ "id": 897,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 26
+}, {
+ "creationDate": "2026-04-27T12:51:36.547Z",
+ "voteTypeId": 2,
+ "userId": 55,
+ "postId": 1167,
+ "id": 898
+}, {
+ "creationDate": "2026-04-29T11:38:05.140Z",
+ "voteTypeId": 1,
+ "userId": 26,
+ "postId": 1671,
+ "id": 899,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 26
+}, {
+ "creationDate": "2026-04-30T08:30:20.607Z",
+ "voteTypeId": 1,
+ "userId": 55,
+ "postId": 1673,
+ "id": 900,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 55
+}, {
+ "creationDate": "2026-05-04T12:35:12.063Z",
+ "voteTypeId": 2,
+ "userId": 49,
+ "postId": 1675,
+ "id": 901,
+ "targetRepChange": 10,
+ "targetUserId": 25,
+ "deletionDate": "2026-05-04T12:35:38.450Z"
+}, {
+ "creationDate": "2026-05-04T12:35:39.903Z",
+ "voteTypeId": 2,
+ "userId": 49,
+ "postId": 1675,
+ "id": 902,
+ "targetRepChange": 10,
+ "targetUserId": 25,
+ "deletionDate": "2026-05-04T12:35:40.403Z"
+}, {
+ "creationDate": "2026-05-04T12:35:43.313Z",
+ "voteTypeId": 2,
+ "userId": 49,
+ "postId": 1675,
+ "id": 903,
+ "targetRepChange": 10,
+ "targetUserId": 25
+}, {
+ "creationDate": "2026-05-05T05:16:10.213Z",
+ "voteTypeId": 1,
+ "userId": 23,
+ "postId": 1678,
+ "id": 904,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 23
+}, {
+ "creationDate": "2026-05-07T12:57:42.580Z",
+ "voteTypeId": 1,
+ "userId": 26,
+ "postId": 1684,
+ "id": 905,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 26
+}, {
+ "creationDate": "2026-05-18T04:49:49.047Z",
+ "voteTypeId": 1,
+ "userId": 26,
+ "postId": 1688,
+ "id": 906,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 26
+}, {
+ "creationDate": "2026-05-18T06:05:23.117Z",
+ "voteTypeId": 1,
+ "userId": 23,
+ "postId": 1691,
+ "id": 907,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 23
+}, {
+ "creationDate": "2026-05-19T06:42:09.817Z",
+ "voteTypeId": 1,
+ "userId": 57,
+ "postId": 1695,
+ "id": 908,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 57
+}, {
+ "creationDate": "2026-05-19T10:54:25.037Z",
+ "voteTypeId": 2,
+ "userId": 55,
+ "postId": 1640,
+ "id": 909,
+ "targetRepChange": 10,
+ "targetUserId": 49
+}, {
+ "creationDate": "2026-05-19T10:54:27.557Z",
+ "voteTypeId": 2,
+ "userId": 55,
+ "postId": 1642,
+ "id": 910,
+ "targetRepChange": 10,
+ "targetUserId": 49
+}, {
+ "creationDate": "2026-05-19T13:10:33.473Z",
+ "voteTypeId": 2,
+ "userId": 55,
+ "postId": 1687,
+ "id": 911,
+ "targetRepChange": 10,
+ "targetUserId": 26
+}, {
+ "creationDate": "2026-05-20T06:42:51.097Z",
+ "voteTypeId": 1,
+ "userId": 55,
+ "postId": 1697,
+ "id": 912,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 55
+}, {
+ "creationDate": "2026-05-22T13:29:55.013Z",
+ "voteTypeId": 1,
+ "userId": 55,
+ "postId": 1699,
+ "id": 913,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 55
+}, {
+ "creationDate": "2026-05-29T13:07:34.970Z",
+ "voteTypeId": 1,
+ "userId": 55,
+ "postId": 1703,
+ "id": 914,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 55
+}, {
+ "creationDate": "2026-06-02T06:43:31.207Z",
+ "voteTypeId": 1,
+ "userId": 64,
+ "postId": 1705,
+ "id": 915,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 64
+}, {
+ "creationDate": "2026-06-02T06:51:03.897Z",
+ "voteTypeId": 2,
+ "userId": 55,
+ "postId": 1705,
+ "id": 916,
+ "targetRepChange": 10,
+ "targetUserId": 64
+}, {
+ "creationDate": "2026-06-02T06:51:19.907Z",
+ "voteTypeId": 2,
+ "userId": 55,
+ "postId": 1704,
+ "id": 917,
+ "targetRepChange": 10,
+ "targetUserId": 64
+}, {
+ "creationDate": "2026-06-03T15:55:31.840Z",
+ "voteTypeId": 1,
+ "userId": 14,
+ "postId": 1707,
+ "id": 918,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 14
+}, {
+ "creationDate": "2026-06-03T17:02:25.137Z",
+ "voteTypeId": 2,
+ "userId": 38,
+ "postId": 1707,
+ "id": 919,
+ "targetRepChange": 10,
+ "targetUserId": 14
+}, {
+ "creationDate": "2026-06-03T17:47:15.690Z",
+ "voteTypeId": 1,
+ "userId": 26,
+ "postId": 1709,
+ "id": 920,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 26
+}, {
+ "creationDate": "2026-06-08T11:02:30.537Z",
+ "voteTypeId": 1,
+ "userId": 55,
+ "postId": 1713,
+ "id": 921,
+ "voterRepChange": 0,
+ "targetRepChange": 0,
+ "targetUserId": 55
+}]

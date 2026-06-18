@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from app.chunker import SourceDocument
+from rag_engine.ingestion.parsers.stackoverflow_parser import StackOverflowParser
 
 
 HTML_TAG_RE = re.compile(r"<[^>]+>")
@@ -517,31 +518,47 @@ def _parse_from_posts_dataset(
     *,
     remove_code_blocks: bool,
 ) -> list[SourceDocument]:
-    posts_records = records_by_file.get("posts.json", [])
-    if not posts_records:
+    if "posts.json" not in records_by_file:
         return []
-
-    questions, answers_by_parent = _extract_posts_graph(posts_records)
-    comments_by_post = _group_by_post_id(records_by_file.get("comments.json", []), ("postId", "post_id", "parentId", "parent_id"))
-    votes_by_post = _group_by_post_id(records_by_file.get("posts2votes.json", []), ("postId", "post_id"))
-    users_by_id = _build_user_lookup(records_by_file.get("users.json", []))
-    related_json_files = sorted(records_by_file.keys())
-
+    parser = StackOverflowParser()
+    articles = parser.parse(json_root_path)
     docs: list[SourceDocument] = []
-    for qid, question in questions.items():
-        source_doc = _build_posts_source_document(
-            qid=qid,
-            question=question,
-            answers_by_parent=answers_by_parent,
-            comments_by_post=comments_by_post,
-            votes_by_post=votes_by_post,
-            users_by_id=users_by_id,
-            related_json_files=related_json_files,
-            json_root_path=json_root_path,
-            remove_code_blocks=remove_code_blocks,
+    for article in articles:
+        image_urls = [ref.url for ref in article.image_references]
+        content_parts = [
+            f"Question Title: {article.title}",
+            f"Post Link: {article.canonical_url}",
+            f"Question Body: {article.question_markdown or article.question_body}",
+        ]
+        if article.answer_markdown or article.answer_body:
+            content_parts.append(f"Primary Answer: {article.answer_markdown or article.answer_body}")
+        if image_urls:
+            content_parts.append("Image References:\n" + "\n".join(f"- {url}" for url in image_urls))
+        content = "\n\n".join(part for part in content_parts if part and part.strip()).strip()
+        if not content:
+            continue
+        docs.append(
+            SourceDocument(
+                source_type="json",
+                source_id=str(article.source_post_id),
+                content=content,
+                title=article.title,
+                heading=article.title,
+                tags=article.tags_raw,
+                creation_date=article.created_at_source,
+                metadata={
+                    "post_id": article.source_post_id,
+                    "post_link": article.canonical_url,
+                    "file_path": f"{json_root_path.name}/posts.json",
+                    "tags": article.tags_raw,
+                    "accepted_answer_id": article.accepted_answer_id,
+                    "answer_count": 1 if article.answer_body else 0,
+                    "image_reference_count": len(image_urls),
+                    "completeness_score": article.completeness_score,
+                    "manual_review_required": article.manual_review_required,
+                },
+            )
         )
-        if source_doc is not None:
-            docs.append(source_doc)
     return docs
 
 

@@ -12,6 +12,8 @@ Blueprint: ONE AGENT — single cohesive entry point.
 from case_engine.runtime.agent_models import (
     AgentExecutionResult,
     AgentStatus,
+    SupportAgentMode,
+    _mode_from_env,
 )
 from case_engine.runtime.support_agent_runtime import (
     SupportAgentRuntime,
@@ -21,6 +23,8 @@ from case_engine.runtime.support_agent_runtime import (
 __all__ = [
     "AgentExecutionResult",
     "AgentStatus",
+    "SupportAgentMode",
     "SupportAgentRuntime",
     "build_support_agent_runtime",
+    "_mode_from_env",
 ]

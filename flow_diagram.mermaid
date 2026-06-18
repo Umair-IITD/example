@@ -20,6 +20,19 @@ subgraph Core [Ingestion & Case Management]
 end
 
 %% =========================
+%% TENANT RESOLUTION
+%% =========================
+subgraph Tenant [Multi-Tenant Resolution]
+
+    CLIENTRESOLVE[Client Resolution Engine]
+
+    TENANTREG[(Tenant Registry)]
+
+    TENANTCTX[Tenant Context]
+
+end
+
+%% =========================
 %% AI & ORCHESTRATION
 %% =========================
 subgraph AI [AI & Reasoning Engine]
@@ -70,7 +83,11 @@ subgraph Tools [Tool Registry & Investigation APIs]
 
     TOOLS[Tool Registry]
 
-    ADMINSVC[Support Admin APIs]
+    TENANTROUTER[Tenant API Router]
+
+    UNITYADMIN[Unity Bank Admin APIs]
+
+    ADMINSVC[Client Support APIs]
 
     USERTOOL[GetUserDetails]
 
@@ -160,7 +177,13 @@ USER -->|Email Support| FD
 
 FD --> TICKET
 
-TICKET --> CASE
+TICKET --> CLIENTRESOLVE
+
+CLIENTRESOLVE --> TENANTREG
+
+CLIENTRESOLVE --> TENANTCTX
+
+TENANTCTX --> CASE
 
 CASE --> CASEDB
 
@@ -210,6 +233,32 @@ ENGINE --> INVESTIGATION
 %% INVESTIGATION FLOW
 %% =========================
 
+TENANTCTX --> TENANTROUTER
+
+TENANTROUTER --> UNITYADMIN
+
+UNITYADMIN --> ADMINSVC
+
+ADMINSVC --> USERTOOL
+
+ADMINSVC --> SESSIONTOOL
+
+ADMINSVC --> FAILTOOL
+
+ADMINSVC --> CASETOOL
+
+ADMINSVC --> ONBOARDTOOL
+
+ADMINSVC --> LOGTOOL
+
+ADMINSVC --> SUMMARYTOOL
+
+ADMINSVC --> VIDEOTOOL
+
+ADMINSVC --> METRICTOOL
+
+ADMINSVC --> SERVERTOOL
+
 INVESTIGATION --> EVIDENCE
 
 EVIDENCE --> TOOLS
@@ -224,16 +273,6 @@ TOOLS -.-> SUMMARYTOOL
 TOOLS -.-> VIDEOTOOL
 TOOLS -.-> METRICTOOL
 TOOLS -.-> SERVERTOOL
-
-ADMINSVC --> USERTOOL
-
-ADMINSVC --> SESSIONTOOL
-
-ADMINSVC --> LOGTOOL
-
-ADMINSVC --> SUMMARYTOOL
-
-ADMINSVC --> VIDEOTOOL
 
 METRICTOOL --> EVIDENCE
 

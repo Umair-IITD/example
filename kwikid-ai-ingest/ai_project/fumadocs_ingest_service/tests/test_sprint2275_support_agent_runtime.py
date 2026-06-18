@@ -312,10 +312,12 @@ class TestSupportAgentRuntimeEscalation:
         mock_cs.start_workflow.return_value = mock_wf
 
         eng_svc = build_engineering_escalation_service()
+        from case_engine.runtime.agent_models import SupportAgentMode
         rt = SupportAgentRuntime(
             case_service=mock_cs,
             response_generation_service=build_response_generation_service(),
             engineering_escalation_service=eng_svc,
+            mode=SupportAgentMode.PRODUCTION,
         )
         case = _make_case()
         result = rt.run_case(case, "API failing")

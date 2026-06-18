@@ -1,0 +1,595 @@
+[{
+ "date": "2021-07-02T10:00:00.060Z",
+ "badgeId": 1,
+ "userId": 2,
+ "id": 5,
+ "reasonId": 16
+}, {
+ "date": "2024-05-01T06:00:00.063Z",
+ "badgeId": 1,
+ "userId": 8,
+ "id": 49,
+ "reasonId": 373
+}, {
+ "date": "2024-09-15T13:00:00.123Z",
+ "badgeId": 1,
+ "userId": 26,
+ "id": 71,
+ "reasonId": 744
+}, {
+ "date": "2024-09-19T14:00:00.043Z",
+ "badgeId": 1,
+ "userId": 14,
+ "id": 77,
+ "reasonId": 754
+}, {
+ "date": "2025-01-10T11:00:00.070Z",
+ "badgeId": 1,
+ "userId": 37,
+ "id": 101,
+ "reasonId": 939
+}, {
+ "date": "2025-04-30T06:00:00.093Z",
+ "badgeId": 1,
+ "userId": 38,
+ "id": 111,
+ "reasonId": 1067
+}, {
+ "date": "2025-05-29T17:00:00.103Z",
+ "badgeId": 1,
+ "userId": 49,
+ "id": 119,
+ "reasonId": 1159
+}, {
+ "date": "2025-08-30T15:00:00.027Z",
+ "badgeId": 1,
+ "userId": 48,
+ "id": 138,
+ "reasonId": 1288
+}, {
+ "date": "2025-09-10T07:00:00.053Z",
+ "badgeId": 1,
+ "userId": 57,
+ "id": 146,
+ "reasonId": 1323
+}, {
+ "date": "2026-03-30T10:00:00.033Z",
+ "badgeId": 1,
+ "userId": 42,
+ "id": 179,
+ "reasonId": 1377
+}, {
+ "date": "2026-05-04T13:00:00.063Z",
+ "badgeId": 1,
+ "userId": 25,
+ "id": 188,
+ "reasonId": 1675
+}, {
+ "date": "2026-06-02T07:00:00.087Z",
+ "badgeId": 1,
+ "userId": 64,
+ "id": 192,
+ "reasonId": 1705
+}, {
+ "date": "2024-11-04T12:00:00.077Z",
+ "badgeId": 2,
+ "userId": 2,
+ "id": 85,
+ "reasonId": 13
+}, {
+ "date": "2024-12-19T18:00:00.070Z",
+ "badgeId": 2,
+ "userId": 23,
+ "id": 96,
+ "reasonId": 895
+}, {
+ "date": "2025-04-30T06:00:00.093Z",
+ "badgeId": 2,
+ "userId": 38,
+ "id": 110,
+ "reasonId": 1079
+}, {
+ "date": "2025-05-04T08:00:00.113Z",
+ "badgeId": 2,
+ "userId": 26,
+ "id": 112,
+ "reasonId": 868
+}, {
+ "date": "2025-05-05T17:00:00.083Z",
+ "badgeId": 2,
+ "userId": 14,
+ "id": 113,
+ "reasonId": 428
+}, {
+ "date": "2025-05-23T18:00:00.193Z",
+ "badgeId": 2,
+ "userId": 24,
+ "id": 117,
+ "reasonId": 1070
+}, {
+ "date": "2025-06-01T12:00:00.077Z",
+ "badgeId": 2,
+ "userId": 49,
+ "id": 122,
+ "reasonId": 1158
+}, {
+ "date": "2025-06-02T17:00:00.077Z",
+ "badgeId": 2,
+ "userId": 25,
+ "id": 123,
+ "reasonId": 627
+}, {
+ "date": "2025-09-18T17:00:00.113Z",
+ "badgeId": 2,
+ "userId": 57,
+ "id": 148,
+ "reasonId": 1352
+}, {
+ "date": "2025-12-17T06:00:00.040Z",
+ "badgeId": 2,
+ "userId": 37,
+ "id": 160,
+ "reasonId": 1310
+}, {
+ "date": "2025-12-30T11:00:00.113Z",
+ "badgeId": 2,
+ "userId": 48,
+ "id": 162,
+ "reasonId": 1320
+}, {
+ "date": "2026-06-02T07:00:00.087Z",
+ "badgeId": 2,
+ "userId": 64,
+ "id": 191,
+ "reasonId": 1704
+}, {
+ "date": "2021-07-01T19:00:04.030Z",
+ "badgeId": 3,
+ "userId": 2,
+ "id": 3,
+ "reasonId": 16
+}, {
+ "date": "2022-11-30T09:00:01.177Z",
+ "badgeId": 3,
+ "userId": 14,
+ "id": 26,
+ "reasonId": 131
+}, {
+ "date": "2023-03-28T10:00:00.037Z",
+ "badgeId": 3,
+ "userId": 8,
+ "id": 34,
+ "reasonId": 210
+}, {
+ "date": "2024-07-15T11:00:00.020Z",
+ "badgeId": 3,
+ "userId": 38,
+ "id": 64,
+ "reasonId": 673
+}, {
+ "date": "2024-12-24T13:00:00.073Z",
+ "badgeId": 3,
+ "userId": 37,
+ "id": 97,
+ "reasonId": 917
+}, {
+ "date": "2025-01-30T06:00:00.140Z",
+ "badgeId": 3,
+ "userId": 25,
+ "id": 102,
+ "reasonId": 683
+}, {
+ "date": "2025-01-30T10:00:00.080Z",
+ "badgeId": 3,
+ "userId": 23,
+ "id": 103,
+ "reasonId": 985
+}, {
+ "date": "2025-03-17T15:00:00.047Z",
+ "badgeId": 3,
+ "userId": 26,
+ "id": 107,
+ "reasonId": 954
+}, {
+ "date": "2025-08-05T09:00:00.053Z",
+ "badgeId": 3,
+ "userId": 48,
+ "id": 133,
+ "reasonId": 1284
+}, {
+ "date": "2025-08-07T14:00:00.063Z",
+ "badgeId": 3,
+ "userId": 49,
+ "id": 135,
+ "reasonId": 1252
+}, {
+ "date": "2025-09-08T05:00:00.027Z",
+ "badgeId": 3,
+ "userId": 57,
+ "id": 142,
+ "reasonId": 1313
+}, {
+ "date": "2025-09-25T05:00:00.047Z",
+ "badgeId": 3,
+ "userId": 42,
+ "id": 150,
+ "reasonId": 1377
+}, {
+ "date": "2025-10-07T09:00:00.020Z",
+ "badgeId": 3,
+ "userId": 56,
+ "id": 152,
+ "reasonId": 1386
+}, {
+ "date": "2025-11-19T10:00:00.073Z",
+ "badgeId": 3,
+ "userId": 54,
+ "id": 156,
+ "reasonId": 1460
+}, {
+ "date": "2026-02-27T06:00:00.053Z",
+ "badgeId": 3,
+ "userId": 63,
+ "id": 169,
+ "reasonId": 1591
+}, {
+ "date": "2026-03-04T10:00:00.050Z",
+ "badgeId": 3,
+ "userId": 69,
+ "id": 171,
+ "reasonId": 1601
+}, {
+ "date": "2026-04-16T08:00:00.170Z",
+ "badgeId": 3,
+ "userId": 68,
+ "id": 186,
+ "reasonId": 966
+}, {
+ "date": "2026-05-22T14:00:00.097Z",
+ "badgeId": 3,
+ "userId": 55,
+ "id": 189,
+ "reasonId": 1699
+}, {
+ "date": "2025-06-13T14:00:00.057Z",
+ "badgeId": 4,
+ "userId": 38,
+ "id": 126,
+ "reasonId": 765
+}, {
+ "date": "2024-03-20T11:00:00.113Z",
+ "badgeId": 5,
+ "userId": 2,
+ "id": 45,
+ "reasonId": 453
+}, {
+ "date": "2024-09-18T10:00:00.070Z",
+ "badgeId": 5,
+ "userId": 14,
+ "id": 76,
+ "reasonId": 781
+}, {
+ "date": "2024-11-13T08:00:00.040Z",
+ "badgeId": 5,
+ "userId": 38,
+ "id": 87,
+ "reasonId": 317
+}, {
+ "date": "2025-09-08T05:00:00.027Z",
+ "badgeId": 5,
+ "userId": 57,
+ "id": 143,
+ "reasonId": 1313
+}, {
+ "date": "2026-03-31T09:00:00.120Z",
+ "badgeId": 5,
+ "userId": 25,
+ "id": 180,
+ "reasonId": 1532
+}, {
+ "date": "2021-07-06T14:00:02.990Z",
+ "badgeId": 6,
+ "userId": 2,
+ "id": 7
+}, {
+ "date": "2024-02-15T05:00:00.113Z",
+ "badgeId": 6,
+ "userId": 26,
+ "id": 43
+}, {
+ "date": "2024-05-01T06:00:00.063Z",
+ "badgeId": 6,
+ "userId": 25,
+ "id": 48
+}, {
+ "date": "2024-05-28T13:00:00.037Z",
+ "badgeId": 6,
+ "userId": 37,
+ "id": 57
+}, {
+ "date": "2024-06-13T08:00:00.053Z",
+ "badgeId": 6,
+ "userId": 38,
+ "id": 59
+}, {
+ "date": "2024-09-19T17:00:00.050Z",
+ "badgeId": 6,
+ "userId": 14,
+ "id": 79
+}, {
+ "date": "2025-09-04T06:00:00.050Z",
+ "badgeId": 6,
+ "userId": 54,
+ "id": 140
+}, {
+ "date": "2025-09-04T11:00:00.103Z",
+ "badgeId": 6,
+ "userId": 55,
+ "id": 141
+}, {
+ "date": "2026-03-13T11:00:00.090Z",
+ "badgeId": 6,
+ "userId": 48,
+ "id": 173
+}, {
+ "date": "2026-03-16T13:00:00.037Z",
+ "badgeId": 6,
+ "userId": 24,
+ "id": 176
+}, {
+ "date": "2026-03-27T14:00:00.063Z",
+ "badgeId": 6,
+ "userId": 49,
+ "id": 177
+}, {
+ "date": "2026-03-31T11:00:00.117Z",
+ "badgeId": 6,
+ "userId": 58,
+ "id": 181
+}, {
+ "date": "2026-04-13T06:00:00.033Z",
+ "badgeId": 6,
+ "userId": 65,
+ "id": 183
+}, {
+ "date": "2026-04-16T05:00:00.040Z",
+ "badgeId": 6,
+ "userId": 68,
+ "id": 185
+}, {
+ "date": "2021-06-19T15:00:02.533Z",
+ "badgeId": 10,
+ "userId": 2,
+ "id": 1,
+ "reasonId": 11
+}, {
+ "date": "2023-10-10T11:00:00.037Z",
+ "badgeId": 10,
+ "userId": 8,
+ "id": 41,
+ "reasonId": 372
+}, {
+ "date": "2023-12-14T17:00:00.697Z",
+ "badgeId": 10,
+ "userId": 14,
+ "id": 42,
+ "reasonId": 422
+}, {
+ "date": "2024-04-05T11:00:00.110Z",
+ "badgeId": 10,
+ "userId": 26,
+ "id": 47,
+ "reasonId": 543
+}, {
+ "date": "2024-07-15T09:00:00.063Z",
+ "badgeId": 10,
+ "userId": 38,
+ "id": 63,
+ "reasonId": 670
+}, {
+ "date": "2024-09-18T09:00:00.050Z",
+ "badgeId": 10,
+ "userId": 34,
+ "id": 75,
+ "reasonId": 781
+}, {
+ "date": "2025-01-02T11:00:00.027Z",
+ "badgeId": 10,
+ "userId": 23,
+ "id": 99,
+ "reasonId": 925
+}, {
+ "date": "2025-08-05T09:00:00.053Z",
+ "badgeId": 10,
+ "userId": 48,
+ "id": 134,
+ "reasonId": 1283
+}, {
+ "date": "2025-08-28T12:00:00.023Z",
+ "badgeId": 10,
+ "userId": 54,
+ "id": 136,
+ "reasonId": 1304
+}, {
+ "date": "2025-08-29T13:00:00.020Z",
+ "badgeId": 10,
+ "userId": 37,
+ "id": 137,
+ "reasonId": 1296
+}, {
+ "date": "2025-09-10T07:00:00.053Z",
+ "badgeId": 10,
+ "userId": 57,
+ "id": 145,
+ "reasonId": 1322
+}, {
+ "date": "2025-09-25T05:00:00.047Z",
+ "badgeId": 10,
+ "userId": 42,
+ "id": 151,
+ "reasonId": 1376
+}, {
+ "date": "2026-01-14T18:00:00.157Z",
+ "badgeId": 10,
+ "userId": 49,
+ "id": 164,
+ "reasonId": 1550
+}, {
+ "date": "2026-02-27T05:00:00.077Z",
+ "badgeId": 10,
+ "userId": 63,
+ "id": 168,
+ "reasonId": 1591
+}, {
+ "date": "2026-03-04T09:00:00.047Z",
+ "badgeId": 10,
+ "userId": 55,
+ "id": 170,
+ "reasonId": 1599
+}, {
+ "date": "2026-06-02T07:00:00.087Z",
+ "badgeId": 10,
+ "userId": 64,
+ "id": 190,
+ "reasonId": 1704
+}, {
+ "date": "2025-08-30T17:00:00.027Z",
+ "badgeId": 13,
+ "userId": 38,
+ "id": 139
+}, {
+ "date": "2025-11-07T11:00:00.057Z",
+ "badgeId": 13,
+ "userId": 26,
+ "id": 155
+}, {
+ "date": "2026-06-05T12:00:00.117Z",
+ "badgeId": 13,
+ "userId": 38,
+ "id": 193
+}, {
+ "date": "2026-02-05T06:00:00.023Z",
+ "badgeId": 14,
+ "userId": 37,
+ "id": 167,
+ "reasonId": 1311
+}, {
+ "date": "2026-03-10T14:00:00.033Z",
+ "badgeId": 14,
+ "userId": 38,
+ "id": 172,
+ "reasonId": 1067
+}, {
+ "date": "2024-02-16T04:00:00.213Z",
+ "badgeId": 31,
+ "userId": 2,
+ "id": 44
+}, {
+ "date": "2025-02-14T04:00:00.103Z",
+ "badgeId": 31,
+ "userId": 38,
+ "id": 105
+}, {
+ "date": "2025-07-19T16:00:00.103Z",
+ "badgeId": 64,
+ "userId": 14,
+ "id": 132,
+ "reasonId": 861
+}, {
+ "date": "2025-09-08T14:00:00.077Z",
+ "badgeId": 64,
+ "userId": 38,
+ "id": 144,
+ "reasonId": 1303
+}, {
+ "date": "2025-09-10T20:00:00.153Z",
+ "badgeId": 64,
+ "userId": 38,
+ "id": 147,
+ "reasonId": 1088
+}, {
+ "date": "2026-02-04T13:00:00.030Z",
+ "badgeId": 64,
+ "userId": 38,
+ "id": 166,
+ "reasonId": 1100
+}, {
+ "date": "2026-03-16T13:00:00.037Z",
+ "badgeId": 64,
+ "userId": 38,
+ "id": 175,
+ "reasonId": 1380
+}, {
+ "date": "2026-04-07T20:00:00.037Z",
+ "badgeId": 64,
+ "userId": 38,
+ "id": 182,
+ "reasonId": 1082
+}, {
+ "date": "2026-04-16T05:00:00.040Z",
+ "badgeId": 64,
+ "userId": 38,
+ "id": 184,
+ "reasonId": 765
+}, {
+ "date": "2024-08-22T04:00:00.087Z",
+ "badgeId": 75,
+ "userId": 38,
+ "id": 69,
+ "reasonId": 303
+}, {
+ "date": "2024-11-14T04:00:00.110Z",
+ "badgeId": 75,
+ "userId": 14,
+ "id": 89,
+ "reasonId": 434
+}, {
+ "date": "2025-07-01T10:00:00.203Z",
+ "badgeId": 75,
+ "userId": 26,
+ "id": 130,
+ "reasonId": 712
+}, {
+ "date": "2025-12-04T19:00:00.050Z",
+ "badgeId": 75,
+ "userId": 23,
+ "id": 158,
+ "reasonId": 1007
+}, {
+ "date": "2025-12-19T12:00:00.063Z",
+ "badgeId": 75,
+ "userId": 49,
+ "id": 161,
+ "reasonId": 1036
+}, {
+ "date": "2026-04-17T14:00:00.057Z",
+ "badgeId": 75,
+ "userId": 68,
+ "id": 187,
+ "reasonId": 966
+}, {
+ "date": "2025-09-24T15:00:00.043Z",
+ "badgeId": 87,
+ "userId": 38,
+ "id": 149
+}, {
+ "date": "2025-10-28T01:00:00.083Z",
+ "badgeId": 87,
+ "userId": 26,
+ "id": 153
+}, {
+ "date": "2026-03-14T07:00:00.077Z",
+ "badgeId": 87,
+ "userId": 14,
+ "id": 174
+}, {
+ "date": "2024-11-14T10:00:00.097Z",
+ "badgeId": 90,
+ "userId": 14,
+ "id": 90
+}, {
+ "date": "2025-06-10T17:00:00.090Z",
+ "badgeId": 90,
+ "userId": 38,
+ "id": 125
+}]

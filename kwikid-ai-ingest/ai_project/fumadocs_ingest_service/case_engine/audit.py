@@ -1627,6 +1627,243 @@ class AuditLogger:
         )
         self._write(entry)
 
+    # ── Sprint 2.27.8: Dry-run mode and startup validation audit ─────────────
+
+    def log_dry_run_execution(
+        self,
+        case: Case,
+        action_type: str,
+        workflow_id: str = "",
+        reason: str = "DRY_RUN mode active — execution simulated",
+    ) -> None:
+        """Log that an EXECUTE step was simulated (DRY_RUN mode)."""
+        entry = AuditEntry(
+            case_id=case.case_id,
+            ticket_id=case.ticket_id,
+            client=case.client,
+            action_type=AuditEventType.DRY_RUN_EXECUTION,
+            action_detail={
+                "action_type": action_type,
+                "workflow_id": workflow_id,
+                "reason":      reason,
+                "simulated":   True,
+            },
+            outcome="DRY_RUN_SIMULATED",
+        )
+        self._write(entry)
+
+    def log_dry_run_route(
+        self,
+        action_type: str,
+        adapter_type: str,
+        case_id: str = "",
+        reason: str = "DRY_RUN mode active — routing simulated",
+    ) -> None:
+        """Log that an adapter route call was simulated (DRY_RUN mode)."""
+        entry = AuditEntry(
+            case_id=case_id,
+            action_type=AuditEventType.DRY_RUN_ROUTE,
+            action_detail={
+                "action_type":  action_type,
+                "adapter_type": adapter_type,
+                "reason":       reason,
+                "simulated":    True,
+            },
+            outcome="DRY_RUN_SIMULATED",
+        )
+        self._write(entry)
+
+    def log_dry_run_action(
+        self,
+        case: Case,
+        action_type: str,
+        step: str = "",
+        reason: str = "DRY_RUN mode active — external action skipped",
+    ) -> None:
+        """Log that an external action was skipped (DRY_RUN mode)."""
+        entry = AuditEntry(
+            case_id=case.case_id,
+            ticket_id=case.ticket_id,
+            client=case.client,
+            action_type=AuditEventType.DRY_RUN_ACTION,
+            action_detail={
+                "action_type": action_type,
+                "step":        step,
+                "reason":      reason,
+                "simulated":   True,
+            },
+            outcome="DRY_RUN_SKIPPED",
+        )
+        self._write(entry)
+
+    def log_startup_validation_passed(
+        self,
+        service_name: str,
+        tier: str,
+        details: str = "",
+    ) -> None:
+        """Log that a startup validation check passed."""
+        entry = AuditEntry(
+            action_type=AuditEventType.STARTUP_VALIDATION_PASSED,
+            action_detail={
+                "service_name": service_name,
+                "tier":         tier,
+                "details":      details,
+            },
+            outcome="PASSED",
+        )
+        self._write(entry)
+
+    def log_startup_validation_failed(
+        self,
+        service_name: str,
+        tier: str,
+        error_msg: str,
+    ) -> None:
+        """Log that a startup validation check failed (CRITICAL or IMPORTANT tier)."""
+        entry = AuditEntry(
+            action_type=AuditEventType.STARTUP_VALIDATION_FAILED,
+            action_detail={
+                "service_name": service_name,
+                "tier":         tier,
+                "error_msg":    error_msg,
+            },
+            outcome="FAILED",
+            error_code=f"STARTUP_{tier}_FAILED",
+        )
+        self._write(entry)
+
+    def log_startup_validation_warning(
+        self,
+        service_name: str,
+        tier: str,
+        warning_msg: str,
+    ) -> None:
+        """Log a startup validation warning (non-critical service unavailable)."""
+        entry = AuditEntry(
+            action_type=AuditEventType.STARTUP_VALIDATION_WARNING,
+            action_detail={
+                "service_name": service_name,
+                "tier":         tier,
+                "warning_msg":  warning_msg,
+            },
+            outcome="WARNING",
+        )
+        self._write(entry)
+
+    def log_invariant_violation(
+        self,
+        invariant_name: str,
+        violation_detail: str,
+        severity: str = "ERROR",
+        case_id: str = "",
+    ) -> None:
+        """Log a runtime invariant violation."""
+        entry = AuditEntry(
+            case_id=case_id,
+            action_type=AuditEventType.INVARIANT_VIOLATION,
+            action_detail={
+                "invariant_name":   invariant_name,
+                "violation_detail": violation_detail,
+                "severity":         severity,
+            },
+            outcome="VIOLATION",
+            error_code=f"INVARIANT_{invariant_name.upper()}",
+        )
+        self._write(entry)
+
+    # ── Sprint 2.27.9: Multi-Tenant Client Resolution audit ───────────────────
+
+    def log_client_resolved(
+        self,
+        ticket_id:   str,
+        client_id:   str,
+        client_name: str,
+        domain:      str,
+    ) -> None:
+        """Log a successful client resolution (email domain → tenant)."""
+        entry = AuditEntry(
+            ticket_id=ticket_id,
+            client=client_id,
+            action_type=AuditEventType.CLIENT_RESOLVED,
+            action_detail={
+                "client_id":   client_id,
+                "client_name": client_name,
+                "domain":      domain,
+            },
+            outcome="SUCCESS",
+        )
+        self._write(entry)
+
+    def log_unknown_client(
+        self,
+        ticket_id: str,
+        domain:    str,
+    ) -> None:
+        """
+        Log a failed client resolution — unknown domain.
+
+        Per SUPPORT_OPERATIONS_BLUEPRINT Layer 1.5:
+        "Stop automation, create audit event, route to human review."
+        """
+        entry = AuditEntry(
+            ticket_id=ticket_id,
+            client="UNKNOWN",
+            action_type=AuditEventType.CLIENT_RESOLUTION_FAILED,
+            action_detail={
+                "domain": domain,
+                "reason": "Domain not registered in TenantRegistry",
+            },
+            outcome="UNKNOWN_CLIENT",
+            error_code="CLIENT_RESOLUTION_FAILED",
+        )
+        self._write(entry)
+
+    def log_tenant_context_attached(
+        self,
+        case_id:      str,
+        ticket_id:    str,
+        client_id:    str,
+        client_name:  str,
+        environment:  str,
+        tool_count:   int,
+    ) -> None:
+        """Log that TenantContext was successfully attached to a Case."""
+        entry = AuditEntry(
+            case_id=case_id,
+            ticket_id=ticket_id,
+            client=client_id,
+            action_type=AuditEventType.TENANT_CONTEXT_ATTACHED,
+            action_detail={
+                "client_id":   client_id,
+                "client_name": client_name,
+                "environment": environment,
+                "tool_count":  tool_count,
+            },
+            outcome="SUCCESS",
+        )
+        self._write(entry)
+
+    def log_unknown_client_escalated(
+        self,
+        ticket_id: str,
+        domain:    str,
+        reason:    str = "Unknown client domain — routed to human review",
+    ) -> None:
+        """Log that a ticket was escalated due to an unresolvable client."""
+        entry = AuditEntry(
+            ticket_id=ticket_id,
+            client="UNKNOWN",
+            action_type=AuditEventType.UNKNOWN_CLIENT_ESCALATED,
+            action_detail={
+                "domain": domain,
+                "reason": reason,
+            },
+            outcome="ESCALATED",
+            error_code="UNKNOWN_CLIENT",
+        )
+        self._write(entry)
+
     # ── Internal write ─────────────────────────────────────────────────────────
 
     def _write(self, entry: AuditEntry) -> None:

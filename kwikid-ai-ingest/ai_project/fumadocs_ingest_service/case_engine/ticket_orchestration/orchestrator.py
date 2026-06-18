@@ -36,6 +36,7 @@ if TYPE_CHECKING:
     from case_engine.audit import AuditLogger
     from case_engine.runtime.support_agent_runtime import SupportAgentRuntime
     from case_engine.service import CaseService
+    from case_engine.tenant.resolver import ClientResolver
 
 LOGGER = logging.getLogger(__name__)
 
@@ -70,13 +71,15 @@ class TicketOrchestrator:
 
     def __init__(
         self,
-        agent_runtime:  "SupportAgentRuntime | None" = None,
-        case_service:   "CaseService | None" = None,
-        audit_logger:   "AuditLogger | None" = None,
+        agent_runtime:   "SupportAgentRuntime | None" = None,
+        case_service:    "CaseService | None" = None,
+        audit_logger:    "AuditLogger | None" = None,
+        client_resolver: "ClientResolver | None" = None,
     ) -> None:
-        self._agent        = agent_runtime
-        self._case_svc     = case_service
-        self._audit        = audit_logger
+        self._agent           = agent_runtime
+        self._case_svc        = case_service
+        self._audit           = audit_logger
+        self._client_resolver = client_resolver
         # In-memory store: ticket_id → {"context": TicketContext, "case_id": str, "state": TicketLifecycleState}
         self._registry: dict[str, dict[str, Any]] = {}
 
@@ -270,20 +273,101 @@ class TicketOrchestrator:
     ) -> TicketOrchestrationResult:
         # 1. TICKET — register
         self._registry[context.ticket_id] = {
-            "context": context,
-            "case_id": None,
-            "state":   TicketLifecycleState.RECEIVED,
+            "context":        context,
+            "case_id":        None,
+            "state":          TicketLifecycleState.RECEIVED,
+            "tenant_context": None,
         }
         LOGGER.info(
             "ticket_orchestrator.received ticket_id=%s client=%s",
             context.ticket_id, context.client,
         )
 
+        # 1.5. CLIENT RESOLUTION — per blueprint/flow_diagram:
+        #   TICKET → CLIENTRESOLVE → TENANTREG → TENANTCTX → CASE
+        tenant_context = None
+        if self._client_resolver is not None and context.requester_email:
+            try:
+                from case_engine.tenant.models import UnknownClientError  # noqa: PLC0415
+                tenant_context = self._client_resolver.resolve(context.requester_email)
+                self._registry[context.ticket_id]["tenant_context"] = tenant_context
+                LOGGER.info(
+                    "ticket_orchestrator.client_resolved ticket_id=%s client_id=%s domain=%s",
+                    context.ticket_id, tenant_context.client_id, tenant_context.domain,
+                )
+                if self._audit is not None:
+                    try:
+                        self._audit.log_client_resolved(
+                            ticket_id=context.ticket_id,
+                            client_id=tenant_context.client_id,
+                            client_name=tenant_context.client_name,
+                            domain=tenant_context.domain,
+                        )
+                    except Exception:
+                        pass
+            except Exception as _uce:
+                from case_engine.tenant.models import UnknownClientError  # noqa: PLC0415
+                if isinstance(_uce, UnknownClientError):
+                    domain = _uce.domain or "(no domain)"
+                    LOGGER.warning(
+                        "ticket_orchestrator.unknown_client ticket_id=%s domain=%s — escalating",
+                        context.ticket_id, domain,
+                    )
+                    if self._audit is not None:
+                        try:
+                            self._audit.log_unknown_client(
+                                ticket_id=context.ticket_id,
+                                domain=domain,
+                            )
+                            self._audit.log_unknown_client_escalated(
+                                ticket_id=context.ticket_id,
+                                domain=domain,
+                            )
+                        except Exception:
+                            pass
+                    self._registry[context.ticket_id]["state"] = TicketLifecycleState.ESCALATED
+                    return TicketOrchestrationResult(
+                        orchestration_id=_new_id(),
+                        ticket_id=context.ticket_id,
+                        case_id=None,
+                        lifecycle_state=TicketLifecycleState.ESCALATED,
+                        agent_result=None,
+                        operation="process",
+                        success=False,
+                        error_code="UNKNOWN_CLIENT",
+                        error_msg=(
+                            f"Client resolution failed for domain {domain!r}. "
+                            "Ticket routed to human review per policy."
+                        ),
+                        executed_at=_now_iso(),
+                        duration_ms=_ms_elapsed(started_ms),
+                    )
+                else:
+                    LOGGER.warning(
+                        "ticket_orchestrator.client_resolution_error ticket_id=%s error=%s — skipping resolution",
+                        context.ticket_id, _uce,
+                    )
+
         # 2. CASE — open case
         case = None
         if self._case_svc is not None:
             try:
                 case = self._case_svc.open_case(context.ticket_id, context.client)
+                # Attach resolved TenantContext to the Case (Sprint 2.27.9)
+                if tenant_context is not None:
+                    case.tenant_context = tenant_context
+                    if self._audit is not None:
+                        try:
+                            self._audit.log_tenant_context_attached(
+                                case_id=case.case_id,
+                                ticket_id=context.ticket_id,
+                                client_id=tenant_context.client_id,
+                                client_name=tenant_context.client_name,
+                                environment=tenant_context.environment.value,
+                                tool_count=len(tenant_context.enabled_tools),
+                            )
+                        except Exception:
+                            pass
                 self._registry[context.ticket_id]["case_id"]  = case.case_id
                 self._registry[context.ticket_id]["state"]    = TicketLifecycleState.OPEN
                 LOGGER.info(
@@ -434,17 +518,22 @@ class TicketOrchestrator:
 # ── Factory ───────────────────────────────────────────────────────────────────
 
 def build_ticket_orchestrator(
-    agent_runtime:  Any = None,
-    case_service:   Any = None,
-    audit_logger:   Any = None,
+    agent_runtime:   Any = None,
+    case_service:    Any = None,
+    audit_logger:    Any = None,
+    client_resolver: Any = None,
 ) -> TicketOrchestrator:
     """
     Factory: build a TicketOrchestrator.
 
     Args:
-        agent_runtime:  SupportAgentRuntime (required for full pipeline).
-        case_service:   CaseService (required for case lifecycle).
-        audit_logger:   Optional AuditLogger.
+        agent_runtime:   SupportAgentRuntime (required for full pipeline).
+        case_service:    CaseService (required for case lifecycle).
+        audit_logger:    Optional AuditLogger.
+        client_resolver: Optional ClientResolver (Sprint 2.27.9).
+                         If provided, performs multi-tenant resolution before
+                         opening a case. If None, resolution is skipped and
+                         TicketContext.client is used as-is (backward compatible).
 
     Returns:
         TicketOrchestrator ready to process tickets.
@@ -453,4 +542,5 @@ def build_ticket_orchestrator(
         agent_runtime=agent_runtime,
         case_service=case_service,
         audit_logger=audit_logger,
+        client_resolver=client_resolver,
     )

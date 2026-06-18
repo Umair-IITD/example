@@ -54,12 +54,17 @@ LOGGER = logging.getLogger(__name__)
 # PII redaction patterns (applied before any storage)
 # ---------------------------------------------------------------------------
 _PII_PATTERNS: list[tuple[re.Pattern, str]] = [
+    (re.compile(r'\b(?:10\.\d{1,3}\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|172\.(?:1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3})\b'), "[PRIVATE_IP]"),
     (re.compile(r'\b(?:\d{1,3}\.){3}\d{1,3}\b'),                             "[SERVER_IP]"),
     (re.compile(r'\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b'),   "[EMAIL]"),
     (re.compile(
         r'(?i)(password|passwd|pwd|secret|token|api[_\-]?key|bearer)'
         r'\s*[:=]\s*\S+',
     ),                                                                          r'\1=[REDACTED_CREDENTIAL]'),
+    (re.compile(r'(?i)\b(?:bearer)\s+[A-Za-z0-9\-._~+/]+=*\b'),              "Bearer [REDACTED_TOKEN]"),
+    (re.compile(r'(?i)\b(?:postgres|postgresql|mysql|mongodb(?:\+srv)?|redis)://[^\s]+'), "[REDACTED_DB_CONNECTION]"),
+    (re.compile(r'(?i)\bssh\s+[^\n]*?@[^ \n]+:[^\s]+'),                      "ssh [REDACTED_SSH_TARGET]"),
+    (re.compile(r'(?i)\b(?:AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z\-_]{35}|ghp_[A-Za-z0-9]{36}|xox[baprs]-[A-Za-z0-9\-]{10,})\b'), "[REDACTED_API_KEY]"),
     (re.compile(r'\b[A-Za-z0-9+/]{40,}={0,2}\b'),                            "[TOKEN]"),
 ]
 
@@ -147,17 +152,18 @@ class KnowledgeIngestionResult:
     chunks_rejected:     int   = 0   # quality filter rejections
     embeddings_generated: int  = 0
     pii_redactions:      int   = 0
+    manual_review_flagged: int = 0
     duration_s:          float = 0.0
 
     def log_summary(self) -> None:
         LOGGER.info(
             "Knowledge ingestion: %d inserted, %d updated, %d skipped, "
             "%d rejected, %d failed | %d chunks embedded, %d quality-filtered | "
-            "%d PII redactions | %.1fs",
+            "%d PII redactions | %d manual-review flags | %.1fs",
             self.articles_inserted, self.articles_updated, self.articles_skipped,
             self.articles_rejected, self.articles_failed,
             self.embeddings_generated, self.chunks_rejected,
-            self.pii_redactions, self.duration_s,
+            self.pii_redactions, self.manual_review_flagged, self.duration_s,
         )
 
 
@@ -264,6 +270,7 @@ class KnowledgePipeline:
                 result.chunks_created     += article_result["chunks"]
                 result.chunks_rejected    += article_result.get("chunks_rejected", 0)
                 result.pii_redactions     += article_result["pii_redactions"]
+                result.manual_review_flagged += article_result.get("manual_review_flagged", 0)
                 if article_result.get("chunk_records"):
                     to_embed.extend(article_result["chunk_records"])
             except Exception as exc:  # noqa: BLE001
@@ -398,6 +405,7 @@ class KnowledgePipeline:
         out: dict = {
             "inserted": 0, "updated": 0, "skipped": 0,
             "rejected": 0, "chunks": 0, "pii_redactions": 0,
+            "manual_review_flagged": 0,
             "chunk_records": [],
         }
 
@@ -418,6 +426,8 @@ class KnowledgePipeline:
             a_body = None
         title, t_n  = _redact_pii(article.title)
         out["pii_redactions"] = q_n + a_n + t_n
+        if getattr(article, "manual_review_required", False):
+            out["manual_review_flagged"] = 1
 
         # Build embed text
         embed_text   = _build_embed_text_raw(
@@ -425,6 +435,10 @@ class KnowledgePipeline:
             question_body  = q_body,
             answer_body    = a_body,
             knowledge_class= clf.knowledge_class,
+            canonical_url  = getattr(article, "canonical_url", None),
+            tags_raw       = article.tags_raw,
+            completeness_score=getattr(article, "completeness_score", None),
+            image_refs     = [ref.url for ref in getattr(article, "image_references", [])],
         )
         content_hash = _sha256(embed_text)
 
@@ -667,8 +681,21 @@ def _build_embed_text_raw(
     question_body:  str,
     answer_body:    Optional[str],
     knowledge_class: KnowledgeClass,
+    canonical_url: Optional[str] = None,
+    tags_raw: Optional[list[str]] = None,
+    completeness_score: Optional[float] = None,
+    image_refs: Optional[list[str]] = None,
 ) -> str:
-    parts = [f"QUESTION: {title}", question_body]
+    parts = [f"QUESTION: {title}"]
+    if canonical_url:
+        parts.append(f"CANONICAL_URL: {canonical_url}")
+    if tags_raw:
+        parts.append(f"TAGS: {', '.join(tags_raw)}")
+    if completeness_score is not None:
+        parts.append(f"COMPLETENESS_SCORE: {completeness_score:.3f}")
+    if image_refs:
+        parts.append("IMAGE_REFERENCES:\n" + "\n".join(f"- {url}" for url in image_refs))
+    parts.append(question_body)
     if answer_body:
         label = "VERIFIED ANSWER" if knowledge_class == KnowledgeClass.VERIFIED_REPLY else "ANSWER"
         parts.append(f"{label}:\n{answer_body}")

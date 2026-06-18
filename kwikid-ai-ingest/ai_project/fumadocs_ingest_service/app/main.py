@@ -35,6 +35,7 @@ from api.routes import (
     reasoning_admin as _reasoning_admin_routes,
     clarification_admin as _clarification_admin_routes,
     adapter_admin as _adapter_admin_routes,
+    tickets as _tickets_routes,
     tool_admin as _tool_admin_routes,
     watchdog as _gw_watchdog,
     webhook as _gw_webhook,
@@ -998,6 +999,7 @@ def create_app(
     local_app.include_router(_reasoning_admin_routes.router,          tags=["Reasoning Admin"])
     local_app.include_router(_clarification_admin_routes.router,      tags=["Clarification Admin"])
     local_app.include_router(_adapter_admin_routes.router,            tags=["Adapter Admin"])
+    local_app.include_router(_tickets_routes.router,                  tags=["Tickets"])
     local_app.include_router(_gw_webhook.router,                 tags=["Webhooks"])
 
     # ── Gateway health and metrics (under /gateway prefix to avoid path conflicts) ──
