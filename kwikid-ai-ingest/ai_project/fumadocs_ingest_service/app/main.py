@@ -42,6 +42,7 @@ from api.routes import (
     worker as _gw_worker,
     workflow_admin as _wf_admin_routes,
 )
+from api.routes.webhooks import freshdesk as _fd_webhook_routes
 from app.security import (
     _GATEWAY_PREFIXES,
     api_key_auth_middleware,
@@ -565,6 +566,11 @@ def _build_lifespan(*, skip_config_validation: bool = False):
                     "engineering_escalation_service",
                     "support_agent_runtime",
                     "ticket_orchestrator",
+                    # Sprint 2.27.9: Multi-tenant resolution stack
+                    # Required by FreshdeskTicketCreatedHandler for UNKNOWN_CLIENT detection
+                    "tenant_registry",
+                    "client_resolver",
+                    "tenant_tool_registry",
                 ]
                 for _svc_name in _wf_service_names:
                     if getattr(_app.state, _svc_name, None) is None:
@@ -584,6 +590,204 @@ def _build_lifespan(*, skip_config_validation: bool = False):
         except Exception as _gw_exc:  # noqa: BLE001
             _LOGGER_PRE.warning(
                 "action_gateway_init_failed error=%s — gateway routes will return 503", _gw_exc
+            )
+
+        # ── Sprint 2.29 / 2.29.1: Wire Freshdesk production services ────────────
+        # Activates POST /webhooks/freshdesk/ticket-created and /ticket-updated.
+        # All 7 app.state keys required by api/routes/webhooks/freshdesk.py.
+        try:
+            from freshdesk.verifier import FreshdeskWebhookVerifier            # noqa: PLC0415
+            from freshdesk.idempotency import WebhookIdempotencyStore          # noqa: PLC0415
+            from freshdesk.conversation_state import ConversationStateStore    # noqa: PLC0415
+            from freshdesk.response_service import FreshdeskResponseService    # noqa: PLC0415
+            from freshdesk.client import FreshdeskClient                       # noqa: PLC0415
+            from freshdesk.freshdesk_models import FreshdeskConfig             # noqa: PLC0415
+            from freshdesk.handlers import (                                   # noqa: PLC0415
+                FreshdeskTicketCreatedHandler,
+                FreshdeskTicketUpdatedHandler,
+            )
+
+            # ── Sprint 2.29.1: Single verifier instance for all Gen 3 routes ─
+            # Created ONCE at startup; all requests share the same instance.
+            # Switch between direct Freshdesk and n8n by changing only:
+            #   FRESHDESK_WEBHOOK_MODE=static  (dev / Freshdesk direct)
+            #   FRESHDESK_WEBHOOK_MODE=hmac    (production / n8n in the middle)
+            _fd_webhook_secret = os.getenv("FRESHDESK_WEBHOOK_SECRET", "")
+            _fd_webhook_mode   = os.getenv("FRESHDESK_WEBHOOK_MODE", "hmac").strip().lower()
+            _fd_enforce        = os.getenv("FRESHDESK_WEBHOOK_ENFORCE_HMAC", "false").lower() == "true"
+            _fd_replay_window  = int(os.getenv("FRESHDESK_WEBHOOK_REPLAY_WINDOW_SECONDS", "300"))
+            if _fd_webhook_secret:
+                _app.state.freshdesk_verifier = FreshdeskWebhookVerifier(
+                    _fd_webhook_secret,
+                    mode=_fd_webhook_mode,
+                    enforce=_fd_enforce,
+                    replay_window_seconds=_fd_replay_window,
+                )
+                _LOGGER_PRE.info(
+                    "sprint2291_freshdesk_verifier_wired mode=%s enforce=%s replay_window=%ss",
+                    _fd_webhook_mode, _fd_enforce, _fd_replay_window,
+                )
+            else:
+                _app.state.freshdesk_verifier = None
+                _LOGGER_PRE.warning(
+                    "sprint2291_freshdesk_verifier_skipped "
+                    "FRESHDESK_WEBHOOK_SECRET=MISSING — webhook auth disabled"
+                )
+
+            _fd_idem_store = WebhookIdempotencyStore(supabase_client=_sb_singleton)
+            _app.state.freshdesk_idempotency_store = _fd_idem_store
+
+            _fd_conv_store = ConversationStateStore(supabase_client=_sb_singleton)
+            _app.state.freshdesk_conversation_store = _fd_conv_store
+
+            # ── Sprint 2.29.2: DB table existence probe ────────────────────────
+            # Verify that S2_028_freshdesk_foundation.sql has been applied.
+            # PostgREST returns a "Could not find table" error when a table is
+            # absent — we detect this at startup so the failure is visible
+            # immediately rather than buried in per-request error logs.
+            _fd_missing_tables: list[str] = []
+            if _sb_singleton is not None:
+                for _fd_tbl in ("freshdesk_webhook_events", "support_conversation_state"):
+                    try:
+                        _sb_singleton.table(_fd_tbl).select("*").limit(0).execute()
+                        _LOGGER_PRE.info("sprint2292_db_table_ok table=%s", _fd_tbl)
+                    except Exception as _tbl_exc:
+                        _fd_missing_tables.append(_fd_tbl)
+                        _LOGGER_PRE.warning(
+                            "sprint2292_db_table_MISSING table=%s error=%s "
+                            "— Apply sql/sprint2_migrations/S2_028_freshdesk_foundation.sql "
+                            "via Supabase Dashboard SQL Editor",
+                            _fd_tbl, str(_tbl_exc)[:300],
+                        )
+                if _fd_missing_tables:
+                    _LOGGER_PRE.warning(
+                        "sprint2292_db_migration_required missing_tables=%s "
+                        "migration_file=sql/sprint2_migrations/S2_028_freshdesk_foundation.sql "
+                        "— Idempotency and conversation persistence are DISABLED until migrated",
+                        _fd_missing_tables,
+                    )
+                else:
+                    _LOGGER_PRE.info(
+                        "sprint2292_db_migration_verified "
+                        "freshdesk_webhook_events=ok support_conversation_state=ok"
+                    )
+
+            _fd_domain  = os.getenv("FRESHDESK_DOMAIN", "")
+            _fd_api_key = os.getenv("FRESHDESK_API_KEY", "")
+            _fd_client  = None
+            if _fd_domain and _fd_api_key:
+                _fd_config = FreshdeskConfig(
+                    domain=_fd_domain,
+                    api_key=_fd_api_key,
+                    timeout_seconds=float(os.getenv("FRESHDESK_TIMEOUT_SECONDS", "10.0")),
+                )
+                _fd_client = FreshdeskClient(_fd_config)
+                _LOGGER_PRE.info(
+                    "sprint229_freshdesk_client_created domain=%s key_prefix=%s",
+                    _fd_domain,
+                    (_fd_api_key[:4] + "****") if len(_fd_api_key) > 4 else "****",
+                )
+            else:
+                _LOGGER_PRE.warning(
+                    "sprint229_freshdesk_client_skipped FRESHDESK_DOMAIN=%s FRESHDESK_API_KEY=%s",
+                    "set" if _fd_domain else "MISSING",
+                    "set" if _fd_api_key else "MISSING",
+                )
+
+            if _fd_client is not None:
+                _fd_resp_svc: FreshdeskResponseService | None = FreshdeskResponseService(
+                    freshdesk_client=_fd_client,
+                    metrics_collector=None,
+                    audit_logger=getattr(_app.state, "audit_logger", None),
+                )
+                _app.state.freshdesk_response_service = _fd_resp_svc
+                _LOGGER_PRE.info("sprint229_freshdesk_response_service_wired")
+            else:
+                _fd_resp_svc = None
+                _app.state.freshdesk_response_service = None
+
+            _fd_generator_ref  = _generator_singleton
+            _fd_resp_svc_ref   = _fd_resp_svc
+
+            if _fd_generator_ref is not None and _fd_resp_svc_ref is not None:
+                from rag_engine.generation.chat_generator import GenerationRequest  # noqa: PLC0415
+
+                async def _freshdesk_rag_processor(
+                    ticket_id: str, query_text: str, tenant: str
+                ) -> None:
+                    try:
+                        gen_req = GenerationRequest(
+                            query_text=query_text,
+                            client=tenant or "unknown",
+                            persist_history=False,
+                        )
+                        loop = asyncio.get_running_loop()
+                        gen_result = await loop.run_in_executor(
+                            None, _fd_generator_ref.generate, gen_req
+                        )
+                        answer         = gen_result.answer or ""
+                        confidence     = gen_result.confidence
+                        requires_human = gen_result.requires_human
+                        if requires_human or confidence == "low":
+                            note_body = (
+                                f"<p><strong>AI Suggestion (requires agent review):"
+                                f"</strong><br>{answer}</p>"
+                                f"<p><em>Confidence: {confidence}</em></p>"
+                            )
+                        else:
+                            note_body = (
+                                f"<p><strong>AI Suggested Response:</strong><br>{answer}</p>"
+                                f"<p><em>Confidence: {confidence}</em></p>"
+                            )
+                        await _fd_resp_svc_ref.add_internal_note(
+                            ticket_id, note_body, case_id="", client_id=tenant
+                        )
+                        _LOGGER_PRE.info(
+                            "sprint229_rag_processor note_posted ticket_id=%s confidence=%s requires_human=%s",
+                            ticket_id, confidence, requires_human,
+                        )
+                    except Exception as _rag_exc:  # noqa: BLE001
+                        _LOGGER_PRE.error(
+                            "sprint229_rag_processor error ticket_id=%s error=%s",
+                            ticket_id, _rag_exc,
+                        )
+
+                _app.state.freshdesk_rag_processor = _freshdesk_rag_processor
+                _LOGGER_PRE.info("sprint229_freshdesk_rag_processor_wired")
+            else:
+                _app.state.freshdesk_rag_processor = None
+
+            _app.state.freshdesk_ticket_created_handler = FreshdeskTicketCreatedHandler(
+                idempotency_store=_fd_idem_store,
+                conversation_store=_fd_conv_store,
+                ticket_orchestrator=getattr(_app.state, "ticket_orchestrator", None),
+                client_resolver=getattr(_app.state, "client_resolver", None),
+                audit_logger=getattr(_app.state, "audit_logger", None),
+                metrics_collector=None,
+            )
+
+            _app.state.freshdesk_ticket_updated_handler = FreshdeskTicketUpdatedHandler(
+                idempotency_store=_fd_idem_store,
+                conversation_store=_fd_conv_store,
+                audit_logger=getattr(_app.state, "audit_logger", None),
+                metrics_collector=None,
+            )
+
+            _LOGGER_PRE.info(
+                "sprint2291_freshdesk_services_wired "
+                "verifier=%s idem=ok conv=ok resp_svc=%s "
+                "rag_proc=%s orchestrator=%s client_resolver=%s handlers=ok",
+                "ok(%s)" % _fd_webhook_mode if _fd_webhook_secret else "SKIPPED(no secret)",
+                "ok" if _fd_client is not None else "SKIPPED(no creds)",
+                "ok" if _app.state.freshdesk_rag_processor is not None else "SKIPPED(no creds)",
+                "ok" if getattr(_app.state, "ticket_orchestrator", None) is not None else "NONE",
+                "ok" if getattr(_app.state, "client_resolver", None) is not None else "NONE",
+            )
+
+        except Exception as _fd_wiring_exc:  # noqa: BLE001
+            _LOGGER_PRE.warning(
+                "sprint229_freshdesk_wiring_failed error=%s — routes use offline fallback",
+                _fd_wiring_exc,
             )
 
         # ── Sprint 2.12: Crash recovery — recover stale EXECUTING actions ─────
@@ -1001,6 +1205,8 @@ def create_app(
     local_app.include_router(_adapter_admin_routes.router,            tags=["Adapter Admin"])
     local_app.include_router(_tickets_routes.router,                  tags=["Tickets"])
     local_app.include_router(_gw_webhook.router,                 tags=["Webhooks"])
+    # Sprint 2.28.1: Freshdesk Foundation Layer webhook receiver
+    local_app.include_router(_fd_webhook_routes.router,          tags=["Freshdesk Webhooks"])
 
     # ── Gateway health and metrics (under /gateway prefix to avoid path conflicts) ──
     # /gateway/health, /gateway/health/live, /gateway/health/ready — gateway runtime health
@@ -2051,8 +2257,18 @@ async def freshdesk_webhook(request: Request) -> dict[str, Any]:
             raw_body,
             provided_token=token,
             expected_secret=app_settings.freshdesk_webhook_secret,
+            mode=app_settings.freshdesk_webhook_mode,
         ):
-            raise HTTPException(status_code=401, detail={"error": "invalid_webhook_token"})
+            reason = "missing_header" if not token else "token_mismatch"
+            LOGGER.warning(
+                "freshdesk.webhook.auth_failed: ip=%s header_present=%s "
+                "reason=%s mode=%s",
+                client_ip, bool(token), reason, app_settings.freshdesk_webhook_mode,
+            )
+            raise HTTPException(
+                status_code=401,
+                detail={"error": "invalid_webhook_token", "reason": reason},
+            )
 
     # ── Parse JSON ────────────────────────────────────────────────────────────
     try:
@@ -2062,14 +2278,37 @@ async def freshdesk_webhook(request: Request) -> dict[str, Any]:
 
     if not isinstance(raw, dict):
         raise HTTPException(status_code=400, detail={"error": "payload_must_be_object"})
+    
+    # ── STAGE 2 DIAGNOSTIC: log complete raw payload ──────────────────────────
+    # Remove once payload shape is confirmed and parser is validated.
+    LOGGER.info(
+        "freshdesk_webhook: STAGE2_RAW_PAYLOAD headers=%s body=%s",
+        json.dumps(dict(request.headers), indent=2),
+        json.dumps(raw, indent=2),
+    )
+    # ─────────────────────────────────────────────────────────────────────────
 
     # ── Extract ticket info ───────────────────────────────────────────────────
     ticket = extract_ticket_info(raw)
     ticket_id = ticket.get("ticket_id", "")
 
     if not ticket_id:
-        LOGGER.warning("freshdesk_webhook: missing ticket_id payload_keys=%s", list(raw.keys()))
+        LOGGER.warning(
+            "freshdesk.webhook: step=parse status=missing_ticket_id "
+            "ip=%s payload_keys=%s",
+            client_ip, list(raw.keys()),
+        )
         return {"status": "skipped", "reason": "missing_ticket_id"}
+
+    LOGGER.info(
+        "freshdesk.webhook: step=parse status=ok ticket_id=%s "
+        "subject=%r cf_clients=%r tags=%s ip=%s",
+        ticket_id,
+        ticket.get("subject", "")[:60],
+        ticket.get("custom_fields", {}).get("cf_clients", ""),
+        ticket.get("tags"),
+        client_ip,
+    )
 
     # ── Resolve tenant ────────────────────────────────────────────────────────
     client = resolve_tenant(
@@ -2080,15 +2319,36 @@ async def freshdesk_webhook(request: Request) -> dict[str, Any]:
 
     if not client:
         LOGGER.warning(
-            "freshdesk_webhook: no_tenant ticket=%s tags=%s", ticket_id, ticket.get("tags")
+            "freshdesk.webhook: step=tenant_resolution status=failed "
+            "ticket_id=%s cf_clients=%r email_domain=%s tags=%s ip=%s",
+            ticket_id,
+            ticket.get("custom_fields", {}).get("cf_clients", ""),
+            ticket.get("requester_email", "").split("@")[-1]
+            if "@" in ticket.get("requester_email", "") else "none",
+            ticket.get("tags"),
+            client_ip,
         )
         return {"status": "skipped", "reason": "no_tenant", "ticket_id": ticket_id}
+
+    LOGGER.info(
+        "freshdesk.webhook: step=tenant_resolution status=ok ticket_id=%s tenant=%s",
+        ticket_id, client,
+    )
 
     # ── Build query text ──────────────────────────────────────────────────────
     query_text = build_query_text(ticket)
     if not query_text.strip():
-        LOGGER.warning("freshdesk_webhook: empty_query ticket=%s", ticket_id)
+        LOGGER.warning(
+            "freshdesk.webhook: step=build_query status=empty_query ticket_id=%s tenant=%s",
+            ticket_id, client,
+        )
         return {"status": "skipped", "reason": "empty_query", "ticket_id": ticket_id}
+
+    LOGGER.info(
+        "freshdesk.webhook: step=build_query status=ok ticket_id=%s "
+        "tenant=%s query_chars=%d",
+        ticket_id, client, len(query_text),
+    )
 
     # ── Sprint 1.1: Aadhaar masking at ingress (RBI V-CIP requirement) ───────
     query_text = mask_aadhaar(query_text)
@@ -2109,8 +2369,9 @@ async def freshdesk_webhook(request: Request) -> dict[str, Any]:
         _case = await asyncio.to_thread(_cs.open_case, ticket_id, client)
         await asyncio.to_thread(_cs.classify_case, _case, query_text)
         LOGGER.info(
-            "case_engine ticket=%s case=%s state=%s topic=%s",
-            ticket_id, _case.case_id, _case.current_state.value, _case.topic,
+            "freshdesk.webhook: step=case_created status=ok "
+            "ticket_id=%s case_id=%s case_state=%s topic=%s tenant=%s",
+            ticket_id, _case.case_id, _case.current_state.value, _case.topic, client,
         )
     except Exception as _ce_exc:
         LOGGER.warning(
@@ -2129,6 +2390,11 @@ async def freshdesk_webhook(request: Request) -> dict[str, Any]:
             )
 
     # ── Run RAG pipeline ──────────────────────────────────────────────────────
+    LOGGER.info(
+        "freshdesk.webhook: step=knowledge_retrieval status=started "
+        "ticket_id=%s tenant=%s",
+        ticket_id, client,
+    )
     rag_settings = get_rag_settings()
     openai_api_key = os.getenv("OPENAI_API_KEY", app_settings.chat_api_key).strip()
 
@@ -2142,16 +2408,26 @@ async def freshdesk_webhook(request: Request) -> dict[str, Any]:
             similarity_threshold=0.27,
             persist_history=False,
             history_turns=0,
-            index_version=app_settings.active_index_version,  # ACTIVE_INDEX_VERSION, not B1_INDEX_VERSION
+            index_version=app_settings.active_index_version,
         )
         result = await asyncio.to_thread(generator.generate, gen_request)
+        LOGGER.info(
+            "freshdesk.webhook: step=response_generated status=ok "
+            "ticket_id=%s tenant=%s confidence=%s chunks=%d requires_human=%s",
+            ticket_id, client, result.confidence, len(result.chunks),
+            result.requires_human,
+        )
     except ValueError as exc:
         raise HTTPException(
             status_code=400,
             detail={"status": "bad_request", "error": str(exc), "ticket_id": ticket_id},
         ) from exc
     except RuntimeError as exc:
-        LOGGER.exception("freshdesk_webhook: rag_pipeline_failed ticket=%s", ticket_id)
+        LOGGER.exception(
+            "freshdesk.webhook: step=knowledge_retrieval status=failed "
+            "ticket_id=%s tenant=%s",
+            ticket_id, client,
+        )
         raise HTTPException(
             status_code=502,
             detail={"status": "rag_error", "error": str(exc), "ticket_id": ticket_id},
@@ -2243,6 +2519,11 @@ async def freshdesk_webhook(request: Request) -> dict[str, Any]:
         client=client,
     )
 
+    LOGGER.info(
+        "freshdesk.webhook: step=freshdesk_update status=started "
+        "ticket_id=%s tenant=%s",
+        ticket_id, client,
+    )
     if _ACTION_GATEWAY_ENABLED:
         # Sprint 2.12: Gateway path — propose SAFE action; worker executes asynchronously
         _gateway_case = _case if _case is not None else build_synthetic_case(ticket_id, client)
@@ -2257,8 +2538,9 @@ async def freshdesk_webhook(request: Request) -> dict[str, Any]:
         )
         action = "gateway_note_proposed"
         LOGGER.info(
-            "freshdesk_webhook: gateway_path action_id=%s ticket=%s client=%s",
-            _action_id, ticket_id, client,
+            "freshdesk.webhook: step=freshdesk_update status=ok "
+            "ticket_id=%s tenant=%s path=gateway action_id=%s",
+            ticket_id, client, _action_id,
         )
     else:
         # Direct path — synchronous post via FreshdeskReplyClient
@@ -2274,16 +2556,26 @@ async def freshdesk_webhook(request: Request) -> dict[str, Any]:
                 body_html = format_reply_html(result.answer)
                 await asyncio.to_thread(reply_client.post_reply, ticket_id, body_html)
                 action = "public_reply_posted"
+            LOGGER.info(
+                "freshdesk.webhook: step=freshdesk_update status=ok "
+                "ticket_id=%s tenant=%s path=direct action=%s",
+                ticket_id, client, action,
+            )
         except Exception as exc:  # noqa: BLE001
-            LOGGER.exception("freshdesk_webhook: api_call_failed ticket=%s", ticket_id)
+            LOGGER.exception(
+                "freshdesk.webhook: step=freshdesk_update status=failed "
+                "ticket_id=%s tenant=%s",
+                ticket_id, client,
+            )
             raise HTTPException(
                 status_code=502,
                 detail={"status": "freshdesk_api_error", "error": str(exc), "ticket_id": ticket_id},
             ) from exc
 
     LOGGER.info(
-        "freshdesk_webhook: action=%s ticket=%s client=%s confidence=%s chunks=%d",
-        action, ticket_id, client, result.confidence, len(result.chunks),
+        "freshdesk.webhook: pipeline_complete ticket_id=%s tenant=%s "
+        "action=%s confidence=%s chunks=%d",
+        ticket_id, client, action, result.confidence, len(result.chunks),
     )
 
     # ── Sprint 1: Audit note posting and resolve case ──────────────────────────

@@ -45,8 +45,16 @@ from rag_engine.chunking.knowledge_chunker import KnowledgeChunker
 from rag_engine.config.rag_settings import RagEngineSettings
 from rag_engine.embedding.base import EmbeddingProvider
 from rag_engine.ingestion.knowledge_classifier import KnowledgeClass, KnowledgeClassifier
+from rag_engine.ingestion.knowledge_quality_validator import KnowledgeQualityValidator
 from rag_engine.ingestion.parsers.stackoverflow_parser import KnowledgeArticle, StackOverflowParser
 from rag_engine.ingestion.tenant_mapper import TenantMapper
+from observability.metrics import (
+    record_knowledge_document_ingested,
+    record_knowledge_document_rejected,
+    record_knowledge_image_grounding_failure,
+    record_knowledge_manual_review_required,
+    record_knowledge_quality_failure,
+)
 
 LOGGER = logging.getLogger(__name__)
 
@@ -197,6 +205,7 @@ class KnowledgePipeline:
         self._mapper     = tenant_mapper or TenantMapper.from_env()
         self._classifier = KnowledgeClassifier()
         self._parser     = StackOverflowParser()
+        self._validator  = KnowledgeQualityValidator()
 
         # Quality filter — shared across articles within a run; reset per run
         _qf_config = ChunkQualityConfig(
@@ -231,6 +240,7 @@ class KnowledgePipeline:
         result  = KnowledgeIngestionResult()
         t_start = time.monotonic()
         self._quality_filter.reset_batch()
+        self._validator.reset_run()
 
         LOGGER.info(
             "KnowledgePipeline: starting run data_dir=%s dry_run=%s client_filter=%s",
@@ -401,13 +411,41 @@ class KnowledgePipeline:
     # ── Private: per-article processing ───────────────────────────────────────
 
     def _process_article(self, article: KnowledgeArticle, *, dry_run: bool) -> dict:
-        """Process a single article through classify → dedup → upsert plan."""
+        """Process a single article through validate → classify → dedup → upsert plan."""
         out: dict = {
             "inserted": 0, "updated": 0, "skipped": 0,
             "rejected": 0, "chunks": 0, "pii_redactions": 0,
             "manual_review_flagged": 0,
             "chunk_records": [],
+            "chunks_rejected": 0,
         }
+
+        # Quality validation gate (WORK ITEM 4)
+        validation = self._validator.validate(article)
+        if not validation.is_valid:
+            out["rejected"] = 1
+            for issue in validation.errors:
+                LOGGER.warning(
+                    "Knowledge quality rejection article=%s code=%s: %s",
+                    article.article_id, issue.code, issue.message,
+                )
+                record_knowledge_document_rejected(issue.code)
+            return out
+
+        if validation.manual_review_required:
+            out["manual_review_flagged"] = 1
+            record_knowledge_manual_review_required()
+            LOGGER.info(
+                "Knowledge article flagged for manual review article=%s warnings=%s",
+                article.article_id, [i.code for i in validation.warnings],
+            )
+
+        # Emit image grounding failure metrics (WORK ITEM 7)
+        for ref in getattr(article, "image_references", []):
+            if not ref.manifest_found:
+                record_knowledge_image_grounding_failure("no_manifest")
+            elif ref.local_path is None:
+                record_knowledge_image_grounding_failure("no_local_asset")
 
         # Classify
         clf = self._classifier.classify(article)
@@ -417,6 +455,7 @@ class KnowledgePipeline:
                 "Rejected article %s: class=%s reason=%s",
                 article.article_id, clf.knowledge_class.value, clf.reject_reason,
             )
+            record_knowledge_document_rejected(clf.reject_reason or clf.knowledge_class.value)
             return out
 
         # PII redaction
@@ -495,9 +534,11 @@ class KnowledgePipeline:
         if not chunk_records:
             out["rejected"] = 1
             LOGGER.warning("No chunks produced for article %s — skipping", article.article_id)
+            record_knowledge_document_rejected("no_chunks_produced")
             return out
 
         out["chunks"] = len(chunk_records)
+        record_knowledge_document_ingested(clf.knowledge_class.value)
 
         if dry_run:
             action = "update" if is_update else "insert"
@@ -587,6 +628,7 @@ class KnowledgePipeline:
                 "Knowledge article %s: %d/%d chunks rejected by quality filter",
                 article_id, len(rejected), len(raw_records),
             )
+            record_knowledge_quality_failure(count=len(rejected))
 
         return valid_records
 

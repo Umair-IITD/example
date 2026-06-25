@@ -1,0 +1,75 @@
+﻿{
+    "name": "Automatically reopen tickets when the customer responds",
+    "position": 2,
+    "active": true,
+    "outdated": false,
+    "last_updated_by": 84085150087,
+    "id": 84000606271,
+    "summary": {
+        "performer": "When an action performed by <div class = SummaryKey>Requester</div>",
+        "events": [
+            "When <div class = SummaryKey>Reply is Sent</div>"
+        ],
+        "conditions": {
+            "condition_set_1": [
+                "If <div class = SummaryKey>Status</div> <div class = SummaryOperator>is not</div> <div class = SummaryValue>Open</div>",
+                "AND",
+                "If <div class = SummaryKey>Incoming email</div> <div class = SummaryOperator>is not an automatic response</div> "
+            ]
+        },
+        "actions": [
+            " <div class = SummaryKey>Set Status as</div> <div class = SummaryValue>Open</div>",
+            "AND",
+            " <div class = SummaryKey>Send Email to Agent</div> <div class = SummaryValue>Assigned Agent</div>"
+        ]
+    },
+    "created_at": "2024-04-17T12:38:41Z",
+    "updated_at": "2026-01-14T07:11:21Z",
+    "affected_tickets_count": 138,
+    "performer": {
+        "type": 2
+    },
+    "events": [
+        {
+            "field_name": "reply_sent"
+        }
+    ],
+    "conditions": [
+        {
+            "name": "condition_set_1",
+            "match_type": "all",
+            "properties": [
+                {
+                    "field_name": "status",
+                    "resource_type": "ticket",
+                    "operator": "not_in",
+                    "value": [
+                        2
+                    ]
+                },
+                {
+                    "field_name": "auto_response",
+                    "resource_type": "ticket",
+                    "operator": "not_selected"
+                }
+            ]
+        }
+    ],
+    "actions": [
+        {
+            "field_name": "status",
+            "value": 2
+        },
+        {
+            "field_name": "send_email_to_agent",
+            "email_to": 0,
+            "email_subject": "Ticket re-opened - [#{{ticket.id}}] {{ticket.subject}}",
+            "email_body": "<p>Hi {{ticket.agent.name}},<br /><br />Ticket \"#{{ticket.id}} - {{ticket.subject}}\" has been reopened, please visit {{ticket.url}} to view the ticket.<br /><br />Ticket comment<br />{{comment.body}}</p>"
+        }
+    ],
+    "description": "When a requester replies to a ticket in any state (pending, resolved, closed or a custom status), its status is changed back to open.",
+    "meta": {
+        "total_active_count": 4,
+        "total_count": 11
+    }
+}

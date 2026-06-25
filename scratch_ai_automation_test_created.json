@@ -1,0 +1,86 @@
+﻿{
+    "name":  "AI_AUTOMATION_TEST_CREATED",
+    "position":  68,
+    "active":  true,
+    "outdated":  false,
+    "last_updated_by":  84090476472,
+    "id":  84000623161,
+    "summary":  {
+                    "conditions":  {
+                                       "condition_set_1":  [
+                                                               "If \u003cdiv class = SummaryKey\u003eRequester email\u003c/div\u003e \u003cdiv class = SummaryOperator\u003eis\u003c/div\u003e \u003cdiv class = SummaryValue\u003eumair.alam@think360.ai\u003c/div\u003e",
+                                                               "OR",
+                                                               "If \u003cdiv class = SummaryKey\u003eRequester email\u003c/div\u003e \u003cdiv class = SummaryOperator\u003eis\u003c/div\u003e \u003cdiv class = SummaryValue\u003ednyaneshwar.shekade@think360.ai\u003c/div\u003e"
+                                                           ]
+                                   },
+                    "actions":  [
+                                    " \u003cdiv class = SummaryKey\u003eAdd Tag\u003c/div\u003e \u003cdiv class = SummaryValue\u003eai_test\u003c/div\u003e",
+                                    "AND",
+                                    "\u003cdiv class = SummaryKey\u003eTrigger Webhook\u003c/div\u003e Method-: \u003cdiv class = SummaryValue\u003ePOST\u003c/div\u003e Url-: https://viselike-pushcart-hemlock.ngrok-free.dev/freshdesk/webhook"
+                                ]
+                },
+    "created_at":  "2026-06-19T11:14:02Z",
+    "updated_at":  "2026-06-19T11:14:02Z",
+    "affected_tickets_count":  0,
+    "conditions":  [
+                       {
+                           "name":  "condition_set_1",
+                           "match_type":  "any",
+                           "properties":  [
+                                              {
+                                                  "field_name":  "from_email",
+                                                  "resource_type":  "ticket",
+                                                  "operator":  "is",
+                                                  "value":  "umair.alam@think360.ai"
+                                              },
+                                              {
+                                                  "field_name":  "from_email",
+                                                  "resource_type":  "ticket",
+                                                  "operator":  "is",
+                                                  "value":  "dnyaneshwar.shekade@think360.ai"
+                                              }
+                                          ]
+                       }
+                   ],
+    "actions":  [
+                    {
+                        "field_name":  "add_tag",
+                        "value":  [
+                                      "ai_test"
+                                  ]
+                    },
+                    {
+                        "request_type":  "POST",
+                        "url":  "https://viselike-pushcart-hemlock.ngrok-free.dev/freshdesk/webhook",
+                        "field_name":  "trigger_webhook",
+                        "content_type":  "JSON",
+                        "content_layout":  "2",
+                        "content":  {
+                                        "ticket":  {
+                                                       "id":  "{{ticket.id}}",
+                                                       "subject":  "{{ticket.subject}}",
+                                                       "description":  "{{ticket.description}}",
+                                                       "status":  "{{ticket.status}}",
+                                                       "priority":  "{{ticket.priority}}",
+                                                       "tags":  "{{ticket.tags}}"
+                                                   },
+                                        "requester":  {
+                                                          "email":  "{{requester.email}}",
+                                                          "name":  "{{requester.name}}"
+                                                      },
+                                        "custom_fields":  {
+                                                              "client":  "{{ticket.cf_clients}}"
+                                                          }
+                                    },
+                        "custom_headers":  {
+                                               "Content-Type":  "application/json",
+                                               "X-Webhook-Token":  "0c59f5a346b9fc9e6ffb7ba51d7e95c7552080c252ff5dd7781023ad257b7f4e"
+                                           }
+                    }
+                ],
+    "description":  null,
+    "meta":  {
+                 "total_active_count":  68,
+                 "total_count":  87
+             }
+}

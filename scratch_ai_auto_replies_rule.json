@@ -1,0 +1,111 @@
+﻿{
+    "name": "AI auto replies",
+    "position": 2,
+    "active": true,
+    "outdated": false,
+    "last_updated_by": 84090476472,
+    "id": 84000621616,
+    "summary": {
+        "conditions": {
+            "condition_set_1": [
+                "If <div class = SummaryKey>Requester email</div> <div class = SummaryOperator>is</div> <div class = SummaryValue>dnyaneshwar.shekade@think360.ai</div>",
+                "OR",
+                "If <div class = SummaryKey>Requester email</div> <div class = SummaryOperator>is</div> <div class = SummaryValue>umair.alam@think360.ai</div>",
+                "OR",
+                "If <div class = SummaryKey>Clients</div> <div class = SummaryOperator>is</div> <div class = SummaryValue>Others</div>"
+            ]
+        },
+        "actions": [
+            " <div class = SummaryKey>Set Type as</div> <div class = SummaryValue>Issues</div>",
+            "AND",
+            " <div class = SummaryKey>Assign to Group</div> <div class = SummaryValue>L1</div>",
+            "AND",
+            " <div class = SummaryKey>Add Tag</div> <div class = SummaryValue>auto_assigned_group,ai_auto_replied</div>",
+            "AND",
+            " <div class = SummaryKey>Add note and notify to agents</div> ",
+            "AND",
+            "<div class = SummaryKey>Trigger Webhook</div> Method-: <div class = SummaryValue>POST</div> Url-: https://n8n.app.getkwikid.com/webhook/freshdesk-ticket-created",
+            "AND",
+            "Set <div class = SummaryKey>Current Stage of CR</div> as <div class = SummaryValue>NONE</div>"
+        ]
+    },
+    "created_at": "2025-11-11T12:40:16Z",
+    "updated_at": "2026-06-01T05:21:18Z",
+    "affected_tickets_count": 2,
+    "conditions": [
+        {
+            "name": "condition_set_1",
+            "match_type": "any",
+            "properties": [
+                {
+                    "field_name": "from_email",
+                    "resource_type": "ticket",
+                    "operator": "is",
+                    "value": "dnyaneshwar.shekade@think360.ai"
+                },
+                {
+                    "field_name": "from_email",
+                    "resource_type": "ticket",
+                    "operator": "is",
+                    "value": "umair.alam@think360.ai"
+                },
+                {
+                    "field_name": "cf_clients",
+                    "resource_type": "ticket",
+                    "operator": "in",
+                    "value": [
+                        "Others"
+                    ]
+                }
+            ]
+        }
+    ],
+    "actions": [
+        {
+            "field_name": "ticket_type",
+            "value": "Issues"
+        },
+        {
+            "field_name": "group_id",
+            "value": 84000293343
+        },
+        {
+            "field_name": "add_tag",
+            "value": [
+                "auto_assigned_group",
+                "ai_auto_replied"
+            ]
+        },
+        {
+            "field_name": "add_note",
+            "note_body": "<div dir=\"ltr\">Flags tickets with critical keywords and ensures L1 team takes them on<strong>&nbsp;priority for faster response and resolution.</strong></div>"
+        },
+        {
+            "request_type": "POST",
+            "url": "https://n8n.app.getkwikid.com/webhook/freshdesk-ticket-created",
+            "field_name": "trigger_webhook",
+            "content_type": "JSON",
+            "content_layout": "2",
+            "content": {
+                "ticket": {
+                    "id": "{{ticket.id}}",
+                    "subject": "{{ticket.subject}}",
+                    "description": "{{ticket.description}}"
+                },
+                "replyVisibility": "private"
+            },
+            "custom_headers": {
+                "Content-Type": "application/json"
+            }
+        },
+        {
+            "field_name": "cf_current_state_of_cr",
+            "value": ""
+        }
+    ],
+    "description": null,
+    "meta": {
+        "total_active_count": 68,
+        "total_count": 87
+    }
+}

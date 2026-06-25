@@ -1897,3 +1897,199 @@ class AuditLogger:
                 "security_audit_write_failed type=%s case_id=%s error=%s",
                 row.get("security_event_type"), row.get("case_id"), exc,
             )
+
+    # ── Sprint 2.28.1: Freshdesk Foundation audit methods ────────────────────
+
+    def log_webhook_received(
+        self,
+        ticket_id: str,
+        event_type: str,
+        *,
+        client_id: str = "",
+        idempotency_key: str | None = None,
+    ) -> None:
+        """Log a Freshdesk webhook event received by the receiver."""
+        entry = AuditEntry(
+            ticket_id=ticket_id,
+            client=client_id,
+            action_type=AuditEventType.WEBHOOK_RECEIVED,
+            action_detail={"event_type": event_type},
+            outcome="RECEIVED",
+            idempotency_key=idempotency_key,
+        )
+        self._write(entry)
+
+    def log_webhook_rejected(
+        self,
+        ticket_id: str,
+        event_type: str,
+        reason: str,
+        *,
+        client_id: str = "",
+    ) -> None:
+        """Log a rejected webhook (signature failure, replay, size limit)."""
+        entry = AuditEntry(
+            ticket_id=ticket_id,
+            client=client_id,
+            action_type=AuditEventType.WEBHOOK_REJECTED,
+            action_detail={"event_type": event_type, "reason": reason},
+            outcome="REJECTED",
+            error_code=reason,
+        )
+        self._write(entry)
+
+    def log_webhook_duplicate(
+        self,
+        ticket_id: str,
+        event_type: str,
+        idempotency_key: str,
+        *,
+        client_id: str = "",
+    ) -> None:
+        """Log a duplicate webhook event (idempotency hit)."""
+        entry = AuditEntry(
+            ticket_id=ticket_id,
+            client=client_id,
+            action_type=AuditEventType.WEBHOOK_DUPLICATE,
+            action_detail={"event_type": event_type},
+            outcome="SKIPPED",
+            idempotency_key=idempotency_key,
+        )
+        self._write(entry)
+
+    def log_ticket_ingested(
+        self,
+        ticket_id: str,
+        client_id: str,
+        *,
+        case_id: str = "",
+        subject: str = "",
+        cf_clients: str = "",
+    ) -> None:
+        """Log successful ticket ingestion (webhook → case created)."""
+        entry = AuditEntry(
+            case_id=case_id,
+            ticket_id=ticket_id,
+            client=client_id,
+            action_type=AuditEventType.TICKET_INGESTED,
+            action_detail={
+                "case_id":   case_id,
+                "cf_clients": cf_clients,
+            },
+            outcome="SUCCESS",
+        )
+        self._write(entry)
+
+    def log_customer_reply_received(
+        self,
+        ticket_id: str,
+        client_id: str,
+        *,
+        case_id: str = "",
+        clarification_resolved: bool = False,
+    ) -> None:
+        """Log a customer reply received on a ticket."""
+        entry = AuditEntry(
+            case_id=case_id,
+            ticket_id=ticket_id,
+            client=client_id,
+            action_type=AuditEventType.CUSTOMER_REPLY_RECEIVED,
+            action_detail={"clarification_resolved": clarification_resolved},
+            outcome="SUCCESS",
+        )
+        self._write(entry)
+
+    def log_private_note_added(
+        self,
+        ticket_id: str,
+        client_id: str,
+        note_id: str,
+        *,
+        case_id: str = "",
+    ) -> None:
+        """Log a private note written to Freshdesk."""
+        entry = AuditEntry(
+            case_id=case_id,
+            ticket_id=ticket_id,
+            client=client_id,
+            action_type=AuditEventType.PRIVATE_NOTE_ADDED,
+            action_detail={"note_id": note_id},
+            outcome="SUCCESS",
+        )
+        self._write(entry)
+
+    def log_public_reply_sent(
+        self,
+        ticket_id: str,
+        client_id: str,
+        note_id: str,
+        *,
+        case_id: str = "",
+    ) -> None:
+        """Log a public reply sent to a customer via Freshdesk."""
+        entry = AuditEntry(
+            case_id=case_id,
+            ticket_id=ticket_id,
+            client=client_id,
+            action_type=AuditEventType.PUBLIC_REPLY_SENT,
+            action_detail={"note_id": note_id},
+            outcome="SUCCESS",
+        )
+        self._write(entry)
+
+    def log_signature_failure(
+        self,
+        ticket_id: str,
+        event_type: str,
+        reason: str,
+    ) -> None:
+        """Log a webhook signature verification failure."""
+        entry = AuditEntry(
+            ticket_id=ticket_id,
+            action_type=AuditEventType.SIGNATURE_FAILURE,
+            action_detail={"event_type": event_type, "reason": reason},
+            outcome="REJECTED",
+            error_code="SIGNATURE_FAILURE",
+        )
+        self._write(entry)
+
+    def log_freshdesk_api_error(
+        self,
+        ticket_id: str,
+        operation: str,
+        error_msg: str,
+        *,
+        client_id: str = "",
+        case_id: str = "",
+    ) -> None:
+        """Log a Freshdesk API call error."""
+        entry = AuditEntry(
+            case_id=case_id,
+            ticket_id=ticket_id,
+            client=client_id,
+            action_type=AuditEventType.FRESHDESK_API_ERROR,
+            action_detail={"operation": operation, "error": error_msg},
+            outcome="FAILURE",
+            error_code="FRESHDESK_API_ERROR",
+        )
+        self._write(entry)
+
+    def log_conversation_state_updated(
+        self,
+        ticket_id: str,
+        client_id: str,
+        new_state: str,
+        *,
+        case_id: str = "",
+        reason: str = "",
+    ) -> None:
+        """Log a conversation state transition."""
+        entry = AuditEntry(
+            case_id=case_id,
+            ticket_id=ticket_id,
+            client=client_id,
+            action_type=AuditEventType.CONVERSATION_STATE_UPDATED,
+            action_detail={"new_state": new_state, "reason": reason},
+            outcome="SUCCESS",
+        )
+        self._write(entry)

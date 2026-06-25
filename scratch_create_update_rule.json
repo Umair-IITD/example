@@ -1,0 +1,74 @@
+﻿{
+  "name": "AI_AUTOMATION_TEST_UPDATED",
+  "active": true,
+  "performer": {
+    "type": 2
+  },
+  "events": [
+    {
+      "field_name": "reply_sent"
+    }
+  ],
+  "conditions": [
+    {
+      "name": "condition_set_1",
+      "match_type": "all",
+      "properties": [
+        {
+          "field_name": "tag",
+          "resource_type": "ticket",
+          "operator": "contains",
+          "value": [
+            "ai_test"
+          ]
+        },
+        {
+          "field_name": "status",
+          "resource_type": "ticket",
+          "operator": "not_in",
+          "value": [
+            5
+          ]
+        },
+        {
+          "field_name": "auto_response",
+          "resource_type": "ticket",
+          "operator": "not_selected"
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "request_type": "POST",
+      "url": "https://viselike-pushcart-hemlock.ngrok-free.dev/freshdesk/webhook",
+      "field_name": "trigger_webhook",
+      "content_type": "JSON",
+      "content_layout": "2",
+      "content": {
+        "ticket": {
+          "id": "{{ticket.id}}",
+          "subject": "{{ticket.subject}}",
+          "description": "{{ticket.description_text}}",
+          "status": "{{ticket.status}}",
+          "priority": "{{ticket.priority}}",
+          "tags": "{{ticket.tags}}"
+        },
+        "requester": {
+          "email": "{{requester.email}}",
+          "name": "{{requester.name}}"
+        },
+        "custom_fields": {
+          "client": "{{ticket.cf_clients}}"
+        },
+        "latest_comment": {
+          "body": "{{comment.body_text}}"
+        }
+      },
+      "custom_headers": {
+        "Content-Type": "application/json",
+        "X-Webhook-Token": "0c59f5a346b9fc9e6ffb7ba51d7e95c7552080c252ff5dd7781023ad257b7f4e"
+      }
+    }
+  ]
+}

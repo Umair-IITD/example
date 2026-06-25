@@ -107,6 +107,7 @@ class Settings:
     # When true: startup FAILS if webhook is enabled but no HMAC secret is set.
     # When false (default): startup emits a warning and allows unauthenticated webhooks.
     freshdesk_webhook_enforce_hmac: bool
+    freshdesk_webhook_mode: str
 
     # ── Phase B2: Redis rate limiting ─────────────────────────────────────────
     redis_rate_limit_enabled: bool     # disabled by default — in-process fallback used
@@ -198,6 +199,11 @@ def _validate_freshdesk_settings(settings: Settings) -> None:
         raise ValueError("FRESHDESK_WEBHOOK_MIN_CONFIDENCE must be low|medium|high")
     if not settings.freshdesk_webhook_tenant_tag_prefix:
         raise ValueError("FRESHDESK_WEBHOOK_TENANT_TAG_PREFIX must be non-empty")
+    if settings.freshdesk_webhook_mode not in {"static", "hmac"}:
+        raise ValueError(
+            "FRESHDESK_WEBHOOK_MODE must be 'static' or 'hmac'. "
+            f"Got: {settings.freshdesk_webhook_mode!r}"
+        )
 
 
 def get_settings() -> Settings:
@@ -297,6 +303,7 @@ def get_settings() -> Settings:
         freshdesk_webhook_min_confidence=os.getenv("FRESHDESK_WEBHOOK_MIN_CONFIDENCE", "low").strip().lower(),
         freshdesk_webhook_tenant_tag_prefix=os.getenv("FRESHDESK_WEBHOOK_TENANT_TAG_PREFIX", "client:").strip(),
         freshdesk_webhook_enforce_hmac=_env_bool("FRESHDESK_WEBHOOK_ENFORCE_HMAC", default=False),
+        freshdesk_webhook_mode=os.getenv("FRESHDESK_WEBHOOK_MODE", "hmac").strip().lower(),
         # Redis
         redis_rate_limit_enabled=_env_bool("REDIS_RATE_LIMIT_ENABLED", default=False),
         redis_url=os.getenv("REDIS_URL", "redis://localhost:6379").strip(),

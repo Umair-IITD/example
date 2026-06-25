@@ -49,6 +49,20 @@ if TYPE_CHECKING:
     from case_engine.audit import AuditLogger
     from case_engine.models import Case
 
+# Import metrics (non-fatal: if observability is unavailable, service still works)
+try:
+    from observability.metrics import (
+        record_knowledge_retrieval_failure,
+        record_knowledge_retrieval_request,
+        record_knowledge_top_k_hit,
+    )
+    _METRICS_AVAILABLE = True
+except ImportError:
+    _METRICS_AVAILABLE = False
+    def record_knowledge_retrieval_request(topic: str) -> None: ...  # noqa: E704
+    def record_knowledge_retrieval_failure(topic: str) -> None: ...  # noqa: E704
+    def record_knowledge_top_k_hit(k: int, relevance_score: float) -> None: ...  # noqa: E704
+
 LOGGER = logging.getLogger(__name__)
 
 
@@ -112,6 +126,12 @@ class KnowledgeService:
         inv_confidence       = float(root_cause_dict.get("confidence") or 0.0)
         inv_escalate         = bool(root_cause_dict.get("escalate") or False)
 
+        # Record retrieval request metric (WORK ITEM 7)
+        try:
+            record_knowledge_retrieval_request(topic)
+        except Exception:
+            pass
+
         if case is not None and self._audit is not None:
             try:
                 self._audit.log_knowledge_search_started(
@@ -148,6 +168,19 @@ class KnowledgeService:
             sop_match_found=sop_match is not None,
             completed_at=datetime.now(tz=timezone.utc).isoformat(),
         )
+
+        # Record retrieval outcome metrics (WORK ITEM 7)
+        try:
+            if sop_match is None:
+                record_knowledge_retrieval_failure(topic)
+            else:
+                record_knowledge_top_k_hit(1, sop_match.relevance_score)
+                # Record top-3 and top-5 hits if additional matches exist
+                for rank, match in enumerate(search_result.matches[:5], start=1):
+                    if rank > 1:
+                        record_knowledge_top_k_hit(rank, match.relevance_score)
+        except Exception:
+            pass
 
         if case is not None and self._audit is not None:
             try:

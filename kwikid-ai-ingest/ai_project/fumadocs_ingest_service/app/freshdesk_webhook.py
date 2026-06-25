@@ -10,6 +10,11 @@ Responsibilities:
 - Build the RAG query string from ticket subject + description
 - Format the AI draft as HTML for a private note or public reply
 - Post the note/reply back to Freshdesk via the REST API
+
+Sprint 2.28.3 changes:
+- resolve_tenant(): fixed to check cf_clients (Freshdesk's actual field name)
+  and added email-domain fallback per freshdesk_integration.md Section 4.2.
+- Added structured failure logging at each resolution step.
 """
 from __future__ import annotations
 
@@ -28,6 +33,26 @@ _CONFIDENCE_RANK: dict[str, int] = {"low": 0, "medium": 1, "high": 2}
 
 _HTML_TAG_RE = re.compile(r"<[^>]+>")
 _WHITESPACE_RE = re.compile(r"\s+")
+
+# ── Tenant registry (freshdesk_integration.md Section 4.2) ────────────────────
+# Maps requester email domain → canonical tenant slug.
+# Slug must match the value Freshdesk Dispatch'r rules write into cf_clients.
+_TENANT_EMAIL_DOMAIN_MAP: dict[str, str] = {
+    "unitybank.co.in": "Unity",
+    "bankofbaroda.com": "BOB",
+    "centralbank.co.in": "CBI",
+    "rblbank.com": "RBL",
+    "bajajfinserv.in": "BAJAJ_FIN",
+    "thomascook.in": "THOMAS_COOK",
+    "canarabank.com": "CANARA",
+    "finobank.com": "FINO",
+    "tfsin.co.in": "TOYOTA",
+    "grihumhousing.com": "GHF",
+}
+
+# cf_clients values that indicate no specific tenant was resolved by Dispatch'r.
+# When these are present, fall through to email-domain lookup.
+_CF_CLIENTS_SKIP: frozenset[str] = frozenset({"others", "unknown", ""})
 
 
 # ── Payload extraction ─────────────────────────────────────────────────────────
@@ -80,25 +105,91 @@ def resolve_tenant(
     """
     Determine tenant slug from ticket info.
 
-    Priority:
-      1. Tag matching the prefix  (e.g. "client:unity_bank" → "unity_bank")
-      2. Custom field: cf_client_slug or cf_client
-      3. Configured default
+    Priority order (per freshdesk_integration.md Section 4.2):
+      1. cf_clients custom field — set by Freshdesk Dispatch'r rules (PRIMARY)
+         Skip if value is "Others", "unknown", or empty (fall through).
+      2. Tag matching the prefix  (e.g. "client:unity_bank" → "unity_bank")
+      3. Other cf field aliases (cf_client_slug, cf_client, client_slug, client)
+      4. Requester email domain → _TENANT_EMAIL_DOMAIN_MAP lookup
+      5. Configured default_client fallback
+
+    Logs every resolution step at INFO on success, WARNING on failure.
+    Never raises.
     """
+    ticket_id = ticket.get("ticket_id", "?")
+    cf = ticket.get("custom_fields") or {}
+
+    # Priority 1: cf_clients — the authoritative Freshdesk Dispatch'r field.
+    # Freshdesk writes the tenant name here before the webhook fires.
+    # Real field name is "cf_clients" (plural) — NOT "cf_client".
+    cf_clients_raw = cf.get("cf_clients", "").strip()
+    if cf_clients_raw and cf_clients_raw.lower() not in _CF_CLIENTS_SKIP:
+        LOGGER.info(
+            "resolve_tenant: via=cf_clients ticket=%s tenant=%s",
+            ticket_id, cf_clients_raw,
+        )
+        return cf_clients_raw
+
+    if cf_clients_raw:
+        LOGGER.info(
+            "resolve_tenant: cf_clients=%r is passthrough-value ticket=%s — continuing resolution",
+            cf_clients_raw, ticket_id,
+        )
+
+    # Priority 2: Tag prefix matching (e.g. FRESHDESK_WEBHOOK_TENANT_TAG_PREFIX="client:")
     prefix_lower = tag_prefix.lower()
     for tag in ticket.get("tags") or []:
         if tag.lower().startswith(prefix_lower):
             slug = tag[len(tag_prefix):].strip()
             if slug:
+                LOGGER.info(
+                    "resolve_tenant: via=tag_prefix ticket=%s tag=%s tenant=%s",
+                    ticket_id, tag, slug,
+                )
                 return slug
 
-    cf = ticket.get("custom_fields") or {}
+    # Priority 3: Other custom field name aliases
     for key in ("cf_client_slug", "cf_client", "client_slug", "client"):
         val = cf.get(key)
         if val and isinstance(val, str) and val.strip():
+            LOGGER.info(
+                "resolve_tenant: via=cf_alias field=%s ticket=%s tenant=%s",
+                key, ticket_id, val.strip(),
+            )
             return val.strip()
 
-    return default_client
+    # Priority 4: Requester email domain lookup
+    email = ticket.get("requester_email", "").strip().lower()
+    if email and "@" in email:
+        domain = email.split("@")[-1]
+        tenant = _TENANT_EMAIL_DOMAIN_MAP.get(domain)
+        if tenant:
+            LOGGER.info(
+                "resolve_tenant: via=email_domain domain=%s ticket=%s tenant=%s",
+                domain, ticket_id, tenant,
+            )
+            return tenant
+        LOGGER.warning(
+            "resolve_tenant: email_domain_not_registered domain=%s ticket=%s",
+            domain, ticket_id,
+        )
+
+    # Priority 5: Configured default
+    if default_client:
+        LOGGER.info(
+            "resolve_tenant: via=default_client ticket=%s tenant=%s",
+            ticket_id, default_client,
+        )
+        return default_client
+
+    LOGGER.warning(
+        "resolve_tenant: resolution_failed ticket=%s cf_clients=%r "
+        "email=%s tags=%s — no_tenant",
+        ticket_id, cf_clients_raw,
+        email.split("@")[-1] if "@" in email else "none",
+        ticket.get("tags"),
+    )
+    return None
 
 
 # ── Query building ─────────────────────────────────────────────────────────────
@@ -131,23 +222,42 @@ def verify_webhook_token(
     *,
     provided_token: str | None,
     expected_secret: str,
+    mode: str = "hmac",
 ) -> bool:
     """
-    Constant-time HMAC-SHA256 verification.
+    Constant-time webhook token verification.
 
-    Freshdesk does not sign webhook bodies natively; this validates an
-    X-Webhook-Token header that n8n or your automation platform can inject
-    by computing HMAC-SHA256(secret, body) before forwarding.
+    Two modes are supported via FRESHDESK_WEBHOOK_MODE in .env:
+
+    "static"  ── Freshdesk → FastAPI (Sprint 2.28 direct testing)
+        Freshdesk automation rules can only send a static header value.
+        The X-Webhook-Token header is compared directly against the
+        configured secret using constant-time comparison to prevent
+        timing attacks.
+
+    "hmac"  ── Freshdesk → n8n → FastAPI (production target)
+        n8n computes HMAC-SHA256(secret, raw_body) before forwarding.
+        The X-Webhook-Token header is verified against that computed
+        digest. Switch to this mode once n8n is in the pipeline.
     """
     if not provided_token:
         return False
+
+    if mode == "static":
+        # Freshdesk sends the raw secret as the token value.
+        # Constant-time comparison prevents timing-based token guessing.
+        return hmac.compare_digest(
+            provided_token.strip(),
+            expected_secret.strip(),
+        )
+
+    # mode == "hmac": n8n has pre-computed the signature before forwarding.
     expected = hmac.new(
         expected_secret.encode("utf-8"),
         raw_body,
         hashlib.sha256,
     ).hexdigest()
-    return hmac.compare_digest(provided_token.lower(), expected.lower())
-
+    return hmac.compare_digest(provided_token.lower(), expected.lower())    
 
 # ── Confidence gate ────────────────────────────────────────────────────────────
 

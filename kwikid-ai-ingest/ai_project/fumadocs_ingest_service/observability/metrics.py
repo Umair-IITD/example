@@ -52,6 +52,16 @@ _rate_limit_rejections_total: Any = None
 _active_requests: Any = None
 _retrieval_candidates: Any = None
 
+# Knowledge layer metrics (WORK ITEM 7)
+_knowledge_documents_ingested: Any = None
+_knowledge_documents_rejected: Any = None
+_knowledge_manual_review_required: Any = None
+_knowledge_retrieval_requests: Any = None
+_knowledge_retrieval_failures: Any = None
+_knowledge_top_k_hits: Any = None
+_knowledge_quality_failures: Any = None
+_knowledge_image_grounding_failures: Any = None
+
 _metrics_available = False
 
 
@@ -67,6 +77,10 @@ def _do_register_metrics() -> bool:
     global _http_requests_total, _http_request_duration_seconds
     global _retrieval_latency_seconds, _llm_latency_seconds
     global _rate_limit_rejections_total, _active_requests, _retrieval_candidates
+    global _knowledge_documents_ingested, _knowledge_documents_rejected
+    global _knowledge_manual_review_required, _knowledge_retrieval_requests
+    global _knowledge_retrieval_failures, _knowledge_top_k_hits
+    global _knowledge_quality_failures, _knowledge_image_grounding_failures
 
     try:
         from prometheus_client import Counter, Gauge, Histogram  # noqa: PLC0415
@@ -109,6 +123,47 @@ def _do_register_metrics() -> bool:
             "Candidate count at each retrieval stage",
             ["stage"],
             buckets=[1, 5, 10, 20, 50, 100, 200],
+        )
+
+        # Knowledge layer metrics (WORK ITEM 7)
+        _knowledge_documents_ingested = Counter(
+            "knowledge_documents_ingested_total",
+            "Total knowledge documents successfully ingested",
+            ["knowledge_class"],
+        )
+        _knowledge_documents_rejected = Counter(
+            "knowledge_documents_rejected_total",
+            "Total knowledge documents rejected during ingestion",
+            ["reject_reason"],
+        )
+        _knowledge_manual_review_required = Counter(
+            "knowledge_manual_review_required_total",
+            "Knowledge documents flagged for manual review (completeness < threshold)",
+        )
+        _knowledge_retrieval_requests = Counter(
+            "knowledge_retrieval_requests_total",
+            "Total knowledge retrieval requests",
+            ["topic"],
+        )
+        _knowledge_retrieval_failures = Counter(
+            "knowledge_retrieval_failures_total",
+            "Knowledge retrieval requests that returned no match above threshold",
+            ["topic"],
+        )
+        _knowledge_top_k_hits = Histogram(
+            "knowledge_top_k_hits",
+            "Relevance score of top-k knowledge match",
+            ["k"],
+            buckets=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+        )
+        _knowledge_quality_failures = Counter(
+            "knowledge_quality_failures_total",
+            "Chunks rejected by the quality filter during ingestion",
+        )
+        _knowledge_image_grounding_failures = Counter(
+            "knowledge_image_grounding_failures_total",
+            "Image references that could not be resolved to a manifest or local asset",
+            ["failure_type"],  # "no_manifest" | "no_local_asset"
         )
 
         LOGGER.info("Prometheus metrics initialized successfully")
@@ -275,6 +330,102 @@ class ActiveRequestContext:
                 _active_requests.labels(path=self._path).dec()
             except Exception:
                 pass
+
+
+# ── Knowledge layer metric recording functions (WORK ITEM 7) ─────────────────
+
+def record_knowledge_document_ingested(knowledge_class: str) -> None:
+    """Increment counter for each successfully ingested knowledge document."""
+    _ensure_initialized()
+    if not _metrics_available:
+        return
+    try:
+        _knowledge_documents_ingested.labels(knowledge_class=knowledge_class).inc()
+    except Exception:
+        pass
+
+
+def record_knowledge_document_rejected(reject_reason: str) -> None:
+    """Increment counter for each rejected knowledge document."""
+    _ensure_initialized()
+    if not _metrics_available:
+        return
+    try:
+        _knowledge_documents_rejected.labels(reject_reason=reject_reason).inc()
+    except Exception:
+        pass
+
+
+def record_knowledge_manual_review_required() -> None:
+    """Increment counter when a document is flagged for manual review."""
+    _ensure_initialized()
+    if not _metrics_available:
+        return
+    try:
+        _knowledge_manual_review_required.inc()
+    except Exception:
+        pass
+
+
+def record_knowledge_retrieval_request(topic: str) -> None:
+    """Increment counter for each knowledge retrieval request."""
+    _ensure_initialized()
+    if not _metrics_available:
+        return
+    try:
+        _knowledge_retrieval_requests.labels(topic=topic).inc()
+    except Exception:
+        pass
+
+
+def record_knowledge_retrieval_failure(topic: str) -> None:
+    """Increment counter when a knowledge retrieval finds no match above threshold."""
+    _ensure_initialized()
+    if not _metrics_available:
+        return
+    try:
+        _knowledge_retrieval_failures.labels(topic=topic).inc()
+    except Exception:
+        pass
+
+
+def record_knowledge_top_k_hit(k: int, relevance_score: float) -> None:
+    """Record the relevance score of a top-k knowledge retrieval hit."""
+    _ensure_initialized()
+    if not _metrics_available:
+        return
+    try:
+        _knowledge_top_k_hits.labels(k=str(k)).observe(relevance_score)
+    except Exception:
+        pass
+
+
+def record_knowledge_quality_failure(count: int = 1) -> None:
+    """Increment counter for chunks rejected by quality filter."""
+    _ensure_initialized()
+    if not _metrics_available:
+        return
+    try:
+        for _ in range(count):
+            _knowledge_quality_failures.inc()
+    except Exception:
+        pass
+
+
+def record_knowledge_image_grounding_failure(failure_type: str) -> None:
+    """Increment counter for unresolvable image references.
+
+    Args:
+        failure_type: "no_manifest" if images.json entry missing,
+                      "no_local_asset" if binary file not found on disk.
+    """
+    _ensure_initialized()
+    if not _metrics_available:
+        return
+    try:
+        _knowledge_image_grounding_failures.labels(failure_type=failure_type).inc()
+    except Exception:
+        pass
 
 
 def get_metrics_response() -> tuple[bytes, str] | None:
