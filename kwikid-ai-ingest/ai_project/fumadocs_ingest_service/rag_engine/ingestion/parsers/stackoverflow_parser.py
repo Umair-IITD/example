@@ -211,6 +211,12 @@ class StackOverflowParser:
     # Maximum number of top comments to append to the answer body
     _MAX_COMMENTS = 3
 
+    # Cached OCR engine — loaded once per process, reused for all images.
+    # RapidOCR loads ONNX models on first instantiation (~2-3s); reloading
+    # it per image multiplies that cost by the image count (1,255 images →
+    # ~9 hours). This singleton keeps models in memory across all parse calls.
+    _ocr_engine: Optional["RapidOCR"] = None  # type: ignore[name-defined]
+
     def parse(self, data_dir: Path) -> list[KnowledgeArticle]:
         """
         Load all JSON files and return KnowledgeArticle objects for each question.
@@ -549,7 +555,9 @@ class StackOverflowParser:
         """
         try:
             from rapidocr_onnxruntime import RapidOCR  # type: ignore[import]
-            engine = RapidOCR()
+            if StackOverflowParser._ocr_engine is None:
+                StackOverflowParser._ocr_engine = RapidOCR()
+            engine = StackOverflowParser._ocr_engine
             result, elapse = engine(local_path)
             if not result:
                 return ImageOCRMetadata(

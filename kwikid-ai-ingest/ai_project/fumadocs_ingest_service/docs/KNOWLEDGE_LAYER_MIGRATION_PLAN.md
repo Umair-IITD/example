@@ -109,13 +109,13 @@ Apply in Supabase SQL editor, one at a time, in this exact sequence. Wait for ea
 | 2 | `sql/b3_migrations/B3_002_extend_match_all_sources.sql` | Adds knowledge branch to `match_all_b1_sources` |
 | 3 | `sql/b3_migrations/B3_003_feedback_enhancements.sql` | Review queue + feedback enhancements |
 | 4 | `sql/b3_migrations/B3_004_raise_quality_gate.sql` | Raises retrieval quality gate 0.40→0.55 |
-| 5 | `sql/b3_migrations/B3_005_fts_quality_gate.sql` | FTS path quality gate |
-| 6 | **`sql/b3_migrations/B3_007_knowledge_fts.sql`** | Adds `fts TSVECTOR GENERATED` column to chunks — **MUST come before B3_006** |
-| 7 | `sql/b3_migrations/B3_006_image_metadata.sql` | Adds `image_metadata JSONB` column + updates both RPCs (references `kc.fts`) |
+| 5 | **`sql/b3_migrations/B3_007_knowledge_fts.sql`** | Adds `fts TSVECTOR GENERATED` column to chunks — **MUST come before B3_005 and B3_006** |
+| 6 | `sql/b3_migrations/B3_005_fts_quality_gate.sql` | Introduces `search_b1_sources_fts` RPC (references `kc.fts`) |
+| 7 | `sql/b3_migrations/B3_006_image_metadata.sql` | Adds `image_metadata JSONB` + updates both RPCs (also references `kc.fts`) |
 
-> **ORDER CRITICAL:** B3_007 must be applied before B3_006. `search_b1_sources_fts` (created/replaced by B3_006) references `kc.fts`, which B3_007 creates. PostgreSQL defers column resolution to query execution time — the CREATE OR REPLACE will succeed if B3_006 is applied first, but the first live query against the FTS knowledge branch will fail with `column "fts" does not exist`.
+> **ORDER CRITICAL:** B3_007 must be applied before **both** B3_005 and B3_006. B3_005 *introduces* `search_b1_sources_fts`, and B3_006 *extends* it — both reference `kc.fts` on `rag_knowledge_chunks`. PostgreSQL defers column resolution to query execution time, so the `CREATE OR REPLACE` succeeds even if `kc.fts` is missing, but the first live FTS query against the knowledge branch will fail with `column "kc.fts" does not exist`.
 
-**B3_006 and B3_007 MUST be applied before live ingestion.**  
+**B3_005, B3_006, and B3_007 MUST all be applied before live ingestion.**  
 All migrations are idempotent (safe to re-run).
 
 After applying B3_007, verify:

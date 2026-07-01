@@ -1,38 +1,39 @@
 # Handoff
 
 ## State
-Sprint 2.34 (Knowledge Layer Certification) COMPLETE. Knowledge Layer certified and FROZEN.
+Sprint 2.36 (Knowledge Layer Final Certification) IN PROGRESS.
 
-All Sprint 2.34 fixes applied:
-- `requirements.txt`: `rapidocr-onnxruntime>=1.3.0` uncommented (was commented out — OCR was silently disabled)
-- `docs/KNOWLEDGE_LAYER_MIGRATION_PLAN.md`: Migration order corrected — B3_007 BEFORE B3_006 (B3_006 references `kc.fts` which B3_007 creates)
-- `scripts/ingest_knowledge.py`: Docstring examples updated from `../More_data` to `./stackoverflow`
-- `.env`: Comment fixed (`More_data()` → `stackoverflow/`) — actual value was already correct
-- `rag_engine/ingestion/knowledge_pipeline.py`: Dead `_chunk_text()` function removed
+OCR verification COMPLETE — all 13 sample images returned text, 100% success rate:
+- 5 posts tested: ids [76, 82, 125, 150, 170]
+- Image classes hit: FLOWCHART (10), TABLE (1), CONFIG_SCREEN (1)
+- OCR confidence range: 0.92–0.98
+- OCR text NOT in embed_text: 13/13 PASS
 
-Production readiness score: **87/100**. Architecture certified. No code bugs found.
+Engine caching fix applied to `rag_engine/ingestion/parsers/stackoverflow_parser.py`:
+- Added `_ocr_engine: Optional["RapidOCR"] = None` class var
+- `_run_ocr()` now lazy-inits and reuses the engine (was re-creating per image)
+- Speedup: 8.9h → ~4.9h for full corpus
 
-## Next (priority order)
+Real data path (NOT ./stackoverflow/): `C:/Users/Umair.Alam/Desktop/kwikid_support_system/stackoverflow/`
+Ingest command: `python scripts/ingest_knowledge.py --source C:/Users/Umair.Alam/Desktop/kwikid_support_system/stackoverflow`
 
-1. KNOWLEDGE MIGRATION — execute the 8-step plan in `docs/KNOWLEDGE_LAYER_MIGRATION_PLAN.md`:
-   - Step 4 order (CRITICAL): B3_001 → B3_002 → B3_003 → B3_004 → B3_005 → **B3_007** → B3_006
-   - `pip install rapidocr-onnxruntime>=1.3.0` before Step 7 (Live Ingestion)
-   - Dry-run: `python scripts/ingest_knowledge.py --dry-run --source ./stackoverflow --verbose`
-   - Step 8 (hard-delete legacy fumadocs SOPs) is IRREVERSIBLE — explicit confirmation required
+## Next — UNBLOCKED after user applies B3_006 in Supabase SQL editor
 
-2. CONFIGURE investigation tools: live Unity Bank API credentials in TenantContext.enabled_tools
-   (configuration, not code — contact Unity Bank integration team)
+Still need user to run 4 SQL blocks (see previous chat):
+1. Backup SOPs → 2. Soft-disable fumadocs SOPs → 3. Apply B3_006 → 4. Reset content_hash to NULL
 
-3. Phase B: Investigation Layer integration
-4. Phase C: Action & Execution Layer
-5. Phase D: Production hardening
+After B3_006 confirmed:
+5. Live ingestion (with OCR): `python scripts/ingest_knowledge.py --source C:/Users/Umair.Alam/Desktop/kwikid_support_system/stackoverflow`
+6. Post-migration SQL checks
+7. Retrieval benchmark: `python tests/benchmark_knowledge_retrieval.py`
+8. Manual spot checks
+9. Hard-delete legacy SOPs (IRREVERSIBLE)
+10. Issue GO/NO-GO
 
 ## Context
-- Branch: major-architecture-change
-- Corpus: `./stackoverflow/` (802Q + 913A, 1,255 image GUIDs in manifest, ~200 local PNGs)
-- 83% of images have no local PNG — OCR gracefully returns ocr_text=None for these
-- `DEFAULT_RAG_TENANT` hardcoded to "unity" in HybridRAGProvider — multi-tenant retrieval limitation
-- Question-level comments silently dropped (only answer comments captured) — known minor gap
-- OCR text NOT in embeddings (stored in image_metadata JSONB only) — design decision, not a bug
-- WhatsApp chat image may misclassify (URL title attribute not parsed) — no impact since image has no local PNG
-- B3_004 contains `DELETE FROM rag_knowledge_chunks WHERE quality_score < 0.55` — data-destructive, apply once only
+- Live ingestion expected runtime: ~4.9h OCR + ~7min embeddings (1,313 chunks × OpenAI API)
+- 362 articles in DB have content_hash set → will SKIP without step 4 (reset content_hash)
+- 3 fumadocs SOPs active: Account Lockout, OTP Delivery Failure, Video KYC Session Failure
+- Backup tables MISSING (must create in step 1 before touching rag_sop_library)
+- SUPABASE_KEY is service_role — never expose to browser
+- `exclude_escalation=True` in rag_adapter.py — CRITICAL security fix, do not revert
