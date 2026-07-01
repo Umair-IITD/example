@@ -20,6 +20,8 @@ Design decisions:
   - No exception propagates from _parse_single_post — errors are counted
   - All HTML stripped from bodyMarkdown before storage
   - Comments appended to answer body (top 3 by score, for context richness)
+  - Image classification and OCR metadata are attached to every ImageReference
+    (OCR text is populated later during migration ingestion, not here)
 """
 from __future__ import annotations
 
@@ -51,6 +53,46 @@ _GENERIC_TAGS = {
 # Data models
 # ---------------------------------------------------------------------------
 
+# Image classification labels (deterministic, context-based)
+IMAGE_CLASS_WHATSAPP_CHAT = "WHATSAPP_CHAT"
+IMAGE_CLASS_FLOWCHART     = "FLOWCHART"
+IMAGE_CLASS_STACKTRACE    = "STACKTRACE"
+IMAGE_CLASS_ERROR_DIALOG  = "ERROR_DIALOG"
+IMAGE_CLASS_CONFIG_SCREEN = "CONFIG_SCREEN"
+IMAGE_CLASS_TABLE         = "TABLE"
+IMAGE_CLASS_SCREENSHOT    = "SCREENSHOT"
+IMAGE_CLASS_UI_SCREEN     = "UI_SCREEN"
+IMAGE_CLASS_TEXT_ONLY     = "TEXT_ONLY"
+IMAGE_CLASS_OTHER         = "OTHER"
+
+
+@dataclass
+class ImageOCRMetadata:
+    """
+    Structured metadata produced for every image reference, whether or not
+    OCR was executed.  ocr_text is populated at migration-ingest time when
+    ocr_required=True AND the local PNG file is present.
+    """
+    image_guid:      str
+    image_path:      str            # local path as string; "" when unavailable
+    image_class:     str            # one of IMAGE_CLASS_* constants above
+    ocr_required:    bool
+    ocr_text:        Optional[str]  # None until OCR is executed
+    ocr_confidence:  Optional[float]
+    ocr_version:     str            # "rapidocr-1.0" | "none"
+
+    def to_dict(self) -> dict:
+        return {
+            "image_guid":     self.image_guid,
+            "image_path":     self.image_path,
+            "image_class":    self.image_class,
+            "ocr_required":   self.ocr_required,
+            "ocr_text":       self.ocr_text,
+            "ocr_confidence": self.ocr_confidence,
+            "ocr_version":    self.ocr_version,
+        }
+
+
 @dataclass
 class ImageReference:
     url: str
@@ -59,6 +101,8 @@ class ImageReference:
     image_id: Optional[int]
     manifest_found: bool
     local_path: Optional[str]
+    # Populated by _extract_image_references after classification + OCR decision
+    ocr_metadata: Optional[ImageOCRMetadata] = None
 
 
 @dataclass
@@ -92,11 +136,14 @@ class KnowledgeArticle:
     # Image grounding counters (WORK ITEM 1)
     image_count:          int              # total image references found
     resolved_image_count: int              # refs with manifest_found=True
-    missing_image_count:  int              # refs with manifest_found=False
+    missing_image_count:  int             # refs with manifest_found=False
     image_grounding_status: str            # "no_images" | "fully_resolved" | "partially_resolved" | "unresolved"
 
     # Knowledge safety classification (WORK ITEM 5)
     safety_classification: str            # "safe_for_llm" | "restricted_internal" | "sensitive_operations"
+
+    # OCR / image classification metadata (one dict per image in image_references)
+    image_metadata: list[dict]            # serialised ImageOCRMetadata.to_dict()
 
     post_state:         str                # "Published" | "Deleted" | etc.
     created_at_source:  Optional[str]      # ISO datetime string from SO
@@ -304,11 +351,17 @@ class StackOverflowParser:
 
         article_type = "qa_pair" if answer_body else "question_only"
         canonical_url = _extract_canonical_url(question, post_id)
+
+        # Build a context string that includes title and tags for image classification
+        # (Rules 8 uses title/tag keywords not always present in bodyMarkdown alone)
+        title_and_tags = f"{title} {' '.join(tags_raw)}"
         image_references = _extract_image_references(
             question_markdown,
             answer_markdown or answer_body or "",
             export.image_map,
             data_dir,
+            title_and_tags=title_and_tags,
+            parser=self,
         )
         completeness_flags = _build_completeness_flags(
             question_markdown=question_markdown,
@@ -341,6 +394,13 @@ class StackOverflowParser:
             answer_markdown=answer_markdown or "",
         )
 
+        # Serialise OCR metadata for every image reference
+        image_metadata = [
+            ref.ocr_metadata.to_dict()
+            for ref in image_references
+            if ref.ocr_metadata is not None
+        ]
+
         return KnowledgeArticle(
             article_id         = f"so_{post_id}",
             source             = "stackoverflow_for_teams",
@@ -368,8 +428,168 @@ class StackOverflowParser:
             missing_image_count  = missing_image_count,
             image_grounding_status = image_grounding_status,
             safety_classification  = safety_classification,
+            image_metadata         = image_metadata,
             post_state         = post_state,
             created_at_source  = question.get("creationDate"),
+        )
+
+    # ── Image classification & OCR ─────────────────────────────────────────────
+
+    @staticmethod
+    def _classify_image(guid: str, alt_text: str, body_markdown: str) -> str:
+        """
+        Deterministic image classification using 10 ordered rules.
+
+        Rules are evaluated in priority order; the first match wins.
+        All matching is case-insensitive.
+
+        Args:
+            guid:          Image GUID (used for tie-breaking logging only).
+            alt_text:      Alt-text extracted from the ![alt](url) markdown.
+            body_markdown: Full bodyMarkdown of the post containing the image.
+
+        Returns:
+            One of the IMAGE_CLASS_* string constants.
+        """
+        alt  = (alt_text or "").lower()
+        body = (body_markdown or "").lower()
+
+        # Rule 1: WhatsApp chat
+        if "whatsapp" in alt or "chat" in alt or "whatsapp" in body:
+            return IMAGE_CLASS_WHATSAPP_CHAT
+
+        # Rule 2: Flow diagram / chart
+        if "flow" in alt or (
+            "flow" in body and ("diagram" in body or "chart" in body or "steps" in body)
+        ):
+            return IMAGE_CLASS_FLOWCHART
+
+        # Rule 3: Stack trace / traceback / exception
+        if "stack" in body and "trace" in body:
+            return IMAGE_CLASS_STACKTRACE
+        if "traceback" in body or "exception" in body:
+            return IMAGE_CLASS_STACKTRACE
+
+        # Rule 4: Error dialog (error keyword + very short body = image IS the error)
+        if "error" in body and len(body_markdown.strip()) < 100:
+            return IMAGE_CLASS_ERROR_DIALOG
+
+        # Rule 5: Configuration screen
+        if "config" in body or "configuration" in body or "setting" in body:
+            return IMAGE_CLASS_CONFIG_SCREEN
+
+        # Rule 6: Table / structured data
+        if "table" in body or "columns" in body or "rows" in body or "schema" in body:
+            return IMAGE_CLASS_TABLE
+
+        # Rule 7: Image is the entire answer (extremely short body)
+        # Strip image markdown syntax before measuring length
+        body_no_img = re.sub(
+            r"!\[[^\]]*\]\([^)]+\)", "", body_markdown, flags=re.IGNORECASE
+        ).strip()
+        if len(body_no_img) < 30:
+            return IMAGE_CLASS_SCREENSHOT
+
+        # Rule 8: UI / portal / dashboard labels in title/tags (passed via body_markdown
+        # augmented by caller — see _extract_image_references() title_and_tags param)
+        ui_keywords = {"ui", "portal", "screen", "dashboard", "frontend"}
+        if any(kw in body for kw in ui_keywords):
+            return IMAGE_CLASS_UI_SCREEN
+
+        # Rule 9: Long body with image inline → illustrative screenshot
+        if len(body_markdown.strip()) > 200:
+            return IMAGE_CLASS_SCREENSHOT
+
+        # Rule 10: default
+        return IMAGE_CLASS_OTHER
+
+    @staticmethod
+    def _should_ocr(image_class: str, body_markdown_len: int) -> bool:
+        """
+        Deterministic OCR decision based on image_class and surrounding text volume.
+
+        Returns True if OCR should be executed for this image, False otherwise.
+        """
+        always_yes = {
+            IMAGE_CLASS_WHATSAPP_CHAT,
+            IMAGE_CLASS_STACKTRACE,
+            IMAGE_CLASS_ERROR_DIALOG,
+            IMAGE_CLASS_CONFIG_SCREEN,
+            IMAGE_CLASS_TABLE,
+            IMAGE_CLASS_FLOWCHART,
+            IMAGE_CLASS_TEXT_ONLY,
+        }
+        if image_class in always_yes:
+            return True
+
+        if image_class == IMAGE_CLASS_SCREENSHOT:
+            # Short body → image is primary content → OCR required
+            return body_markdown_len < 100
+
+        # UI_SCREEN and OTHER → no OCR
+        return False
+
+    @staticmethod
+    def _run_ocr(local_path: str, guid: str, image_class: str) -> ImageOCRMetadata:
+        """
+        Run OCR on the image at local_path using RapidOCR.
+
+        Degrades gracefully:
+          - If rapidocr-onnxruntime is not installed → ocr_text=None
+          - If file is unreadable or OCR crashes → ocr_text=None
+        Never raises.
+
+        Args:
+            local_path:   Absolute path to the PNG file.
+            guid:         Image GUID (for logging).
+            image_class:  Determined image class (for ocr_version tag).
+
+        Returns:
+            ImageOCRMetadata with ocr_text populated on success, None on failure.
+        """
+        try:
+            from rapidocr_onnxruntime import RapidOCR  # type: ignore[import]
+            engine = RapidOCR()
+            result, elapse = engine(local_path)
+            if not result:
+                return ImageOCRMetadata(
+                    image_guid=guid,
+                    image_path=local_path,
+                    image_class=image_class,
+                    ocr_required=True,
+                    ocr_text=None,
+                    ocr_confidence=None,
+                    ocr_version="rapidocr-1.0",
+                )
+            # result is list of [bbox, text, confidence]
+            texts       = [row[1] for row in result if row and len(row) > 1]
+            confidences = [float(row[2]) for row in result if row and len(row) > 2]
+            ocr_text       = "\n".join(texts) if texts else None
+            ocr_confidence = round(sum(confidences) / len(confidences), 4) if confidences else None
+            return ImageOCRMetadata(
+                image_guid=guid,
+                image_path=local_path,
+                image_class=image_class,
+                ocr_required=True,
+                ocr_text=ocr_text,
+                ocr_confidence=ocr_confidence,
+                ocr_version="rapidocr-1.0",
+            )
+        except ImportError:
+            LOGGER.debug(
+                "rapidocr-onnxruntime not installed; skipping OCR for guid=%s", guid
+            )
+        except Exception as exc:  # noqa: BLE001
+            LOGGER.warning("OCR failed for guid=%s: %s", guid, exc)
+
+        return ImageOCRMetadata(
+            image_guid=guid,
+            image_path=local_path,
+            image_class=image_class,
+            ocr_required=True,
+            ocr_text=None,
+            ocr_confidence=None,
+            ocr_version="none",
         )
 
     def _select_best_answer(
@@ -458,13 +678,44 @@ def _extract_canonical_url(question: dict[str, Any], post_id: int) -> str:
     return f"{_STACK_BASE_URL}/questions/{post_id}"
 
 
+_ALT_TEXT_RE = re.compile(
+    r"!\[([^\]]*)\]\(https?://stackoverflowteams\.com/c/[^/]+/images/s/"
+    r"([0-9a-fA-F\-]{32,36})\.[^)]+\)",
+    flags=re.IGNORECASE,
+)
+
+
 def _extract_image_references(
     question_markdown: str,
     answer_markdown: str,
     image_map: dict[str, dict[str, Any]],
     data_dir: Path,
+    *,
+    title_and_tags: str = "",
+    parser: Optional["StackOverflowParser"] = None,
 ) -> list[ImageReference]:
+    """
+    Extract all image references from question + answer markdown.
+
+    When `parser` is provided, also:
+      1. Classifies each image using _classify_image()
+      2. Decides whether OCR is required using _should_ocr()
+      3. Executes OCR (via _run_ocr()) when required AND local file exists
+      4. Attaches the resulting ImageOCRMetadata to each ImageReference
+
+    `title_and_tags` is appended to the body context used for classification
+    so that Rule 8 (UI/portal/screen keywords from title or tags) fires correctly.
+    """
+    combined_body = "\n".join(
+        [question_markdown or "", answer_markdown or "", title_and_tags or ""]
+    )
     text = "\n".join([question_markdown or "", answer_markdown or ""])
+
+    # Build alt-text lookup: guid → alt-text (last occurrence wins)
+    alt_text_map: dict[str, str] = {}
+    for m in _ALT_TEXT_RE.finditer(text):
+        alt_text_map[m.group(2).lower()] = m.group(1)
+
     refs: list[ImageReference] = []
     seen: set[str] = set()
     for match in _IMAGE_URL_RE.finditer(text):
@@ -476,20 +727,41 @@ def _extract_image_references(
             continue
         seen.add(key)
 
-        manifest = image_map.get(guid)
-        image_id = int(manifest.get("id")) if manifest and manifest.get("id") is not None else None
+        manifest  = image_map.get(guid)
+        image_id  = int(manifest.get("id")) if manifest and manifest.get("id") is not None else None
         local_path = _resolve_local_image_path(data_dir, guid, ext)
 
-        refs.append(
-            ImageReference(
-                url=url,
-                guid=guid,
-                extension=ext,
-                image_id=image_id,
-                manifest_found=manifest is not None,
-                local_path=local_path,
-            )
+        # Build the ImageReference (ocr_metadata set below)
+        ref = ImageReference(
+            url=url,
+            guid=guid,
+            extension=ext,
+            image_id=image_id,
+            manifest_found=manifest is not None,
+            local_path=local_path,
         )
+
+        # Attach OCR metadata when parser is provided
+        if parser is not None:
+            alt_text    = alt_text_map.get(guid, "")
+            image_class = parser._classify_image(guid, alt_text, combined_body)
+            ocr_required = parser._should_ocr(image_class, len(combined_body))
+
+            if ocr_required and local_path is not None:
+                ocr_metadata = parser._run_ocr(local_path, guid, image_class)
+            else:
+                ocr_metadata = ImageOCRMetadata(
+                    image_guid=guid,
+                    image_path=str(local_path) if local_path else "",
+                    image_class=image_class,
+                    ocr_required=ocr_required,
+                    ocr_text=None,
+                    ocr_confidence=None,
+                    ocr_version="none",
+                )
+            ref.ocr_metadata = ocr_metadata
+
+        refs.append(ref)
     return refs
 
 

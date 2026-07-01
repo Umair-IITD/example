@@ -106,8 +106,11 @@ class FreshdeskCustomFields:
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> "FreshdeskCustomFields":
+        # "cf_clients" — Freshdesk Dispatch'r canonical key (Format A / existing rules).
+        # "client"     — Real production Dispatch'r rules key confirmed from live payload.
+        # Both are checked; cf_clients wins if present to preserve backward compatibility.
         return cls(
-            cf_clients=d.get("cf_clients", ""),
+            cf_clients=d.get("cf_clients") or d.get("client", ""),
             cf_session_ids=d.get("cf_session_ids", ""),
             cf_environment=d.get("cf_environment", ""),
             cf_issue_area=d.get("cf_issue_area", ""),
@@ -142,51 +145,72 @@ class FreshdeskTicketPayload:
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> "FreshdeskTicketPayload":
-        # ── Field extraction with Dispatch'r template variant fallbacks ──────────
-        # Freshdesk Dispatch'r webhook templates may use different key names depending
-        # on how the Dispatch'r rule was configured.  We check the canonical key first
-        # and fall back to the alternative before using the default.
+        # ── Field extraction with multi-format fallbacks ─────────────────────────
+        # Three source formats are supported (applied in order):
+        #   A) freshdesk_webhook flat fields  — ticket_id, ticket_subject, ticket_contact_email
+        #   B) Dispatch'r nested objects      — id/subject at top level (already flattened by
+        #      FreshdeskWebhookPayload.from_dict before reaching here)
+        #   C) Generic top-level fields       — id, subject, description (canonical)
 
-        # Ticket ID: "id" (canonical) or "ticket_id" (Dispatch'r template variant)
+        # Ticket ID
         _raw_id = d.get("id")
         if _raw_id is None:
             _raw_id = d.get("ticket_id", 0)
 
-        # Subject: "subject" or "ticket_subject"
+        # Subject
         subject = d.get("subject") or d.get("ticket_subject") or ""
 
-        # Description: "description" or "ticket_description"
+        # Description
         description = d.get("description") or d.get("ticket_description") or ""
         description_text = d.get("description_text") or d.get("ticket_description_text") or ""
 
-        # Timestamp: "created_at" or "ticket_created_at"
+        # Timestamp
         created_at = d.get("created_at") or d.get("ticket_created_at") or ""
 
-        # Requester email: top-level "requester_email" or nested under "requester"
+        # Requester email — three sources checked in priority order:
+        #   1. Flat "requester_email" (canonical / Dispatch'r normalized)
+        #   2. Nested requester object: {"requester": {"email": "..."}}
+        #   3. Freshdesk default webhook flat field: "ticket_contact_email"
         requester_email = d.get("requester_email", "")
         if not requester_email:
             _req_nested = d.get("requester")
             if isinstance(_req_nested, dict):
                 requester_email = _req_nested.get("email", "")
+        if not requester_email:
+            requester_email = d.get("ticket_contact_email", "")
 
-        # Requester name: top-level "requester_name" or nested under "requester"
+        # Requester name
         requester_name = d.get("requester_name", "")
         if not requester_name:
             _req_nested = d.get("requester")
             if isinstance(_req_nested, dict):
                 requester_name = _req_nested.get("name", "")
+        if not requester_name:
+            requester_name = d.get("ticket_contact_name", "")
 
         # Tags: may be a CSV string or a list
         raw_tags = d.get("tags", "")
         tags = [t.strip() for t in raw_tags.split(",") if t.strip()] if isinstance(raw_tags, str) else list(raw_tags)
 
-        # Custom fields: "ticket_custom_fields" (canonical) or "custom_fields" or "ticket_cf"
-        cf_dict = (
+        # Custom fields — four sources checked in priority order:
+        #   1. "ticket_custom_fields" nested dict (Dispatch'r canonical)
+        #   2. "custom_fields" nested dict (Dispatch'r rules / normalized)
+        #   3. "ticket_cf" nested dict (alternate alias)
+        #   4. Flat "ticket_cf_*" keys at top level (Freshdesk default webhook format)
+        cf_dict: dict[str, Any] = (
             d.get("ticket_custom_fields")
             or d.get("custom_fields")
             or d.get("ticket_cf")
             or {}
         )
+        if not cf_dict:
+            # Freshdesk default webhook format sends custom fields as flat "ticket_cf_*" keys.
+            # Strip the "ticket_" prefix: ticket_cf_clients → cf_clients.
+            cf_dict = {
+                k[len("ticket_"):]: v
+                for k, v in d.items()
+                if k.startswith("ticket_cf_")
+            }
 
         return cls(
             id=int(_raw_id),
@@ -236,14 +260,46 @@ class FreshdeskWebhookPayload:
     """
     Top-level structure of a Freshdesk webhook POST body.
 
-    Freshdesk wraps all ticket data under "freshdesk_webhook" key.
+    Supports two source formats without requiring Freshdesk rule changes:
+
+    Format A — Freshdesk default webhook (captured on Webhook.site):
+        {"freshdesk_webhook": {"ticket_id": 198165, "ticket_subject": "...",
+                                "ticket_contact_email": "...", "ticket_cf_clients": "..."}}
+
+    Format B — Freshdesk Dispatch'r rules (active production contract):
+        {"ticket": {"id": 198165, "subject": "...", ...},
+         "requester": {"email": "...", "name": "..."},
+         "custom_fields": {"cf_clients": "...", "cf_environment": "..."}}
+
+    The canonical source field for each format is extracted and normalised before
+    being passed to FreshdeskTicketPayload.from_dict() which handles the rest.
     """
     ticket: FreshdeskTicketPayload
     raw: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> "FreshdeskWebhookPayload":
-        inner = d.get("freshdesk_webhook", d)
+        # Format A: Freshdesk default webhook — all data wrapped under "freshdesk_webhook"
+        if "freshdesk_webhook" in d:
+            inner: dict[str, Any] = d["freshdesk_webhook"]
+
+        # Format B: Freshdesk Dispatch'r rules — nested ticket/requester/custom_fields objects
+        # Flatten into a single dict so FreshdeskTicketPayload.from_dict() finds "id", etc.
+        # at the top level (where it expects them after all existing fallbacks).
+        elif isinstance(d.get("ticket"), dict):
+            ticket_obj: dict[str, Any] = d["ticket"]
+            requester_obj: dict[str, Any] = d.get("requester") or {}
+            cf_obj: dict[str, Any] = d.get("custom_fields") or {}
+            inner = {
+                **ticket_obj,               # id, subject, description, created_at, status, priority …
+                "custom_fields": cf_obj,    # picked up by FreshdeskCustomFields.from_dict
+                "requester": requester_obj, # picked up by existing "requester" fallback for email/name
+            }
+
+        else:
+            # Unknown / future format — pass through and let FreshdeskTicketPayload do its best
+            inner = d
+
         return cls(
             ticket=FreshdeskTicketPayload.from_dict(inner),
             raw=d,
@@ -364,7 +420,24 @@ class FreshdeskUpdateEvent:
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> "FreshdeskUpdateEvent":
-        inner = d.get("freshdesk_webhook", d)
+        # Format detection — same logic as FreshdeskWebhookPayload.from_dict
+        if "freshdesk_webhook" in d:
+            inner: dict[str, Any] = d["freshdesk_webhook"]
+        elif isinstance(d.get("ticket"), dict):
+            ticket_obj: dict[str, Any] = d["ticket"]
+            requester_obj: dict[str, Any] = d.get("requester") or {}
+            cf_obj: dict[str, Any] = d.get("custom_fields") or {}
+            inner = {
+                **ticket_obj,
+                "custom_fields": cf_obj,
+                "requester": requester_obj,
+                # Dispatch'r update events carry "changes" at the top level
+                "changes": d.get("changes", {}),
+                "latest_comment": d.get("latest_comment"),
+            }
+        else:
+            inner = d
+
         lc_data = inner.get("latest_comment")
         # ID: "id" (canonical) or "ticket_id" (Dispatch'r template variant)
         _raw_id = inner.get("id")

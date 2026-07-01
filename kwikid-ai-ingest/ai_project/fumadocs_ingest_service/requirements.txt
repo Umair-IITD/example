@@ -24,3 +24,9 @@ prometheus-client==0.21.0
 # Optional: cross-encoder reranking (RERANK_CROSS_ENCODER_ENABLED=false by default)
 # Uncomment to enable dense reranking in the hybrid retrieval pipeline.
 # sentence-transformers>=3.0.0
+
+# Image OCR for knowledge ingestion (stackoverflow image grounding pipeline)
+# rapidocr-onnxruntime: no system-level binary deps, ONNX-based, Windows-friendly,
+# lightweight (~30MB model), accurate on UI screenshots/error dialogs/terminal output.
+# The ingestion pipeline degrades gracefully (ocr_text=None) when not installed.
+rapidocr-onnxruntime>=1.3.0

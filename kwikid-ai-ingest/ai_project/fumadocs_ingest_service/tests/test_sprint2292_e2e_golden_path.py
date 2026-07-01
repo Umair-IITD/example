@@ -652,3 +652,154 @@ class TestGoldenPathExecutionTrace:
         assert state is not None                  # CONVERSATION_STATE: ✓ ENTERED
         # No client_id since no resolver:
         assert state.client_id == ""              # CLIENT_RESOLVER: ✗ SKIPPED (None)
+
+
+# ── Test 16: Format B — Freshdesk Dispatch'r rules schema (production contract) ─
+# Canonical payload: {"ticket": {"id": 198165, ...}, "requester": {...}, "custom_fields": {...}}
+# This is the schema Freshdesk Dispatch'r rules POST.
+# BEFORE fix: ticket_id=0, error_code=MISSING_TICKET_ID
+# AFTER fix:  ticket_id=198165, success=True
+
+class TestDispatchrRulesFormatB:
+    """
+    Proves that the Freshdesk Dispatch'r rules format {"ticket": {...}, "requester": {...}}
+    is correctly parsed at every stage.  Ticket 198165 must survive unchanged.
+    """
+
+    _FORMAT_B_PAYLOAD = {
+        "ticket": {
+            "id": 198165,
+            "subject": "KYC verification session failed",
+            "description": "<p>User cannot complete KYC step 3</p>",
+            "description_text": "User cannot complete KYC step 3",
+            "status": 2,
+            "priority": 2,
+            "type": "Problem",
+            "created_at": None,  # will be filled by test
+        },
+        "requester": {
+            "email": "agent@unitybank.co.in",
+            "name": "Test Agent",
+        },
+        "custom_fields": {
+            "cf_clients": "Unity",
+            "cf_environment": "production",
+        },
+    }
+
+    def _payload(self) -> dict:
+        p = {**self._FORMAT_B_PAYLOAD}
+        p["ticket"] = {**p["ticket"], "created_at": _recent_ts()}
+        return p
+
+    # ── Model layer ────────────────────────────────────────────────────────────
+
+    def test_format_b_model_extracts_ticket_id(self):
+        """FreshdeskWebhookPayload.from_dict correctly normalises Format B."""
+        parsed = FreshdeskWebhookPayload.from_dict(self._payload())
+        assert parsed.ticket.ticket_id == "198165", (
+            f"ticket_id should be '198165', got {parsed.ticket.ticket_id!r} — "
+            "nested ticket.id not extracted"
+        )
+
+    def test_format_b_model_extracts_subject(self):
+        parsed = FreshdeskWebhookPayload.from_dict(self._payload())
+        assert "KYC" in parsed.ticket.subject
+
+    def test_format_b_model_extracts_requester_email(self):
+        parsed = FreshdeskWebhookPayload.from_dict(self._payload())
+        assert parsed.ticket.requester_email == "agent@unitybank.co.in", (
+            f"requester_email not extracted from nested requester object: {parsed.ticket.requester_email!r}"
+        )
+
+    def test_format_b_model_extracts_custom_fields(self):
+        parsed = FreshdeskWebhookPayload.from_dict(self._payload())
+        assert parsed.ticket.custom_fields.cf_clients == "Unity", (
+            f"cf_clients not extracted from nested custom_fields: {parsed.ticket.custom_fields.cf_clients!r}"
+        )
+
+    # ── Handler layer ──────────────────────────────────────────────────────────
+
+    def test_format_b_handler_no_missing_ticket_id(self):
+        """Root cause fix: ticket_id=0 / MISSING_TICKET_ID must NOT occur."""
+        handler, _, _ = _make_created_handler()
+        result = handler.handle(self._payload())
+        assert result.error_code != "MISSING_TICKET_ID", (
+            "Format B (Dispatch'r rules) still produces MISSING_TICKET_ID — "
+            "nested ticket.id not reaching the handler"
+        )
+        assert result.ticket_id == "198165", (
+            f"ticket_id should be '198165', got {result.ticket_id!r}"
+        )
+
+    def test_format_b_handler_success(self):
+        """Full Format B payload succeeds end-to-end through the handler."""
+        handler, idem, conv = _make_created_handler()
+        result = handler.handle(self._payload())
+        assert result.success is True, (
+            f"Expected success=True for Format B payload, got error_code={result.error_code}"
+        )
+        state = conv.get("198165")
+        assert state is not None, "ConversationState not created for ticket 198165"
+
+    def test_format_b_ticket_id_never_zero(self):
+        """Explicit zero guard: the integer 0 must never appear as ticket_id."""
+        handler, _, _ = _make_created_handler()
+        result = handler.handle(self._payload())
+        assert result.ticket_id != "0", "ticket_id is '0' — Format B parsing is broken"
+        assert result.ticket_id != "", "ticket_id is empty — Format B parsing is broken"
+
+    # ── Route layer ────────────────────────────────────────────────────────────
+
+    def test_format_b_route_accepts_and_extracts_198165(self):
+        """Route correctly extracts ticket_id=198165 from Format B for pre-persistence."""
+        app = _make_app()
+
+        mock_idem = MagicMock(spec=WebhookIdempotencyStore)
+        mock_idem.check.return_value = False
+        mock_idem.ensure_receipt.return_value = True
+        mock_idem.make_key = WebhookIdempotencyStore.make_key
+        app.state.freshdesk_idempotency_store = mock_idem
+
+        handler, _, _ = _make_created_handler()
+        app.state.freshdesk_ticket_created_handler = handler
+
+        with TestClient(app) as client:
+            resp = client.post(
+                "/webhooks/freshdesk/ticket-created",
+                json=self._payload(),
+                headers={"X-Webhook-Token": SECRET},
+            )
+
+        assert resp.status_code == 200
+        mock_idem.ensure_receipt.assert_called_once()
+        # Pre-persistence must have used ticket_id=198165, not "" or "0"
+        args = mock_idem.ensure_receipt.call_args[0]
+        assert args[1] == "198165", (
+            f"Route pre-persist used ticket_id={args[1]!r} — expected '198165'. "
+            "Format B nested ticket.id not extracted in route layer."
+        )
+
+    # ── Format A still works (regression guard) ────────────────────────────────
+
+    def test_format_a_freshdesk_webhook_wrapper_unaffected(self):
+        """Ensure Format A (freshdesk_webhook wrapper) still works after Format B fix."""
+        handler, _, _ = _make_created_handler()
+        payload_a = {"freshdesk_webhook": {
+            "ticket_id": 198165,
+            "ticket_subject": "KYC issue from default webhook",
+            "ticket_contact_email": "agent@unitybank.co.in",
+            "ticket_cf_clients": "Unity",
+            "ticket_created_at": _recent_ts(),
+        }}
+        parsed = FreshdeskWebhookPayload.from_dict(payload_a)
+        assert parsed.ticket.ticket_id == "198165"
+        assert parsed.ticket.requester_email == "agent@unitybank.co.in", (
+            f"ticket_contact_email not mapped to requester_email: {parsed.ticket.requester_email!r}"
+        )
+        assert parsed.ticket.custom_fields.cf_clients == "Unity", (
+            f"ticket_cf_clients not mapped to cf_clients: {parsed.ticket.custom_fields.cf_clients!r}"
+        )
+        result = handler.handle(payload_a)
+        assert result.ticket_id == "198165"
+        assert result.success is True

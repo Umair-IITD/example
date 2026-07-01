@@ -41,6 +41,26 @@ _ACTIVE_WORKFLOW_STATES: frozenset[str] = frozenset({
     WorkflowState.PAUSED.value,
 })
 
+# ── UNKNOWN topic discovery ────────────────────────────────────────────────────
+# Reserved slot name used to track topic-discovery clarification attempts.
+# This slot never appears in any SlotRegistry; it is managed exclusively by
+# _handle_unknown_topic_discovery().
+_TOPIC_DISCOVERY_SLOT = "__topic_discovery__"
+
+# Maximum number of topic-discovery clarification rounds before escalation.
+_MAX_DISCOVERY_ATTEMPTS: int = 2
+
+# The single topic-discovery question sent to the customer when topic is UNKNOWN.
+_TOPIC_DISCOVERY_QUESTION: dict[str, Any] = {
+    "slot_name":   _TOPIC_DISCOVERY_SLOT,
+    "prompt_text": (
+        "Could you please describe your issue in more detail? "
+        "For example: are you experiencing a Video KYC failure, OTP not received, "
+        "document scan error, agent portal issue, or something else?"
+    ),
+    "is_required": True,
+}
+
 
 class WorkflowAlreadyStartedError(RuntimeError):
     """Raised when start_workflow is called for a case that already has an active workflow."""
@@ -153,9 +173,25 @@ class CaseService:
         # Transition NEW → CLASSIFYING
         self._sm.safe_transition(case, CaseState.CLASSIFYING, reason="topic_classification_started")
 
+        LOGGER.warning(
+            "ENTER_CLASSIFIER_SVC case_id=%s query_len=%d query_preview=%r",
+            case.case_id, len(query_text or ""), (query_text or "")[:120],
+        )
         result = self._clf.classify(query_text)
+        LOGGER.warning(
+            "EXIT_CLASSIFIER topic=%s confidence=%s meets_threshold=%s tier=%s",
+            result.topic.value, result.confidence, result.meets_threshold, result.tier_used,
+        )
 
+        # TRACE_AUDIT_IDENTITY — proves which AuditLogger class is injected at runtime
+        LOGGER.warning(
+            "TRACE_AUDIT_IDENTITY_CLASSIFY audit_type=%s audit_module=%s has_log_classification=%s",
+            type(self._audit).__name__,
+            getattr(type(self._audit), "__module__", "?"),
+            hasattr(self._audit, "log_classification"),
+        )
         # Log classification event
+        LOGGER.info("ENTER_CASESVC_AUDIT case_id=%s type=%s", case.case_id, type(case.case_id).__name__)
         self._audit.log_classification(
             case,
             topic=result.topic.value,
@@ -174,25 +210,49 @@ class CaseService:
                 reason=f"classified:{result.topic.value} confidence={result.confidence:.3f} tier={result.tier_used}",
             )
         else:
-            # Below threshold or unknown topic → escalate
-            trigger = (
-                EscalationTrigger.UNKNOWN_TOPIC.value
-                if result.topic.value == "UNKNOWN"
-                else EscalationTrigger.BELOW_THRESHOLD.value
-            )
-            reason = (
-                f"Topic unknown — confidence {result.confidence:.3f} below 0.85"
-                if result.topic.value == "UNKNOWN"
-                else f"Confidence {result.confidence:.3f} below 0.85 threshold"
-            )
-            case.escalation_reason = trigger
-            self._sm.safe_transition(case, CaseState.ESCALATED, reason=reason)
-            self._audit.log_escalation(
-                case,
-                trigger=trigger,
-                reason=reason,
-                priority="medium",
-            )
+            # Below threshold or unknown topic.
+            #
+            # Per flow_diagram.mermaid (CLASSIFIER --> SLOTEXTRACT), UNKNOWN-topic
+            # tickets must proceed to Slot Extraction and Clarification so the
+            # system can ask the user for more information to determine the topic.
+            # Transitioning directly to ESCALATED here violates that contract and
+            # terminates the pipeline before it can clarify the issue.
+            #
+            # Only BELOW_THRESHOLD (known topic, insufficient confidence) is
+            # escalated immediately; UNKNOWN topics are allowed to continue so
+            # that the Clarification Engine can collect the missing context.
+            case.topic = result.topic.value      # preserve UNKNOWN on case
+            case.confidence = result.confidence  # preserve 0.0 on case
+
+            if result.topic.value == "UNKNOWN":
+                # UNKNOWN → proceed to TRIAGE_COMPLETE so runtime enters
+                # SLOT_EXTRACT / CLARIFY per the approved blueprint.
+                LOGGER.warning(
+                    "UNKNOWN_TOPIC_TRIAGE_COMPLETE case_id=%s confidence=%s — "
+                    "proceeding to Slot Extraction for clarification",
+                    case.case_id, result.confidence,
+                )
+                self._sm.safe_transition(
+                    case,
+                    CaseState.TRIAGE_COMPLETE,
+                    reason="unknown_topic_proceeding_to_clarification",
+                )
+            else:
+                # Known topic but below confidence threshold → escalate
+                trigger = EscalationTrigger.BELOW_THRESHOLD.value
+                reason  = f"Confidence {result.confidence:.3f} below 0.85 threshold"
+                LOGGER.warning(
+                    "RETURN_ESCALATED trigger=%s reason=%r confidence=%s topic=%s",
+                    trigger, reason, result.confidence, result.topic.value,
+                )
+                case.escalation_reason = trigger
+                self._sm.safe_transition(case, CaseState.ESCALATED, reason=reason)
+                self._audit.log_escalation(
+                    case,
+                    trigger=trigger,
+                    reason=reason,
+                    priority="medium",
+                )
 
         self._repo.update_case_state(case, case.current_state)
         return case
@@ -346,12 +406,30 @@ class CaseService:
 
         slot_values = self.get_slot_state(case)
 
-        if topic is None or topic == TopicKey.UNKNOWN:
+        if topic is None:
             return ReceiveMessageResult(
                 case_id=case.case_id,
                 state=case.current_state,
                 slot_values=ClarificationEngine.slot_values_to_dict(slot_values),
                 next_question=None,
+            )
+
+        # ── UNKNOWN topic: topic-discovery clarification loop ──────────────────
+        # Blueprint (flow_diagram.mermaid): CLASSIFIER → SLOTEXTRACT → CLARIFICATION
+        # For UNKNOWN topics, the clarification engine has no slot registry, so we
+        # implement topic-discovery directly here using a reserved __topic_discovery__
+        # tracking slot.
+        #
+        # Pass 1 (first message):  ask "Could you please describe your issue?"
+        # Pass 2 (customer reply): re-classify using enriched text (original + reply).
+        #   - If topic now KNOWN → reset case.topic, proceed through normal slot path.
+        #   - If still UNKNOWN and attempt_count < _MAX_DISCOVERY_ATTEMPTS → ask again.
+        #   - If attempt_count >= _MAX_DISCOVERY_ATTEMPTS → escalate.
+        if topic == TopicKey.UNKNOWN:
+            return self._handle_unknown_topic_discovery(
+                case=case,
+                message_text=message_text,
+                slot_values=slot_values,
             )
 
         try:
@@ -461,6 +539,131 @@ class CaseService:
         except Exception as exc:
             LOGGER.exception(
                 "case_service.receive_message failed case_id=%s error=%s",
+                case.case_id, exc,
+            )
+            return ReceiveMessageResult(
+                case_id=case.case_id,
+                state=case.current_state,
+                slot_values=ClarificationEngine.slot_values_to_dict(slot_values),
+                next_question=None,
+            )
+
+    # ── UNKNOWN topic: topic-discovery clarification loop ─────────────────────
+
+    def _handle_unknown_topic_discovery(
+        self,
+        case: Case,
+        message_text: str,
+        slot_values: dict[str, SlotValue],
+    ) -> ReceiveMessageResult:
+        """
+        Implement the topic-discovery clarification loop for UNKNOWN-topic cases.
+
+        Pass 1 (no prior discovery attempt):
+          → Transition to AWAITING_INPUT.
+          → Return topic-discovery question (_TOPIC_DISCOVERY_QUESTION).
+
+        Pass 2+ (customer has replied):
+          → Re-classify using message_text (the customer's reply).
+          → If topic now KNOWN:
+              * Update case.topic and case.confidence.
+              * Delegate back to the normal receive_message() slot-filling path.
+          → If still UNKNOWN and attempts < _MAX_DISCOVERY_ATTEMPTS:
+              * Increment attempt counter, return question again.
+          → If attempts >= _MAX_DISCOVERY_ATTEMPTS:
+              * Escalate the case.
+
+        Never raises.
+        """
+        try:
+            # Read current discovery attempt count from slot_state
+            discovery_raw = slot_values.get(_TOPIC_DISCOVERY_SLOT)
+            attempt_count = discovery_raw.attempt_count if discovery_raw else 0
+
+            # Check max attempts before doing anything else
+            if attempt_count >= _MAX_DISCOVERY_ATTEMPTS:
+                LOGGER.warning(
+                    "UNKNOWN_TOPIC_MAX_ATTEMPTS_EXCEEDED case_id=%s attempts=%d — escalating",
+                    case.case_id, attempt_count,
+                )
+                case.escalation_reason = EscalationTrigger.SLOT_FILL_TIMEOUT.value
+                self._sm.safe_transition(
+                    case, CaseState.ESCALATED,
+                    reason="unknown_topic_discovery_max_attempts_exceeded",
+                )
+                self._repo.update_case_state(case, CaseState.ESCALATED)
+                return ReceiveMessageResult(
+                    case_id=case.case_id,
+                    state=case.current_state,
+                    slot_values=ClarificationEngine.slot_values_to_dict(slot_values),
+                    next_question=None,
+                    escalated=True,
+                )
+
+            # Pass 2+: customer has replied; attempt re-classification
+            if attempt_count > 0 and message_text:
+                LOGGER.info(
+                    "UNKNOWN_TOPIC_RECLASSIFY case_id=%s attempt=%d message_len=%d",
+                    case.case_id, attempt_count, len(message_text),
+                )
+                try:
+                    reclassify_result = self._clf.classify(message_text)
+                    if reclassify_result.meets_threshold:
+                        # Topic now KNOWN — update case and re-enter normal slot path
+                        LOGGER.info(
+                            "UNKNOWN_TOPIC_RECLASSIFY_SUCCESS case_id=%s new_topic=%s confidence=%s",
+                            case.case_id, reclassify_result.topic.value, reclassify_result.confidence,
+                        )
+                        case.topic = reclassify_result.topic.value
+                        case.confidence = reclassify_result.confidence
+                        # Remove the discovery tracking slot so normal slot filling is clean
+                        slot_values.pop(_TOPIC_DISCOVERY_SLOT, None)
+                        case.slot_state = ClarificationEngine.slot_values_to_dict(slot_values)
+                        self._repo.update_case_state(case, case.current_state)
+                        # Delegate to normal receive_message() with the now-known topic
+                        return self.receive_message(case, message_text)
+                    else:
+                        LOGGER.info(
+                            "UNKNOWN_TOPIC_RECLASSIFY_STILL_UNKNOWN case_id=%s attempt=%d",
+                            case.case_id, attempt_count,
+                        )
+                except Exception as exc:
+                    LOGGER.warning(
+                        "UNKNOWN_TOPIC_RECLASSIFY_FAILED case_id=%s error=%s",
+                        case.case_id, exc,
+                    )
+
+            # Increment attempt count and ask the discovery question
+            new_attempt = attempt_count + 1
+            slot_values[_TOPIC_DISCOVERY_SLOT] = SlotValue(
+                slot_name=_TOPIC_DISCOVERY_SLOT,
+                status=SlotStatus.PENDING,
+                value=None,
+                attempt_count=new_attempt,
+            )
+            case.slot_state = ClarificationEngine.slot_values_to_dict(slot_values)
+
+            # Transition state to AWAITING_INPUT
+            if case.current_state == CaseState.TRIAGE_COMPLETE:
+                self._sm.safe_transition(
+                    case, CaseState.WORKFLOW_ACTIVE, reason="unknown_topic_discovery_started",
+                )
+            if case.current_state not in (CaseState.AWAITING_INPUT, CaseState.ESCALATED, CaseState.CLOSED):
+                self._sm.safe_transition(
+                    case, CaseState.AWAITING_INPUT, reason="awaiting_topic_discovery",
+                )
+            self._repo.update_case_state(case, case.current_state)
+
+            return ReceiveMessageResult(
+                case_id=case.case_id,
+                state=case.current_state,
+                slot_values=ClarificationEngine.slot_values_to_dict(slot_values),
+                next_question=_TOPIC_DISCOVERY_QUESTION,
+            )
+
+        except Exception as exc:
+            LOGGER.exception(
+                "case_service._handle_unknown_topic_discovery failed case_id=%s error=%s",
                 case.case_id, exc,
             )
             return ReceiveMessageResult(
@@ -857,6 +1060,13 @@ class CaseService:
 
     def _on_transition(self, case: Case, transition: Any) -> None:
         """Called by state machine on every valid transition."""
+        # TRACE_AUDIT_IDENTITY — proves which AuditLogger class is injected at runtime
+        LOGGER.warning(
+            "TRACE_AUDIT_IDENTITY_TRANSITION audit_type=%s audit_module=%s has_log_transition=%s",
+            type(self._audit).__name__,
+            getattr(type(self._audit), "__module__", "?"),
+            hasattr(self._audit, "log_transition"),
+        )
         self._audit.log_transition(case, transition)
         self._repo.record_transition(transition)
 

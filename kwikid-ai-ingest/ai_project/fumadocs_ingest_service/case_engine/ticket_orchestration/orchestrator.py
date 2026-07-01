@@ -38,6 +38,8 @@ if TYPE_CHECKING:
     from case_engine.service import CaseService
     from case_engine.tenant.resolver import ClientResolver
 
+from case_engine.trace import make_trace_id, trace_log
+
 LOGGER = logging.getLogger(__name__)
 
 
@@ -121,9 +123,15 @@ class TicketOrchestrator:
 
         Returns TicketOrchestrationResult. Never raises.
         """
+        LOGGER.info("ENTER_ORCHESTRATOR_RESUME_TICKET ticket_id=%s", ticket_id)
         started_ms = int(time.monotonic() * 1000)
         try:
-            return self._resume_ticket(ticket_id, message_text, started_ms)
+            _result = self._resume_ticket(ticket_id, message_text, started_ms)
+            LOGGER.info(
+                "RETURN_ORCHESTRATOR_RESUME_TICKET ticket_id=%s error_code=%s",
+                ticket_id, _result.error_code,
+            )
+            return _result
         except Exception as exc:
             LOGGER.exception(
                 "ticket_orchestrator.resume_ticket fatal error ticket_id=%s error=%s",
@@ -271,6 +279,14 @@ class TicketOrchestrator:
         context:    TicketContext,
         started_ms: int,
     ) -> TicketOrchestrationResult:
+        # TRACE_ENTER_ORCHESTRATOR — always emits at WARNING; proves orchestrator was reached
+        LOGGER.warning(
+            "TRACE_ENTER_ORCHESTRATOR ticket_id=%s client=%s agent_wired=%s case_svc_wired=%s",
+            context.ticket_id, context.client,
+            self._agent is not None,
+            self._case_svc is not None,
+        )
+
         # 1. TICKET — register
         self._registry[context.ticket_id] = {
             "context":        context,
@@ -278,9 +294,26 @@ class TicketOrchestrator:
             "state":          TicketLifecycleState.RECEIVED,
             "tenant_context": None,
         }
+        trace_id = context.metadata.get("trace_id") or make_trace_id(context.ticket_id)
         LOGGER.info(
             "ticket_orchestrator.received ticket_id=%s client=%s",
             context.ticket_id, context.client,
+        )
+        # Sprint 2.30.1 — TRACE_ORCHESTRATOR
+        trace_log("TRACE_ORCHESTRATOR", trace_id,
+                  ticket_id=context.ticket_id,
+                  client=context.client,
+                  resolver_wired=self._client_resolver is not None,
+                  agent_wired=self._agent is not None)
+        # TRACE_PAYLOAD_05_ORCHESTRATOR — final proof: ticket_id survived every transformation
+        _orch_email_domain = context.requester_email.split("@")[-1] if "@" in (context.requester_email or "") else "(empty)"
+        LOGGER.warning(
+            "TRACE_PAYLOAD_05_ORCHESTRATOR ticket_id=%s subject=%r client=%r email_domain=%s description_len=%d",
+            context.ticket_id,
+            (context.subject or "")[:60],
+            context.client,
+            _orch_email_domain,
+            len(context.description or ""),
         )
 
         # 1.5. CLIENT RESOLUTION — per blueprint/flow_diagram:
@@ -449,7 +482,9 @@ class TicketOrchestrator:
         message_text: str,
         started_ms:   int,
     ) -> TicketOrchestrationResult:
+        LOGGER.info("ENTER_REGISTRY_GET ticket_id=%s", ticket_id)
         entry = self._registry.get(ticket_id)
+        LOGGER.info("RETURN_REGISTRY_GET ticket_id=%s found=%s", ticket_id, entry is not None)
         if entry is None:
             return TicketOrchestrationResult.failure(
                 ticket_id=ticket_id,

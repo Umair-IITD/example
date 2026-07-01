@@ -103,10 +103,22 @@ class TestReceiveMessageUnknownTopic:
         assert result.state == CaseState.TRIAGE_COMPLETE
 
     def test_unknown_topic_key_string(self):
+        # After the topic-discovery clarification loop fix (Sprint 2.31):
+        # receive_message() for UNKNOWN topic must now produce a topic-discovery
+        # question (not None). The old assertion (next_question is None) was
+        # asserting the broken behavior that prevented the clarification loop
+        # from starting. Updated to assert the corrected behavior.
         svc, _ = _make_service()
         case = _make_case(topic="UNKNOWN")
         result = svc.receive_message(case, "anything")
-        assert result.next_question is None
+        # UNKNOWN topic → topic-discovery clarification question must be produced
+        assert result.next_question is not None, (
+            "UNKNOWN topic must produce a topic-discovery question. "
+            "next_question=None means the clarification loop never starts."
+        )
+        assert result.next_question.get("prompt_text"), (
+            "topic-discovery question must have non-empty prompt_text"
+        )
 
 
 # ── receive_message: text extraction ──────────────────────────────────────────

@@ -12,10 +12,13 @@ If neither tier meets the 0.85 threshold, topic = UNKNOWN → case ESCALATED.
 """
 from __future__ import annotations
 
+import logging
 import re
 from dataclasses import dataclass
 
 from case_engine.models import ClassificationResult, TopicKey
+
+LOGGER = logging.getLogger(__name__)
 
 
 # ── Tier 1 rules ──────────────────────────────────────────────────────────────
@@ -127,7 +130,13 @@ class TopicClassifier:
 
         Returns ClassificationResult with topic=UNKNOWN if no tier matches.
         """
+        LOGGER.warning(
+            "ENTER_CLASSIFIER text_len=%d text_preview=%r",
+            len(text or ""), (text or "")[:120],
+        )
+
         if not text or not text.strip():
+            LOGGER.warning("RETURN_CLASSIFIER_NONE reason=empty_text")
             return ClassificationResult(
                 topic=TopicKey.UNKNOWN,
                 confidence=0.0,
@@ -147,7 +156,16 @@ class TopicClassifier:
                     best_confidence = rule.confidence
                     best_topic = rule.topic
 
+        LOGGER.warning(
+            "RETURN_CLASSIFIER_CONFIDENCE tier1_best_confidence=%s tier1_best_topic=%s threshold=0.85",
+            best_confidence, best_topic.value if best_topic else None,
+        )
+
         if best_topic is not None and best_confidence >= 0.85:
+            LOGGER.warning(
+                "RETURN_CLASSIFIER_TOPIC topic=%s confidence=%s tier=1",
+                best_topic.value, best_confidence,
+            )
             return ClassificationResult(
                 topic=best_topic,
                 confidence=best_confidence,
@@ -158,9 +176,17 @@ class TopicClassifier:
         # Tier 2: semantic fallback (Sprint 2 implementation)
         tier2_result = self._tier2_classify(text, excerpt)
         if tier2_result is not None:
+            LOGGER.warning(
+                "RETURN_CLASSIFIER_TOPIC topic=%s confidence=%s tier=2",
+                tier2_result.topic.value, tier2_result.confidence,
+            )
             return tier2_result
 
         # Neither tier matched: UNKNOWN
+        LOGGER.warning(
+            "RETURN_CLASSIFIER_NONE reason=no_tier_matched tier1_best=%s tier1_confidence=%s",
+            best_topic.value if best_topic else None, best_confidence,
+        )
         return ClassificationResult(
             topic=TopicKey.UNKNOWN,
             confidence=0.0,

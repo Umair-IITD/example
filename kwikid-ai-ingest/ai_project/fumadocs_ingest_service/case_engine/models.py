@@ -312,7 +312,7 @@ class AuditEventType(str, Enum):
 @dataclass
 class AuditEntry:
     audit_id:        str            = field(default_factory=_new_id)
-    case_id:         str            = ""
+    case_id:         str | None     = None
     ticket_id:       str            = ""
     client:          str            = ""
     event_timestamp: datetime       = field(default_factory=_now)

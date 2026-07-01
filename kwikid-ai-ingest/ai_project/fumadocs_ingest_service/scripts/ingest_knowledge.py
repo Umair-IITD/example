@@ -3,24 +3,26 @@ scripts/ingest_knowledge.py
 
 Phase B3: CLI for ingesting Stack Overflow for Teams knowledge into rag_knowledge_chunks.
 
-Usage:
+Usage (run from the service root directory):
     # Dry-run (no DB writes — shows what WOULD be ingested)
-    python scripts/ingest_knowledge.py --dry-run --source ../More_data
+    python scripts/ingest_knowledge.py --dry-run --source ./stackoverflow --verbose
 
     # Live ingestion for all clients
-    python scripts/ingest_knowledge.py --source ../More_data
+    python scripts/ingest_knowledge.py --source ./stackoverflow
 
     # Live ingestion for a single client only
-    python scripts/ingest_knowledge.py --source ../More_data --client unity_bank
+    python scripts/ingest_knowledge.py --source ./stackoverflow --client unity_bank
 
     # Show what tenants would be mapped from the tags
-    python scripts/ingest_knowledge.py --source ../More_data --dry-run --verbose
+    python scripts/ingest_knowledge.py --source ./stackoverflow --dry-run --verbose
 
 Prerequisites:
-    - SQL migrations B3_001 and B3_002 must be applied to Supabase
+    - SQL migrations B3_001 through B3_007 must be applied to Supabase (in order)
     - SUPABASE_URL, SUPABASE_KEY, OPENAI_API_KEY must be set in .env
-    - More_data/ directory must contain posts.json, comments.json,
-      posts2votes.json, tags.json
+    - stackoverflow/ directory must contain posts.json, comments.json,
+      posts2votes.json, tags.json, images.json
+    - rapidocr-onnxruntime must be installed (pip install rapidocr-onnxruntime>=1.3.0)
+      for OCR image grounding; pipeline degrades gracefully without it
 """
 from __future__ import annotations
 

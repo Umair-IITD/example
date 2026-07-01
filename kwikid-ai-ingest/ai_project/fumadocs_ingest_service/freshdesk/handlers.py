@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import logging
 import time
+import traceback as _traceback
 from dataclasses import dataclass
 from typing import Any
 
@@ -47,6 +48,7 @@ from freshdesk.freshdesk_models import (
     FreshdeskWebhookPayload,
     FreshdeskUpdateEvent,
 )
+from case_engine.trace import make_trace_id, trace_log
 
 LOGGER = logging.getLogger(__name__)
 
@@ -61,6 +63,7 @@ class HandlerResult:
     detail: dict[str, Any] | None = None
     skipped: bool = False
     skip_reason: str = ""
+    response_draft: str | None = None
 
 
 class FreshdeskTicketCreatedHandler:
@@ -97,6 +100,11 @@ class FreshdeskTicketCreatedHandler:
         self._metrics = metrics_collector
 
     def handle(self, raw_payload: dict[str, Any]) -> HandlerResult:
+        # TRACE_ENTER_HANDLER — always emits at WARNING; proves handler was called
+        LOGGER.warning(
+            "TRACE_ENTER_HANDLER handler=ticket_created raw_payload_keys=%s",
+            sorted(raw_payload.keys()),
+        )
         start = time.monotonic()
         self._inc(COUNTER_FD_WEBHOOKS_RECEIVED_TOTAL)
 
@@ -105,7 +113,10 @@ class FreshdeskTicketCreatedHandler:
             payload = FreshdeskWebhookPayload.from_dict(raw_payload)
             ticket = payload.ticket
         except Exception as exc:
-            LOGGER.warning("ticket_created.handle: parse error=%s", exc)
+            LOGGER.warning(
+                "TRACE_PARSE_EXCEPTION handler=ticket_created error=%s traceback=%s",
+                exc, _traceback.format_exc(),
+            )
             return HandlerResult(success=False, error_code="PARSE_ERROR")
 
         ticket_id = ticket.ticket_id
@@ -113,8 +124,66 @@ class FreshdeskTicketCreatedHandler:
         event_ts = ticket.created_at or ""
         idem_key = self._idempotency.make_key(ticket_id, event_type, event_ts)
 
+        # TRACE_PAYLOAD_02_MODEL — proves parsing extracted the correct fields
+        # Email masked to domain only (PII protection).
+        _email_domain = ticket.requester_email.split("@")[-1] if "@" in ticket.requester_email else "(empty)"
+        LOGGER.warning(
+            "TRACE_PAYLOAD_02_MODEL ticket_id=%s subject=%r email_domain=%s cf_clients=%r",
+            ticket_id,
+            (ticket.subject or "")[:60],
+            _email_domain,
+            ticket.custom_fields.cf_clients,
+        )
+
+        # Sprint 2.30.1 — TRACE_START: first trace point in Golden Path
+        # TRACE_STEP_A: make_trace_id()
+        LOGGER.warning("TRACE_STEP_A_ENTER ticket_id=%s calling_make_trace_id", ticket_id)
+        try:
+            trace_id = make_trace_id(ticket_id)
+            LOGGER.warning("TRACE_STEP_A_EXIT ticket_id=%s trace_id=%s", ticket_id, trace_id)
+        except Exception:
+            LOGGER.warning(
+                "TRACE_STEP_A_EXCEPTION ticket_id=%s traceback=%s",
+                ticket_id, _traceback.format_exc(),
+            )
+            trace_id = f"FD-{ticket_id}-ERR"
+            LOGGER.warning("TRACE_STEP_A_FALLBACK ticket_id=%s trace_id=%s", ticket_id, trace_id)
+
+        # TRACE_STEP_B: trace_log("TRACE_START")
+        LOGGER.warning(
+            "TRACE_STEP_B_ENTER ticket_id=%s calling_trace_log orchestrator_wired=%s resolver_wired=%s",
+            ticket_id,
+            self._orchestrator is not None,
+            self._client_resolver is not None,
+        )
+        try:
+            trace_log("TRACE_START", trace_id,
+                      ticket_id=ticket_id,
+                      event_type=event_type,
+                      orchestrator_wired=self._orchestrator is not None,
+                      client_resolver_wired=self._client_resolver is not None)
+            LOGGER.warning("TRACE_STEP_B_EXIT ticket_id=%s trace_log_completed", ticket_id)
+        except Exception:
+            LOGGER.warning(
+                "TRACE_STEP_B_EXCEPTION ticket_id=%s traceback=%s",
+                ticket_id, _traceback.format_exc(),
+            )
+
         # 2. Idempotency check
-        if self._idempotency.check(idem_key):
+        LOGGER.warning(
+            "TRACE_HANDLER_BRANCH_01 ticket_id=%s entering_idempotency_check idem_key=%r",
+            ticket_id, idem_key,
+        )
+        _idem_result = self._idempotency.check(idem_key)
+        LOGGER.warning(
+            "TRACE_HANDLER_BRANCH_02 ticket_id=%s idempotency_result=%s",
+            ticket_id, _idem_result,
+        )
+        if _idem_result:
+            LOGGER.warning(
+                "TRACE_HANDLER_BRANCH_02A ticket_id=%s DUPLICATE returning_early",
+                ticket_id,
+            )
             self._inc(COUNTER_FD_DUPLICATE_EVENTS_TOTAL)
             LOGGER.info("ticket_created.handle: DUPLICATE ticket_id=%s", ticket_id)
             self._audit_event("WEBHOOK_DUPLICATE", ticket_id=ticket_id, client_id="")
@@ -124,32 +193,80 @@ class FreshdeskTicketCreatedHandler:
                 skipped=True,
                 skip_reason="DUPLICATE",
             )
+        LOGGER.warning(
+            "TRACE_HANDLER_BRANCH_02B ticket_id=%s not_duplicate continuing",
+            ticket_id,
+        )
 
         # 3. Validate required fields
+        LOGGER.warning(
+            "TRACE_HANDLER_BRANCH_03 ticket_id=%r email_domain=%s validating_fields",
+            ticket_id,
+            ticket.requester_email.split("@")[-1] if "@" in ticket.requester_email else "(empty)",
+        )
         if not ticket_id or ticket_id == "0":
+            LOGGER.warning(
+                "TRACE_HANDLER_BRANCH_03A ticket_id=%r MISSING_TICKET_ID returning_early",
+                ticket_id,
+            )
             return HandlerResult(success=False, ticket_id=ticket_id, error_code="MISSING_TICKET_ID")
+        LOGGER.warning(
+            "TRACE_HANDLER_BRANCH_03B ticket_id=%s ticket_id_valid",
+            ticket_id,
+        )
 
         email = ticket.requester_email
         if not email:
+            LOGGER.warning(
+                "TRACE_HANDLER_BRANCH_04A ticket_id=%s MISSING_EMAIL returning_early",
+                ticket_id,
+            )
             self._idempotency.mark_received(idem_key, ticket_id, event_type, event_ts)
             self._idempotency.mark_failed(idem_key, "MISSING_EMAIL")
             return HandlerResult(success=False, ticket_id=ticket_id, error_code="MISSING_EMAIL")
+        LOGGER.warning(
+            "TRACE_HANDLER_BRANCH_04B ticket_id=%s email_domain=%s email_present",
+            ticket_id,
+            email.split("@")[-1] if "@" in email else "(no_at)",
+        )
 
         # 4. Client resolution (domain only logged — no PII)
         client_id = ""
         client_name = ticket.custom_fields.cf_clients or ""
+        LOGGER.warning(
+            "TRACE_HANDLER_BRANCH_05 ticket_id=%s resolver_present=%s cf_clients=%r",
+            ticket_id, self._client_resolver is not None, ticket.custom_fields.cf_clients,
+        )
         if self._client_resolver is not None:
+            LOGGER.warning(
+                "TRACE_HANDLER_BRANCH_05B ticket_id=%s resolver_wired calling_resolve email_domain=%s",
+                ticket_id,
+                email.split("@")[-1] if "@" in email else "(no_at)",
+            )
             try:
                 tenant_ctx = self._client_resolver.resolve(email)
                 client_id = tenant_ctx.client_id
                 client_name = tenant_ctx.client_name
+                LOGGER.warning(
+                    "TRACE_HANDLER_BRANCH_06A ticket_id=%s resolve_ok client_id=%r",
+                    ticket_id, client_id,
+                )
                 LOGGER.info(
                     "ticket_created.handle: client_resolved client_id=%s ticket_id=%s",
                     client_id, ticket_id,
                 )
+                # Sprint 2.30.1 — TRACE_CLIENT_RESOLVED
+                trace_log("TRACE_CLIENT_RESOLVED", trace_id,
+                          ticket_id=ticket_id,
+                          client_id=client_id,
+                          client_name=client_name)
             except Exception as exc:
                 # UnknownClientError → escalate
                 domain = email.split("@")[-1] if "@" in email else "unknown"
+                LOGGER.warning(
+                    "TRACE_HANDLER_BRANCH_06B ticket_id=%s resolve_raised exc_type=%s domain=%s UNKNOWN_CLIENT_returning",
+                    ticket_id, type(exc).__name__, domain,
+                )
                 LOGGER.warning(
                     "ticket_created.handle: client_resolution_failed domain=%s ticket_id=%s error=%s",
                     domain, ticket_id, type(exc).__name__,
@@ -164,6 +281,21 @@ class FreshdeskTicketCreatedHandler:
                     error_code="UNKNOWN_CLIENT",
                     detail={"domain": domain},
                 )
+        else:
+            LOGGER.warning(
+                "TRACE_HANDLER_BRANCH_05A ticket_id=%s resolver_absent skipping_resolution",
+                ticket_id,
+            )
+
+        # TRACE_PAYLOAD_03_HANDLER — post-validation, post-client-resolution checkpoint
+        LOGGER.warning(
+            "TRACE_PAYLOAD_03_HANDLER ticket_id=%s subject=%r client_id=%r client_name=%r email_domain=%s",
+            ticket_id,
+            (ticket.subject or "")[:60],
+            client_id,
+            client_name,
+            email.split("@")[-1] if "@" in email else "(empty)",
+        )
 
         # 5. Mark idempotency received
         self._idempotency.mark_received(idem_key, ticket_id, event_type, event_ts)
@@ -172,27 +304,57 @@ class FreshdeskTicketCreatedHandler:
         self._conversations.get_or_create(ticket_id, client_id)
 
         # 7. Delegate to TicketOrchestrator (if wired)
+        #    Sprint 2.30.1 fix: build TicketContext — process_ticket() requires a
+        #    TicketContext object, NOT flat keyword arguments (interface correction).
         case_id: str | None = None
+        _response_draft: str | None = None
+        _agent_status: str = ""  # populated from orchestrator result if available
         if self._orchestrator is not None:
             try:
-                orch_result = self._orchestrator.process_ticket(
+                from case_engine.ticket_orchestration.models import TicketContext  # noqa: PLC0415
+                ticket_context = TicketContext(
                     ticket_id=ticket_id,
-                    subject=ticket.subject,
-                    description_text=ticket.description_text or ticket.description,
-                    requester_email=email,
                     client=client_id or client_name,
+                    subject=ticket.subject or "",
+                    description=ticket.description_text or ticket.description or "",
+                    requester_email=email,
                     metadata={
                         "freshdesk_ticket": ticket.to_dict(),
                         "cf_clients": ticket.custom_fields.cf_clients,
                         "cf_environment": ticket.custom_fields.cf_environment,
+                        "trace_id": trace_id,
                     },
                 )
+                # TRACE_PAYLOAD_04_CONTEXT — proves TicketContext is correctly populated
+                LOGGER.warning(
+                    "TRACE_PAYLOAD_04_CONTEXT ticket_id=%s subject=%r client=%r description_len=%d email_domain=%s",
+                    ticket_context.ticket_id,
+                    (ticket_context.subject or "")[:60],
+                    ticket_context.client,
+                    len(ticket_context.description or ""),
+                    ticket_context.requester_email.split("@")[-1] if "@" in (ticket_context.requester_email or "") else "(empty)",
+                )
+                orch_result = self._orchestrator.process_ticket(ticket_context)
                 if hasattr(orch_result, "case_id"):
                     case_id = orch_result.case_id
+                LOGGER.info(
+                    "ticket_created.handle: orchestrator_complete ticket_id=%s case_id=%s success=%s",
+                    ticket_id, case_id, getattr(orch_result, "success", "?"),
+                )
+                _agent_result = getattr(orch_result, "agent_result", None) or {}
+                if isinstance(_agent_result, dict):
+                    _agent_status = _agent_result.get("agent_status", "")
+                    _rd = _agent_result.get("response_draft") or {}
+                    if isinstance(_rd, dict):
+                        _response_draft = _rd.get("body_html") or _rd.get("body_text") or None
+                LOGGER.warning(
+                    "RETURN_HANDLER_DRAFT ticket_id=%s has_draft=%s agent_status=%s",
+                    ticket_id, _response_draft is not None, _agent_status,
+                )
             except Exception as exc:
-                LOGGER.error(
-                    "ticket_created.handle: orchestrator error ticket_id=%s error=%s",
-                    ticket_id, exc,
+                LOGGER.warning(
+                    "TRACE_ORCHESTRATOR_EXCEPTION ticket_id=%s error=%s traceback=%s",
+                    ticket_id, exc, _traceback.format_exc(),
                 )
                 self._idempotency.mark_failed(idem_key, f"ORCHESTRATOR_ERROR:{exc}")
                 return HandlerResult(
@@ -201,15 +363,33 @@ class FreshdeskTicketCreatedHandler:
                     error_code="ORCHESTRATOR_ERROR",
                 )
 
-        # 8. Update conversation state with case_id
+        # 8. Update conversation state with case_id and clarification flags.
+        #    BLOCKER 1 FIX: when the agent returned AWAITING_CLARIFICATION, set
+        #    awaiting_customer=True so that the ticket-updated handler correctly
+        #    routes the customer's reply to resume_ticket() in Pass 2.
         if case_id:
-            self._conversations.update(ticket_id, case_id=case_id)
+            if _agent_status == "AWAITING_CLARIFICATION":
+                self._conversations.update(
+                    ticket_id,
+                    case_id=case_id,
+                    awaiting_customer=True,
+                    clarification_pending=True,
+                    lifecycle_state=ConversationLifecycle.CLARIFICATION,
+                )
+                LOGGER.info(
+                    "ticket_created.handle: awaiting_clarification ticket_id=%s case_id=%s — "
+                    "conv_state.awaiting_customer=True written",
+                    ticket_id, case_id,
+                )
+            else:
+                self._conversations.update(ticket_id, case_id=case_id)
             self._idempotency.mark_completed(idem_key, case_id=case_id)
         else:
             self._idempotency.mark_completed(idem_key)
 
         # 9. Audit
         self._audit_event("TICKET_INGESTED", ticket_id=ticket_id, client_id=client_id,
+                          case_id=case_id,
                           detail={"case_id": case_id, "cf_clients": client_name})
 
         latency_ms = int((time.monotonic() - start) * 1000)
@@ -218,11 +398,17 @@ class FreshdeskTicketCreatedHandler:
             "ticket_created.handle: SUCCESS ticket_id=%s case_id=%s latency_ms=%d",
             ticket_id, case_id, latency_ms,
         )
+        # Sprint 2.30.1 — TRACE_COMPLETE
+        trace_log("TRACE_COMPLETE", trace_id,
+                  ticket_id=ticket_id,
+                  case_id=case_id or "",
+                  latency_ms=latency_ms)
         return HandlerResult(
             success=True,
             ticket_id=ticket_id,
             case_id=case_id,
             action="ticket_ingested",
+            response_draft=_response_draft,
         )
 
     # ── Helpers ────────────────────────────────────────────────────────────────
@@ -247,6 +433,7 @@ class FreshdeskTicketCreatedHandler:
         *,
         ticket_id: str,
         client_id: str,
+        case_id: str | None = None,
         detail: dict[str, Any] | None = None,
     ) -> None:
         if self._audit is None:
@@ -255,6 +442,7 @@ class FreshdeskTicketCreatedHandler:
             from case_engine.models import AuditEntry, AuditEventType
             et = AuditEventType(event_type_name)
             entry = AuditEntry(
+                case_id=case_id,
                 ticket_id=ticket_id,
                 client=client_id,
                 action_type=et,
@@ -293,11 +481,13 @@ class FreshdeskTicketUpdatedHandler:
         *,
         idempotency_store: WebhookIdempotencyStore,
         conversation_store: ConversationStateStore,
+        ticket_orchestrator: Any = None,
         audit_logger: Any = None,
         metrics_collector: Any = None,
     ) -> None:
         self._idempotency = idempotency_store
         self._conversations = conversation_store
+        self._orchestrator = ticket_orchestrator
         self._audit = audit_logger
         self._metrics = metrics_collector
 
@@ -344,6 +534,7 @@ class FreshdeskTicketUpdatedHandler:
 
         # 5. Route by action
         result_detail: dict[str, Any] = {"action": action, "ticket_id": ticket_id}
+        _resume_response_draft: str | None = None  # populated if Pass 2 produces a reply
 
         if action == "customer_reply":
             self._inc(COUNTER_FD_CUSTOMER_REPLIES_TOTAL)
@@ -361,14 +552,45 @@ class FreshdeskTicketUpdatedHandler:
                     "CLARIFICATION_REPLY_RECEIVED",
                     ticket_id=ticket_id,
                     client_id=client_id,
+                    case_id=conv_state.case_id if conv_state else None,
                     detail={"previous_state": "CLARIFICATION"},
                 )
                 result_detail["clarification_resolved"] = True
+                if self._orchestrator is not None and event.latest_comment is not None:
+                    _msg = event.latest_comment.body_text or event.latest_comment.body or ""
+                    LOGGER.info("ENTER_HANDLER_RESUME ticket_id=%s", ticket_id)
+                    try:
+                        _resume_result = self._orchestrator.resume_ticket(ticket_id, _msg)
+                        LOGGER.info(
+                            "RETURN_HANDLER_RESUME ticket_id=%s error_code=%s",
+                            ticket_id, _resume_result.error_code,
+                        )
+                        # BLOCKER 3 FIX: extract response_draft from Pass 2 agent result
+                        # so the route layer can call send_customer_reply() after this returns.
+                        _resume_agent = getattr(_resume_result, "agent_result", None) or {}
+                        if isinstance(_resume_agent, dict):
+                            _resume_rd = _resume_agent.get("response_draft") or {}
+                            if isinstance(_resume_rd, dict):
+                                _resume_response_draft = (
+                                    _resume_rd.get("body_html")
+                                    or _resume_rd.get("body_text")
+                                    or None
+                                )
+                        LOGGER.info(
+                            "HANDLER_RESUME_DRAFT ticket_id=%s has_draft=%s",
+                            ticket_id, _resume_response_draft is not None,
+                        )
+                    except Exception as _resume_exc:
+                        LOGGER.warning(
+                            "ticket_updated.handle: resume_ticket failed ticket_id=%s error=%s",
+                            ticket_id, _resume_exc,
+                        )
             else:
                 self._audit_event(
                     "CUSTOMER_REPLY_RECEIVED",
                     ticket_id=ticket_id,
                     client_id=client_id,
+                    case_id=conv_state.case_id if conv_state else None,
                 )
 
         elif action == "agent_reply":
@@ -376,6 +598,7 @@ class FreshdeskTicketUpdatedHandler:
                 "AGENT_NOTE_RECEIVED",
                 ticket_id=ticket_id,
                 client_id=client_id,
+                case_id=conv_state.case_id if conv_state else None,
                 detail={"private": False},
             )
 
@@ -384,6 +607,7 @@ class FreshdeskTicketUpdatedHandler:
                 "AGENT_NOTE_RECEIVED",
                 ticket_id=ticket_id,
                 client_id=client_id,
+                case_id=conv_state.case_id if conv_state else None,
                 detail={"private": True},
             )
 
@@ -396,6 +620,7 @@ class FreshdeskTicketUpdatedHandler:
                     "TICKET_UPDATED",
                     ticket_id=ticket_id,
                     client_id=client_id,
+                    case_id=conv_state.case_id if conv_state else None,
                     detail={"new_status": new_status, "lifecycle": lifecycle.value if lifecycle else None},
                 )
                 result_detail["new_status"] = new_status
@@ -405,6 +630,7 @@ class FreshdeskTicketUpdatedHandler:
                 "TICKET_UPDATED",
                 ticket_id=ticket_id,
                 client_id=client_id,
+                case_id=conv_state.case_id if conv_state else None,
                 detail={"changes": "tags"},
             )
 
@@ -414,6 +640,7 @@ class FreshdeskTicketUpdatedHandler:
                 "TICKET_SKIPPED",
                 ticket_id=ticket_id,
                 client_id=client_id,
+                case_id=conv_state.case_id if conv_state else None,
                 detail={"reason": "no_actionable_change"},
             )
             self._idempotency.mark_completed(idem_key)
@@ -430,14 +657,15 @@ class FreshdeskTicketUpdatedHandler:
         self._record_latency(LATENCY_FD_PROCESSING_MS, latency_ms)
 
         LOGGER.info(
-            "ticket_updated.handle: SUCCESS ticket_id=%s action=%s latency_ms=%d",
-            ticket_id, action, latency_ms,
+            "ticket_updated.handle: SUCCESS ticket_id=%s action=%s latency_ms=%d has_draft=%s",
+            ticket_id, action, latency_ms, _resume_response_draft is not None,
         )
         return HandlerResult(
             success=True,
             ticket_id=ticket_id,
             action=action,
             detail=result_detail,
+            response_draft=_resume_response_draft,
         )
 
     # ── Detection helpers ──────────────────────────────────────────────────────
@@ -518,6 +746,7 @@ class FreshdeskTicketUpdatedHandler:
         *,
         ticket_id: str,
         client_id: str,
+        case_id: str | None = None,
         detail: dict[str, Any] | None = None,
     ) -> None:
         if self._audit is None:
@@ -526,6 +755,7 @@ class FreshdeskTicketUpdatedHandler:
             from case_engine.models import AuditEntry, AuditEventType
             et = AuditEventType(event_type_name)
             entry = AuditEntry(
+                case_id=case_id,
                 ticket_id=ticket_id,
                 client=client_id,
                 action_type=et,

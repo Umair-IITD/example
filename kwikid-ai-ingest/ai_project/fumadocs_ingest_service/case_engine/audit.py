@@ -70,6 +70,7 @@ class AuditLogger:
         meets_threshold: bool,
     ) -> None:
         """Log a topic classification result."""
+        LOGGER.info("ENTER_LOG_CLASSIFICATION case_id=%s type=%s", case.case_id, type(case.case_id).__name__)
         entry = AuditEntry(
             case_id=case.case_id,
             ticket_id=case.ticket_id,
@@ -83,6 +84,7 @@ class AuditLogger:
             },
             outcome="PASS" if meets_threshold else "BELOW_THRESHOLD",
         )
+        LOGGER.info("EXIT_AUDIT_ENTRY_CREATION case_id=%s type=%s", entry.case_id, type(entry.case_id).__name__)
         self._write(entry)
 
     def log_rag_call(
@@ -1872,12 +1874,15 @@ class AuditLogger:
             "audit event=%s case=%s ticket=%s outcome=%s",
             entry.action_type.value, entry.case_id, entry.ticket_id, entry.outcome,
         )
+        LOGGER.info("ENTER_AUDIT_WRITE case_id=%s type=%s", entry.case_id, type(entry.case_id).__name__)
 
         if self._sb is None:
             return  # log-only mode
 
         try:
-            self._sb.table(_AUDIT_TABLE).insert(entry.to_db_row()).execute()
+            _row = entry.to_db_row()
+            LOGGER.info("ENTER_SUPABASE_INSERT case_id=%s type=%s", _row.get("case_id"), type(_row.get("case_id")).__name__)
+            self._sb.table(_AUDIT_TABLE).insert(_row).execute()
         except Exception as exc:
             # Log but do not re-raise — audit failure must not crash the request path
             LOGGER.error(

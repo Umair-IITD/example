@@ -58,6 +58,8 @@ class RetrievedChunk:
     # Phase B3: knowledge chunk fields (None for ticket/SOP chunks)
     knowledge_class: Optional[str] = None
     quality_score: Optional[float] = None
+    # Phase B3 Part 2: OCR image metadata from parent article ([] for non-knowledge chunks)
+    image_metadata: list = field(default_factory=list)
 
 
 @dataclass
@@ -338,6 +340,7 @@ class TicketRetriever:
         # Phase B3: extract knowledge chunk fields from extra_metadata
         knowledge_class: Optional[str] = None
         quality_score: Optional[float] = None
+        image_metadata: list = []
         if source_table == "rag_knowledge_chunks":
             knowledge_class = extra_metadata.get("knowledge_class")
             raw_qs = extra_metadata.get("quality_score")
@@ -346,6 +349,10 @@ class TicketRetriever:
                     quality_score = float(raw_qs)
                 except (TypeError, ValueError):
                     quality_score = None
+            # Phase B3 Part 2: image metadata injected by B3_006 migration (JOINed from parent article)
+            raw_img = extra_metadata.get("image_metadata")
+            if isinstance(raw_img, list):
+                image_metadata = raw_img
 
         return RetrievedChunk(
             chunk_id=str(row.get("id", "")),
@@ -363,6 +370,7 @@ class TicketRetriever:
             extra_metadata=extra_metadata,
             knowledge_class=knowledge_class,
             quality_score=quality_score,
+            image_metadata=image_metadata,
         )
 
     @staticmethod

@@ -58,24 +58,41 @@ class ClientResolver:
           2. Escalating the ticket to human review
           3. NOT proceeding with any investigation or tool calls
         """
+        _email_domain_hint = email.split("@")[-1] if "@" in email else "(no_at)"
+        LOGGER.warning(
+            "TRACE_TENANT_LOOKUP_START email_domain=%s registered_domains=%s",
+            _email_domain_hint,
+            self._registry.all_domains(),
+        )
+
         domain = self.extract_domain(email)
         if not domain:
-            LOGGER.warning("client_resolver.resolve malformed_email")
+            LOGGER.warning(
+                "TRACE_TENANT_LOOKUP_MISS domain=%s reason=malformed_email",
+                _email_domain_hint,
+            )
             raise UnknownClientError(domain="", email=email)
 
         config = self._registry.lookup_by_domain(domain)
         if config is None:
-            LOGGER.warning("client_resolver.resolve unknown_domain domain=%s", domain)
+            LOGGER.warning(
+                "TRACE_TENANT_LOOKUP_MISS domain=%s reason=not_registered",
+                domain,
+            )
             raise UnknownClientError(domain=domain, email=email)
 
         if not config.enabled:
             LOGGER.warning(
-                "client_resolver.resolve tenant_disabled client_id=%s domain=%s",
-                config.client_id, domain,
+                "TRACE_TENANT_LOOKUP_MISS domain=%s client_id=%s reason=tenant_disabled",
+                domain, config.client_id,
             )
             raise UnknownClientError(domain=domain, email=email)
 
         ctx = self._build_context(config, domain)
+        LOGGER.warning(
+            "TRACE_TENANT_LOOKUP_MATCH domain=%s client_id=%s client_name=%s",
+            domain, ctx.client_id, ctx.client_name,
+        )
         LOGGER.info(
             "client_resolver.resolve success client_id=%s client_name=%s domain=%s",
             ctx.client_id, ctx.client_name, domain,

@@ -12,6 +12,11 @@ Covers:
 - Mocked FreshdeskReplyClient.post_note receives correct ticket_id + private=True
 - TCP HTML contains escalation trigger information
 - cited_sop_ids flows through evaluate_rag_result into TCP via build_transfer_context
+
+Note: Tests that previously forced ESCALATED state via classify_case() with UNKNOWN
+text have been updated to use _force_escalated() instead. UNKNOWN-topic classification
+now transitions to TRIAGE_COMPLETE (not ESCALATED) per the approved flow_diagram.mermaid
+(CLASSIFIER --> SLOTEXTRACT direct edge with no ESCALATED node in between).
 """
 from __future__ import annotations
 
@@ -22,17 +27,34 @@ import pytest
 from case_engine.case_state import CaseState
 from case_engine.models import Case
 from case_engine.service import build_case_service
+from case_engine.state_machine import CaseStateMachine
 
 
 def _service():
     return build_case_service(supabase_client=None)
 
 
+def _force_escalated(case: Case) -> Case:
+    """
+    Force a case from NEW → CLASSIFYING → ESCALATED via the state machine.
+
+    Used when tests need a case in ESCALATED state but do NOT want to rely on
+    classify_case() with UNKNOWN text (which now goes to TRIAGE_COMPLETE per blueprint).
+    """
+    sm = CaseStateMachine()
+    sm.transition(case, CaseState.CLASSIFYING, reason="forced_for_test")
+    sm.transition(case, CaseState.ESCALATED, reason="forced_for_test")
+    case.escalation_reason = "unknown_topic"
+    return case
+
+
 class TestTcpFromEscalatedCase:
     def test_unknown_topic_escalation_produces_tcp(self):
+        # Build a TCP for a case that reached ESCALATED (via state machine,
+        # not via classify_case with UNKNOWN — UNKNOWN now goes to TRIAGE_COMPLETE).
         svc  = _service()
         case = svc.open_case("TKT-001", "unity_bank")
-        svc.classify_case(case, "This is a completely unrelated complaint.")
+        _force_escalated(case)
         assert case.current_state == CaseState.ESCALATED
 
         tcp = svc.build_transfer_context(case, escalation_trigger=case.escalation_reason)
@@ -59,7 +81,8 @@ class TestTcpFromEscalatedCase:
     def test_tcp_html_contains_case_id(self):
         svc  = _service()
         case = svc.open_case("TKT-TCP-001", "unity_bank")
-        svc.classify_case(case, "Completely unknown request.")
+        # Force ESCALATED via state machine (UNKNOWN no longer escalates — per blueprint)
+        _force_escalated(case)
         assert case.current_state == CaseState.ESCALATED
 
         tcp  = svc.build_transfer_context(case)
@@ -89,7 +112,8 @@ class TestTcpFromEscalatedCase:
     def test_tcp_html_contains_escalation_trigger(self):
         svc  = _service()
         case = svc.open_case("TKT-001", "unity_bank")
-        svc.classify_case(case, "Some unknown request.")
+        # Force ESCALATED via state machine (UNKNOWN no longer escalates — per blueprint)
+        _force_escalated(case)
         assert case.escalation_reason is not None
 
         tcp  = svc.build_transfer_context(case, escalation_trigger=case.escalation_reason)
@@ -110,7 +134,8 @@ class TestMockedFreshdeskPosting:
     def test_post_note_called_with_private_true(self):
         svc  = _service()
         case = svc.open_case("TKT-MOCK-001", "unity_bank")
-        svc.classify_case(case, "Unknown complaint text.")
+        # Force ESCALATED via state machine (UNKNOWN no longer escalates — per blueprint)
+        _force_escalated(case)
         assert case.current_state == CaseState.ESCALATED
 
         tcp    = svc.build_transfer_context(case)

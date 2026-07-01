@@ -39,6 +39,7 @@ from case_engine.workflows.models import (
     WorkflowStep,
     WorkflowStepType,
 )
+from case_engine.trace import make_trace_id, trace_log
 
 if TYPE_CHECKING:
     from case_engine.action_gateway import ActionGateway
@@ -189,6 +190,26 @@ class WorkflowEngine:
             )
 
             self._emit_workflow_started(audit, case, defn, result)
+
+            # Sprint 2.30.1 — TRACE_WORKFLOW (Phase 6 + Phase 7 verification)
+            trace_id = make_trace_id(case.ticket_id or case.case_id)
+            trace_log("TRACE_WORKFLOW", trace_id,
+                      case_id=case.case_id,
+                      ticket_id=case.ticket_id,
+                      workflow_id=defn.workflow_id,
+                      topic=case.topic or "",
+                      steps=len(defn.steps),
+                      knowledge_svc_type=type(self._knowledge_service).__name__ if self._knowledge_service else "None",
+                      reasoning_svc_wired=self._reasoning_service is not None,
+                      action_gw_wired=self._action_gateway_service is not None)
+            LOGGER.info(
+                "VERIFY workflow_selected case_id=%s workflow_id=%s topic=%s "
+                "knowledge_svc=%s reasoning=%s gateway=%s",
+                case.case_id, defn.workflow_id, case.topic,
+                type(self._knowledge_service).__name__ if self._knowledge_service else "None",
+                self._reasoning_service is not None,
+                self._action_gateway_service is not None,
+            )
 
             first_step = defn.first_step()
             if first_step is None:
@@ -569,6 +590,37 @@ class WorkflowEngine:
             next_step_id = step.on_success
             return self._navigate_and_execute(next_step_id, defn, result, slot_context, gateway, audit, case)
 
+        # Guard 4: Action type allowlist (Sprint 2.30.1 Phase 5)
+        # Blocks any action type not explicitly approved in the playbook registry.
+        # Prevents workflow YAML corruption or injection from reaching the gateway.
+        _ALLOWED_ACTION_TYPES: frozenset[str] = frozenset({
+            "otp_resend",
+            "vkyc_session_reset",
+            "api_callback_retry",
+            "document_ocr_reprocess",
+            "agent_session_refresh",
+            # Rollback / compensation counterparts
+            "api_callback_cancel",
+            "vkyc_session_restore",
+        })
+        _requested_action_type = step.action_type or ""
+        if _requested_action_type and _requested_action_type not in _ALLOWED_ACTION_TYPES:
+            LOGGER.error(
+                "workflow_engine: PROPOSE_ACTION blocked — action_type=%r not in allowlist"
+                " step=%s workflow=%s (Sprint 2.30.1 Guard 4)",
+                _requested_action_type, step.step_id, defn.workflow_id,
+            )
+            result.record_step(
+                step_id=step.step_id,
+                outcome="BLOCKED_DISALLOWED_ACTION_TYPE",
+                detail={
+                    "action_type": _requested_action_type,
+                    "reason": "action_type not in approved allowlist",
+                },
+            )
+            self._emit_step_completed(audit, case, defn, step, "BLOCKED_DISALLOWED_ACTION_TYPE")
+            return self._navigate_and_execute(step.on_failure, defn, result, slot_context, gateway, audit, case)
+
         # Build action params by substituting slot values into template
         params = self._render_params(step.action_params_template, slot_context)
 
@@ -592,6 +644,20 @@ class WorkflowEngine:
                 detail={"action_id": action.action_id, "action_state": action.current_state.value},
             )
             self._emit_step_completed(audit, case, defn, step, "ACTION_PROPOSED")
+            # Sprint 2.30.1 — TRACE_ACTION_GATEWAY
+            trace_id = make_trace_id(case.ticket_id or case.case_id)
+            trace_log(
+                "TRACE_ACTION_GATEWAY", trace_id,
+                case_id=case.case_id,
+                action_id=action.action_id,
+                action_type=step.action_type or "",
+                risk_level=step.risk_level,
+                action_state=action.current_state.value,
+            )
+            LOGGER.info(
+                "VERIFY action_proposal case_id=%s action_id=%s action_type=%s risk=%s state=%s",
+                case.case_id, action.action_id, step.action_type, step.risk_level, action.current_state.value,
+            )
 
             # SAFE actions are auto-approved and may complete synchronously;
             # REVERSIBLE/IRREVERSIBLE go to AWAITING_APPROVAL — pause the workflow.
@@ -760,6 +826,9 @@ class WorkflowEngine:
         if knowledge_dict.get("sop_match"):
             top_score = float(knowledge_dict["sop_match"].get("relevance_score", 0.0))
 
+        # Count RAG chunks if KnowledgeOrchestrator returned them
+        rag_chunks = len((knowledge_dict.get("rag_chunks") or []))
+
         outcome = "KNOWLEDGE_SEARCH_COMPLETED" if success else "KNOWLEDGE_SEARCH_FAILED"
         result.record_step(
             step_id=step.step_id,
@@ -772,6 +841,20 @@ class WorkflowEngine:
         )
         self._emit_step_completed(audit, case, defn, step, outcome)
         self._emit_knowledge_search_completed(audit, case, defn, step, knowledge_dict)
+
+        # Sprint 2.30.1 — TRACE_KNOWLEDGE (Phase 6) + Phase 7 verification log
+        trace_id = make_trace_id(case.ticket_id or case.case_id)
+        trace_log("TRACE_KNOWLEDGE", trace_id,
+                  case_id=case.case_id,
+                  outcome=outcome,
+                  sop_found=sop_found,
+                  top_score=round(top_score, 3),
+                  rag_chunks=rag_chunks)
+        LOGGER.info(
+            "VERIFY knowledge_result case_id=%s outcome=%s sop_found=%s "
+            "top_score=%.3f rag_chunks=%d",
+            case.case_id, outcome, sop_found, top_score, rag_chunks,
+        )
 
         next_step_id = step.on_success if success else step.on_failure
         return self._navigate_and_execute(next_step_id, defn, result, slot_context, gateway, audit, case)
@@ -834,6 +917,17 @@ class WorkflowEngine:
         status          = reasoning_dict.get("status", "ERROR")
         should_escalate = bool(reasoning_dict.get("should_escalate", False))
         recommended     = reasoning_dict.get("recommended_action", "")
+        # Sprint 2.30.1 — TRACE_REASONING (Phase 6) + Phase 7 verification
+        trace_id = make_trace_id(case.ticket_id or case.case_id)
+        trace_log("TRACE_REASONING", trace_id,
+                  case_id=case.case_id,
+                  status=status,
+                  should_escalate=should_escalate,
+                  recommended=recommended)
+        LOGGER.info(
+            "VERIFY reasoning_result case_id=%s status=%s escalate=%s recommended=%s",
+            case.case_id, status, should_escalate, recommended,
+        )
 
         if status == "BLOCKED":
             outcome  = "REASONING_BLOCKED"

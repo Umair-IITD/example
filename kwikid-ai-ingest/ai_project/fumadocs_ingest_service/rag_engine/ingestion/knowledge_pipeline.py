@@ -31,6 +31,7 @@ Usage:
 from __future__ import annotations
 
 import hashlib
+import html as _html_module
 import logging
 import re
 import time
@@ -100,48 +101,6 @@ def _knowledge_chunk_id(article_id: str, chunk_index: int, index_version: str) -
 
 def _sha256(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
-
-
-# ---------------------------------------------------------------------------
-# Simple word-based chunker for knowledge documents
-# ---------------------------------------------------------------------------
-
-def _chunk_text(
-    text: str,
-    target_words: int = 350,
-    overlap_words: int = 50,
-    min_chunk_chars: int = 100,
-) -> list[str]:
-    """
-    Split text into overlapping chunks by word count.
-
-    For knowledge articles (300–1500 words typically), this produces 1–4 chunks.
-    Short articles fit in a single chunk.
-    """
-    words = text.split()
-    if not words:
-        return []
-
-    chunks: list[str] = []
-    start = 0
-    while start < len(words):
-        end = min(start + target_words, len(words))
-        chunk = " ".join(words[start:end])
-        if len(chunk) >= min_chunk_chars:
-            chunks.append(chunk)
-        elif chunks:
-            # Append short tail to previous chunk (avoid tiny orphan chunks)
-            chunks[-1] = chunks[-1] + " " + chunk
-        else:
-            # First chunk is short — keep it anyway
-            chunks.append(chunk)
-        if end >= len(words):
-            break
-        start = end - overlap_words
-        if start < 0:
-            start = 0
-
-    return chunks
 
 
 # ---------------------------------------------------------------------------
@@ -373,6 +332,8 @@ class KnowledgePipeline:
             "updated_at":         datetime.now(timezone.utc).isoformat(),
             "index_version":      self._settings.index_version,
             "ingestion_run_id":   None,
+            # Human-feedback articles never have images
+            "image_metadata":     [],
         }
 
         chunks_raw = self._build_chunk_records(
@@ -516,6 +477,8 @@ class KnowledgePipeline:
             "ingested_at":        datetime.now(timezone.utc).isoformat(),
             "updated_at":         datetime.now(timezone.utc).isoformat(),
             "index_version":      self._settings.index_version,
+            # OCR image metadata (Part 2 — Subagent 1 populates this on KnowledgeArticle)
+            "image_metadata":     getattr(article, "image_metadata", []),
         }
 
         # Build chunk records
@@ -717,6 +680,36 @@ class KnowledgePipeline:
 # Free function (used by ingest_verified_reply)
 # ---------------------------------------------------------------------------
 
+# Regex to strip raw image URL markdown strings from embed text
+# (prevents image CDN URLs from polluting semantic embeddings — Q4)
+_IMAGE_MD_RE = re.compile(
+    r"!\[[^\]]*\]\(https?://[^\)]*stackoverflowteams[^\)]*\.(png|jpg|jpeg|gif|webp)\)",
+    re.IGNORECASE,
+)
+# Also strip bare CDN image URLs that appear without markdown alt-text wrappers
+_IMAGE_URL_BARE_RE = re.compile(
+    r"https?://stackoverflowteams\.com/c/[^/]+/images/s/"
+    r"[0-9a-fA-F\-]{32,36}\.(png|jpg|jpeg|gif|webp)",
+    re.IGNORECASE,
+)
+
+
+def _sanitize_for_embedding(text: str) -> str:
+    """
+    Prepare text for embedding by:
+      1. Unescaping HTML entities (Q1): &lt; → <, &amp; → &, &quot; → ", etc.
+      2. Stripping image URL markdown strings (Q4): prevents CDN URLs from
+         polluting semantic vector space with non-semantic tokens.
+    """
+    # Q1: HTML entity unescaping (stdlib html.unescape handles all named + numeric entities)
+    text = _html_module.unescape(text)
+    # Q4: Remove image markdown syntax (![alt](url)) — keep alt text, drop URL
+    text = _IMAGE_MD_RE.sub("", text)
+    # Q4: Remove bare image CDN URLs not wrapped in markdown
+    text = _IMAGE_URL_BARE_RE.sub("", text)
+    return text
+
+
 def _build_embed_text_raw(
     *,
     title:          str,
@@ -728,17 +721,44 @@ def _build_embed_text_raw(
     completeness_score: Optional[float] = None,
     image_refs: Optional[list[str]] = None,
 ) -> str:
-    parts = [f"QUESTION: {title}"]
+    """
+    Build embed-ready text from a Q&A article.
+
+    Structure:
+        QUESTION: {title}
+        [CANONICAL_URL: {url}]
+        [TAGS: {tag1}, {tag2}]
+        [COMPLETENESS_SCORE: {score}]
+        {question_body}
+
+        ANSWER:
+        {answer_body}
+
+    Image URL markdown strings are stripped BEFORE embedding to prevent CDN
+    URLs from polluting the vector space (Q4).  HTML entities are unescaped
+    first so the embedded text is human-readable (Q1).
+
+    Note: image_refs parameter is accepted for API compatibility but image URLs
+    are NOT appended to the embed text — they are stored separately in the
+    image_metadata JSONB column and do not belong in semantic embeddings.
+    """
+    # Q1 + Q4: sanitize before building embed text
+    title_clean        = _sanitize_for_embedding(title)
+    question_body_clean = _sanitize_for_embedding(question_body)
+    answer_body_clean  = _sanitize_for_embedding(answer_body) if answer_body else None
+
+    parts = [f"QUESTION: {title_clean}"]
     if canonical_url:
         parts.append(f"CANONICAL_URL: {canonical_url}")
     if tags_raw:
         parts.append(f"TAGS: {', '.join(tags_raw)}")
     if completeness_score is not None:
         parts.append(f"COMPLETENESS_SCORE: {completeness_score:.3f}")
-    if image_refs:
-        parts.append("IMAGE_REFERENCES:\n" + "\n".join(f"- {url}" for url in image_refs))
-    parts.append(question_body)
-    if answer_body:
+    # image_refs intentionally NOT appended — image URLs have no semantic value
+    # for vector embeddings; OCR text is stored in image_metadata JSONB (article level),
+    # NOT in the body, per design: structured metadata path, not embedding path.
+    parts.append(question_body_clean)
+    if answer_body_clean:
         label = "VERIFIED ANSWER" if knowledge_class == KnowledgeClass.VERIFIED_REPLY else "ANSWER"
-        parts.append(f"{label}:\n{answer_body}")
+        parts.append(f"{label}:\n{answer_body_clean}")
     return "\n\n".join(parts)

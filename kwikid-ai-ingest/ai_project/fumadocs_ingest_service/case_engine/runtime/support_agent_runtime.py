@@ -40,6 +40,7 @@ from case_engine.runtime.agent_models import (
     _mode_from_env,
 )
 from case_engine.response_generation.models import ResponseContext, ResponseType
+from case_engine.trace import make_trace_id, trace_log
 
 if TYPE_CHECKING:
     from case_engine.audit import AuditLogger
@@ -221,9 +222,19 @@ class SupportAgentRuntime:
         Returns:
             AgentExecutionResult — never raises, always returns structured result
         """
+        LOGGER.info("ENTER_RUN_CASE ticket_id=%s", getattr(case, "ticket_id", "?"))
         started_ms = int(time.monotonic() * 1000)
         started_at = _now_iso()
         steps_completed: list[str] = []
+
+        # Sprint 2.30.1 — TRACE_RUNTIME
+        trace_id = make_trace_id(case.ticket_id or case.case_id)
+        trace_log("TRACE_RUNTIME", trace_id,
+                  case_id=case.case_id,
+                  ticket_id=case.ticket_id,
+                  mode=self._mode.value,
+                  case_svc_wired=self._case_svc is not None,
+                  response_svc_wired=self._response_svc is not None)
 
         try:
             return self._run_pipeline(
@@ -262,6 +273,11 @@ class SupportAgentRuntime:
         """Full pipeline execution. Raises on unrecoverable errors (caught by run_case)."""
         self._emit_agent_started(case)
 
+        LOGGER.warning(
+            "ENTER_CLASSIFICATION case_id=%s response_svc_wired=%s case_svc_wired=%s topic_pre=%s",
+            case.case_id, self._response_svc is not None, self._case_svc is not None, case.topic,
+        )
+
         # ── Step 1: CLASSIFY ──────────────────────────────────────────────────
         classification: dict[str, Any] | None = None
         if self._case_svc is not None and case.topic is None:
@@ -286,8 +302,19 @@ class SupportAgentRuntime:
             classification = {"topic": case.topic, "confidence": case.confidence}
             steps_completed.append("CLASSIFY_CACHED")
 
+        LOGGER.warning(
+            "EXIT_CLASSIFICATION case_id=%s topic=%s state=%s confidence=%s",
+            case.case_id, case.topic, case.current_state.value, case.confidence,
+        )
+
         # If case was escalated during classification → skip to response
         if case.current_state == CaseState.ESCALATED:
+            LOGGER.warning(
+                "RETURN_RUNTIME_RESULT reason=ESCALATED_POST_CLASSIFY case_id=%s topic=%s",
+                case.case_id, case.topic,
+            )
+            LOGGER.warning("RETURN_WORKFLOW_NOT_ENTERED reason=ESCALATED_POST_CLASSIFY case_id=%s", case.case_id)
+            LOGGER.warning("RETURN_CLARIFICATION_NOT_ENTERED reason=ESCALATED_POST_CLASSIFY case_id=%s", case.case_id)
             return self._build_result(
                 case=case,
                 steps_completed=steps_completed,
@@ -315,16 +342,38 @@ class SupportAgentRuntime:
                             explicit_slot[k] = str(v)
 
                 # receive_message handles slot extraction + workflow auto-start
+                LOGGER.warning(
+                    "ENTER_SLOT_EXTRACTION case_id=%s topic=%s slot_state_keys=%s",
+                    case.case_id, case.topic, list((case.slot_state or {}).keys()),
+                )
                 msg_result = self._case_svc.receive_message(
                     case, message_text,
                 )
                 steps_completed.append("SLOT_EXTRACT")
+                LOGGER.warning(
+                    "EXIT_SLOT_EXTRACTION case_id=%s all_slots_filled=%s workflow_started=%s next_question=%s",
+                    case.case_id, msg_result.all_slots_filled,
+                    getattr(msg_result, "workflow_started", None),
+                    bool(getattr(msg_result, "next_question", None)),
+                )
 
                 if not msg_result.all_slots_filled:
                     # Clarification needed
                     if msg_result.next_question:
-                        clarification_question = msg_result.next_question.get("text", "")
+                        # ClarificationQuestion.to_dict() uses "prompt_text" key.
+                        # Also accept "text" for forward compatibility with older callers.
+                        clarification_question = (
+                            msg_result.next_question.get("prompt_text")
+                            or msg_result.next_question.get("text")
+                            or ""
+                        )
                     steps_completed.append("CLARIFY")
+
+                    LOGGER.warning(
+                        "ENTER_CLARIFICATION_ENGINE case_id=%s question=%r response_svc_wired=%s",
+                        case.case_id, clarification_question[:80] if clarification_question else "",
+                        self._response_svc is not None,
+                    )
 
                     response_draft = self._generate_response(
                         case=case,
@@ -332,6 +381,11 @@ class SupportAgentRuntime:
                         response_type=ResponseType.CLARIFICATION,
                         workflow_result=None,
                         clarification_question=clarification_question,
+                    )
+
+                    LOGGER.warning(
+                        "RETURN_CLARIFICATION_REQUIRED case_id=%s draft_is_none=%s response_svc_wired=%s",
+                        case.case_id, response_draft is None, self._response_svc is not None,
                     )
 
                     return self._build_result(
@@ -364,6 +418,10 @@ class SupportAgentRuntime:
                 )
 
         # ── Step 4: WORKFLOW (if not auto-started) ────────────────────────────
+        LOGGER.warning(
+            "ENTER_WORKFLOW_SELECTION case_id=%s workflow_result_is_none=%s case_svc_wired=%s",
+            case.case_id, workflow_result is None, self._case_svc is not None,
+        )
         if workflow_result is None and self._case_svc is not None:
             try:
                 from case_engine.clarification_engine import ClarificationEngine
@@ -384,6 +442,14 @@ class SupportAgentRuntime:
                     "support_agent_runtime.workflow failed case_id=%s error=%s — continuing to response",
                     case.case_id, exc,
                 )
+
+        LOGGER.warning(
+            "EXIT_WORKFLOW_SELECTION case_id=%s workflow_state=%s workflow_id=%s result_is_none=%s",
+            case.case_id,
+            (workflow_result or {}).get("workflow_state"),
+            (workflow_result or {}).get("workflow_id"),
+            workflow_result is None,
+        )
 
         # Emit DRY_RUN_EXECUTION if workflow ran in dry-run mode
         if self._mode == SupportAgentMode.DRY_RUN and workflow_result is not None:
@@ -447,12 +513,23 @@ class SupportAgentRuntime:
             clarification_question=clarification_question,
         )
 
+        LOGGER.warning(
+            "ENTER_RESPONSE_GENERATION case_id=%s response_svc_wired=%s response_type=%s needs_l2=%s",
+            case.case_id, self._response_svc is not None, response_type, needs_l2,
+        )
+
         response_draft = self._generate_response(
             case=case,
             topic=case.topic or "Support Request",
             response_type=response_type,
             workflow_result=workflow_result,
             clarification_question=clarification_question,
+        )
+
+        LOGGER.warning(
+            "EXIT_RESPONSE_GENERATION case_id=%s draft_is_none=%s draft_keys=%s",
+            case.case_id, response_draft is None,
+            list(response_draft.keys()) if isinstance(response_draft, dict) else None,
         )
 
         # ── CLOSECHECK ────────────────────────────────────────────────────────
@@ -466,6 +543,11 @@ class SupportAgentRuntime:
             agent_status = AgentStatus.AWAITING_APPROVAL
         else:
             agent_status = AgentStatus.SUCCESS
+
+        LOGGER.warning(
+            "RETURN_RUNTIME_RESULT case_id=%s agent_status=%s response_draft_is_none=%s steps=%s",
+            case.case_id, agent_status, response_draft is None, steps_completed,
+        )
 
         result = self._build_result(
             case=case,
@@ -494,6 +576,10 @@ class SupportAgentRuntime:
     ) -> dict[str, Any] | None:
         """Generate response draft via ResponseGenerationService. Never raises."""
         if self._response_svc is None:
+            LOGGER.warning(
+                "ENTER_RESPONSE_GENERATION case_id=%s response_svc=NONE — returning None",
+                case.case_id,
+            )
             return None
 
         investigation = _extract_investigation(workflow_result)

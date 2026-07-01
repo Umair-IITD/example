@@ -8,12 +8,12 @@ Covers:
 - open_case: returns existing case on retry (repo returns existing)
 - open_case: falls back to in-memory case if repo returns None
 - classify_case: known topic → TRIAGE_COMPLETE, topic/confidence set
-- classify_case: unknown topic → ESCALATED, escalation_reason set
+- classify_case: unknown topic → TRIAGE_COMPLETE (proceeds to clarification per blueprint)
 - classify_case: below-threshold confidence → ESCALATED
 - evaluate_rag_result: no-match retrieval → ESCALATED
 - evaluate_rag_result: good match → no escalation
 - evaluate_rag_result: already-ESCALATED case is not double-escalated
-- resolve_case: TRIAGE_COMPLETE → RESOLVED
+- resolve_case: TRIAGE_COMPLETE → CLOSED
 - resolve_case: ESCALATED case is not modified (already frozen)
 - build_transfer_context: returns correctly populated payload
 - record_error: does not raise
@@ -28,6 +28,7 @@ import pytest
 from case_engine.case_state import CaseState
 from case_engine.models import Case, TopicKey
 from case_engine.service import CaseService, build_case_service
+from case_engine.state_machine import CaseStateMachine
 
 
 # ── Factory helpers ───────────────────────────────────────────────────────────
@@ -35,6 +36,20 @@ from case_engine.service import CaseService, build_case_service
 def _service() -> CaseService:
     """Build an offline CaseService (no DB, no Supabase)."""
     return build_case_service(supabase_client=None)
+
+
+def _force_escalated(case: Case) -> Case:
+    """
+    Force a case from NEW → CLASSIFYING → ESCALATED via the state machine.
+
+    Used in tests that need to verify behaviour for already-ESCALATED cases.
+    Previously these tests used classify_case() with UNKNOWN text, but that
+    no longer escalates (UNKNOWN now proceeds to clarification per blueprint).
+    """
+    sm = CaseStateMachine()
+    sm.transition(case, CaseState.CLASSIFYING, reason="forced_for_test")
+    sm.transition(case, CaseState.ESCALATED, reason="forced_for_test")
+    return case
 
 
 # ── open_case ─────────────────────────────────────────────────────────────────
@@ -86,17 +101,21 @@ class TestClassifyCase:
         assert case.confidence is not None
         assert case.confidence >= 0.85
 
-    def test_unknown_topic_transitions_to_escalated(self):
+    def test_unknown_topic_transitions_to_triage_complete(self):
+        # Per flow_diagram.mermaid (CLASSIFIER --> SLOTEXTRACT): UNKNOWN-topic
+        # tickets must NOT be escalated immediately. They proceed to TRIAGE_COMPLETE
+        # so that Slot Extraction / Clarification can collect more context.
         svc  = _service()
         case = svc.open_case("TKT-001", "unity_bank")
         svc.classify_case(case, "I want to know about your mortgage rates please.")
-        assert case.current_state == CaseState.ESCALATED
+        assert case.current_state == CaseState.TRIAGE_COMPLETE
 
-    def test_unknown_topic_sets_escalation_reason(self):
+    def test_unknown_topic_does_not_set_escalation_reason(self):
+        # UNKNOWN topic is NOT an escalation trigger — it proceeds to clarification.
         svc  = _service()
         case = svc.open_case("TKT-001", "unity_bank")
         svc.classify_case(case, "I want to know about your mortgage rates please.")
-        assert case.escalation_reason is not None
+        assert case.escalation_reason is None
 
     def test_vkyc_topic_classified_correctly(self):
         svc  = _service()
@@ -154,8 +173,9 @@ class TestEvaluateRagResult:
     def test_already_escalated_case_not_double_escalated(self):
         svc  = _service()
         case = svc.open_case("TKT-001", "unity_bank")
-        # Force it to ESCALATED first
-        svc.classify_case(case, "Unknown request text here.")
+        # Force case to ESCALATED via state machine (not via classify_case with UNKNOWN,
+        # since UNKNOWN now proceeds to TRIAGE_COMPLETE for clarification per blueprint).
+        _force_escalated(case)
         assert case.current_state == CaseState.ESCALATED
 
         # A subsequent no_match should not change anything
@@ -195,7 +215,9 @@ class TestResolveCase:
     def test_escalated_case_not_resolved(self):
         svc  = _service()
         case = svc.open_case("TKT-001", "unity_bank")
-        svc.classify_case(case, "Unknown unrecognized complaint text.")
+        # Force case to ESCALATED via state machine (not via classify_case with UNKNOWN,
+        # since UNKNOWN now proceeds to TRIAGE_COMPLETE for clarification per blueprint).
+        _force_escalated(case)
         assert case.current_state == CaseState.ESCALATED
         svc.resolve_case(case, reason="note_posted")
         # ESCALATED is not in allowed pre-RESOLVED states — should stay ESCALATED

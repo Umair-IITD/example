@@ -42,6 +42,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import traceback as _traceback
 from datetime import datetime, timezone
 from typing import Any
 
@@ -119,6 +120,15 @@ async def freshdesk_ticket_created(
     )
     # ─────────────────────────────────────────────────────────────────────────
 
+    # TRACE_ENTER_ROUTE — always emits at WARNING; proves route was reached and JSON parsed
+    LOGGER.warning(
+        "TRACE_ENTER_ROUTE event=ticket_created payload_format=%s outer_keys=%s",
+        "format_a" if "freshdesk_webhook" in payload
+        else "format_b" if isinstance(payload.get("ticket"), dict)
+        else "unknown",
+        sorted(payload.keys()),
+    )
+
     # 3. HMAC verification WITH event_timestamp (replay protection now active)
     inner = payload.get("freshdesk_webhook", payload)
 
@@ -143,8 +153,13 @@ async def freshdesk_ticket_created(
     )
     # ─────────────────────────────────────────────────────────────────────────
 
-    # Extract timestamp: check both "created_at" (canonical) and "ticket_created_at"
-    event_ts_str = inner.get("created_at") or inner.get("ticket_created_at") or ""
+    # Extract timestamp: check "created_at", "ticket_created_at", and Format B nested ticket.created_at
+    event_ts_str = (
+        inner.get("created_at")
+        or inner.get("ticket_created_at")
+        or (inner.get("ticket") or {}).get("created_at")
+        or ""
+    )
     event_timestamp = _parse_iso_timestamp(event_ts_str)
 
     verifier = _get_verifier(request)
@@ -166,11 +181,46 @@ async def freshdesk_ticket_created(
     # 4. Pre-persist receipt (WAL) — durably written to Supabase before 200 is returned.
     #    If the process crashes before the background task processes this event,
     #    the RECEIVED record in Supabase proves the event was received.
-    # Extract ticket_id: check "id" (canonical) then "ticket_id" (Dispatch'r template variant)
+    #
+    # Ticket ID extraction — three formats supported:
+    #   A) freshdesk_webhook flat:  inner.ticket_id  (int)
+    #   B) Dispatch'r nested:       inner is full payload → inner["ticket"]["id"]
+    #   C) Generic canonical:       inner.id
     _raw_tid = inner.get("id")
     if _raw_tid is None:
-        _raw_tid = inner.get("ticket_id", "")
-    ticket_id = str(_raw_tid) if _raw_tid is not None else ""
+        _raw_tid = inner.get("ticket_id")
+    if _raw_tid is None:
+        _ticket_nested = inner.get("ticket")
+        if isinstance(_ticket_nested, dict):
+            _raw_tid = _ticket_nested.get("id") or _ticket_nested.get("ticket_id")
+    ticket_id = str(_raw_tid) if _raw_tid else ""
+
+    # TRACE_PAYLOAD_01_ROUTE — deterministic proof that the raw payload reached the route
+    _subject_hint = (
+        inner.get("subject") or inner.get("ticket_subject")
+        or (inner.get("ticket") or {}).get("subject") or ""
+    )[:60]
+    _email_hint = (
+        inner.get("requester_email") or inner.get("ticket_contact_email")
+        or (inner.get("requester") or {}).get("email") or ""
+    )
+    _email_domain = _email_hint.split("@")[-1] if "@" in _email_hint else ""
+    _cf_client_hint = (
+        (inner.get("ticket_custom_fields") or inner.get("custom_fields") or {}).get("cf_clients")
+        or inner.get("ticket_cf_clients")
+        or ""
+    )
+    LOGGER.warning(
+        "TRACE_PAYLOAD_01_ROUTE ticket_id=%s subject=%r email_domain=%s cf_clients=%r "
+        "outer_keys=%s inner_keys=%s",
+        ticket_id,
+        _subject_hint,
+        _email_domain,
+        _cf_client_hint,
+        sorted(payload.keys()),
+        sorted(inner.keys()) if isinstance(inner, dict) else [],
+    )
+
     idem_key = WebhookIdempotencyStore.make_key(ticket_id, "ticket_created", event_ts_str)
     _pre_persist(request, idem_key, ticket_id, "ticket_created", event_ts_str)
 
@@ -266,11 +316,15 @@ async def freshdesk_ticket_updated(
                 media_type="application/json",
             )
 
-    # Extract ticket_id: check "id" (canonical) then "ticket_id" (Dispatch'r template variant)
+    # Extract ticket_id — same three-format logic as ticket-created
     _raw_tid = inner.get("id")
     if _raw_tid is None:
-        _raw_tid = inner.get("ticket_id", "")
-    ticket_id = str(_raw_tid) if _raw_tid is not None else ""
+        _raw_tid = inner.get("ticket_id")
+    if _raw_tid is None:
+        _ticket_nested = inner.get("ticket")
+        if isinstance(_ticket_nested, dict):
+            _raw_tid = _ticket_nested.get("id") or _ticket_nested.get("ticket_id")
+    ticket_id = str(_raw_tid) if _raw_tid else ""
     idem_key = WebhookIdempotencyStore.make_key(ticket_id, "ticket_updated", event_ts_str)
     _pre_persist(request, idem_key, ticket_id, "ticket_updated", event_ts_str)
 
@@ -293,6 +347,11 @@ async def _process_ticket_created(request: Request, payload: dict[str, Any]) -> 
     silently dropped. Human agents can then review and act. Automation is
     never executed for unknown tenants.
     """
+    # TRACE_ENTER_BACKGROUND_TASK — always emits at WARNING; proves background task started
+    LOGGER.warning(
+        "TRACE_ENTER_BACKGROUND_TASK event=ticket_created payload_keys=%s",
+        sorted(payload.keys()),
+    )
     handler = _get_created_handler(request)
     if handler is None:
         LOGGER.warning("freshdesk.bg.ticket_created: no handler available (offline mode)")
@@ -305,6 +364,23 @@ async def _process_ticket_created(request: Request, payload: dict[str, Any]) -> 
                 "freshdesk.bg.ticket_created: done ticket_id=%s case_id=%s skipped=%s",
                 result.ticket_id, result.case_id, result.skipped,
             )
+            if not result.skipped and result.response_draft:
+                _resp_svc = _get_response_service(request)
+                if _resp_svc is not None:
+                    await _resp_svc.send_customer_reply(
+                        result.ticket_id,
+                        result.response_draft,
+                        case_id=result.case_id or "",
+                    )
+                    LOGGER.warning(
+                        "RETURN_CUSTOMER_REPLY_SENT ticket_id=%s case_id=%s",
+                        result.ticket_id, result.case_id,
+                    )
+                else:
+                    LOGGER.warning(
+                        "RETURN_NO_RESPONSE_SERVICE ticket_id=%s",
+                        result.ticket_id,
+                    )
         else:
             LOGGER.warning(
                 "freshdesk.bg.ticket_created: FAILED ticket_id=%s error_code=%s",
@@ -340,7 +416,10 @@ async def _process_ticket_created(request: Request, payload: dict[str, Any]) -> 
                     )
 
     except Exception as exc:
-        LOGGER.error("freshdesk.bg.ticket_created: unhandled error=%s", exc)
+        LOGGER.warning(
+            "TRACE_BG_EXCEPTION event=ticket_created error=%s traceback=%s",
+            exc, _traceback.format_exc(),
+        )
 
 
 async def _process_ticket_updated(request: Request, payload: dict[str, Any]) -> None:
@@ -362,16 +441,41 @@ async def _process_ticket_updated(request: Request, payload: dict[str, Any]) -> 
     try:
         result = handler.handle(payload)
         LOGGER.info(
-            "freshdesk.bg.ticket_updated: done ticket_id=%s action=%s skipped=%s",
-            result.ticket_id, result.action, result.skipped,
+            "freshdesk.bg.ticket_updated: done ticket_id=%s action=%s skipped=%s has_draft=%s",
+            result.ticket_id, result.action, result.skipped, result.response_draft is not None,
         )
 
-        # Clarification Loop: customer reply → trigger follow-up RAG response
-        if result.action == "customer_reply" and result.ticket_id and not result.skipped:
-            await _handle_clarification_reply(request, payload, result.ticket_id)
+        if not result.skipped and result.action == "customer_reply" and result.ticket_id:
+            if result.response_draft:
+                # BLOCKER 4 FIX: Pass 2 orchestrator produced a response draft
+                # (clarification loop continued or workflow produced a reply).
+                # Send it back to the customer via Freshdesk — same path as Pass 1.
+                _resp_svc = _get_response_service(request)
+                if _resp_svc is not None:
+                    await _resp_svc.send_customer_reply(
+                        result.ticket_id,
+                        result.response_draft,
+                        case_id=result.case_id or "",
+                    )
+                    LOGGER.warning(
+                        "RETURN_CUSTOMER_REPLY_SENT_PASS2 ticket_id=%s case_id=%s",
+                        result.ticket_id, result.case_id,
+                    )
+                else:
+                    LOGGER.warning(
+                        "RETURN_NO_RESPONSE_SERVICE_PASS2 ticket_id=%s",
+                        result.ticket_id,
+                    )
+            else:
+                # No orchestrator draft (e.g. orchestrator not wired, or still awaiting).
+                # Fall back to the legacy RAG clarification processor if available.
+                await _handle_clarification_reply(request, payload, result.ticket_id)
 
     except Exception as exc:
-        LOGGER.error("freshdesk.bg.ticket_updated: unhandled error=%s", exc)
+        LOGGER.warning(
+            "TRACE_BG_EXCEPTION event=ticket_updated error=%s traceback=%s",
+            exc, _traceback.format_exc(),
+        )
 
 
 async def _handle_clarification_reply(

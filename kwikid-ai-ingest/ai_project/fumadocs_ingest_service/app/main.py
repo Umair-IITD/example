@@ -586,6 +586,45 @@ def _build_lifespan(*, skip_config_validation: bool = False):
                         _app.state.case_service._wf_engine = _wf_eng
                         _LOGGER_PRE.info("sprint226_case_service_workflow_engine_upgraded")
 
+                # Sprint 2.30.1 — Wire HybridRAGProvider into KnowledgeOrchestrator
+                # KnowledgeOrchestrator._rag_provider defaults to None → placeholder evidence.
+                # Inject the real retriever adapter so RAG retrieval actually executes.
+                _ko = getattr(_app.state, "knowledge_orchestrator", None)
+                if (
+                    _ko is not None
+                    and _generator_singleton is not None
+                    and hasattr(_generator_singleton, "_retriever")
+                    and _generator_singleton._retriever is not None
+                ):
+                    try:
+                        from case_engine.knowledge.rag_adapter import HybridRAGProvider  # noqa: PLC0415
+                        _default_tenant = os.getenv("DEFAULT_RAG_TENANT", "unity")
+                        _ko._rag_provider = HybridRAGProvider(
+                            retriever=_generator_singleton._retriever,
+                            default_tenant=_default_tenant,
+                        )
+                        _LOGGER_PRE.info(
+                            "sprint2301_rag_provider_wired retriever=%s tenant=%s",
+                            type(_generator_singleton._retriever).__name__,
+                            _default_tenant,
+                        )
+                    except Exception as _rag_exc:  # noqa: BLE001
+                        _LOGGER_PRE.warning(
+                            "sprint2301_rag_provider_wire_failed error=%s — KnowledgeOrchestrator stays placeholder",
+                            _rag_exc,
+                        )
+
+                # Sprint 2.30.1 — Upgrade WorkflowEngine to use KnowledgeOrchestrator
+                # WorkflowEngine was built before KnowledgeOrchestrator in assembly.py (step 8 vs 12).
+                # Patch it now that both are on app.state so the full pipeline executes.
+                _wf_eng = getattr(_app.state, "workflow_engine", None)
+                _ko = getattr(_app.state, "knowledge_orchestrator", None)
+                if _wf_eng is not None and _ko is not None:
+                    _wf_eng._knowledge_service = _ko
+                    _LOGGER_PRE.info(
+                        "sprint2301_workflow_engine_knowledge_upgraded to=KnowledgeOrchestrator"
+                    )
+
             _LOGGER_PRE.info("action_gateway_initialized")
         except Exception as _gw_exc:  # noqa: BLE001
             _LOGGER_PRE.warning(
@@ -639,6 +678,14 @@ def _build_lifespan(*, skip_config_validation: bool = False):
 
             _fd_conv_store = ConversationStateStore(supabase_client=_sb_singleton)
             _app.state.freshdesk_conversation_store = _fd_conv_store
+
+            # Sprint 2.31: Dedicated case_engine.audit.AuditLogger for Freshdesk handlers.
+            # handlers.py._audit_event() calls self._audit._write(AuditEntry), which is
+            # the case_engine.audit.AuditLogger interface.  app.state.audit_logger is the
+            # Action Gateway's audit.logger.AuditLogger (emit() interface) — wrong type.
+            # These two audit subsystems are independent; create a separate instance here.
+            from case_engine.audit import AuditLogger as _CaseEngineAuditLogger  # noqa: PLC0415
+            _fd_case_audit_logger = _CaseEngineAuditLogger(supabase_client=_sb_singleton)
 
             # ── Sprint 2.29.2: DB table existence probe ────────────────────────
             # Verify that S2_028_freshdesk_foundation.sql has been applied.
@@ -762,21 +809,23 @@ def _build_lifespan(*, skip_config_validation: bool = False):
                 conversation_store=_fd_conv_store,
                 ticket_orchestrator=getattr(_app.state, "ticket_orchestrator", None),
                 client_resolver=getattr(_app.state, "client_resolver", None),
-                audit_logger=getattr(_app.state, "audit_logger", None),
+                audit_logger=_fd_case_audit_logger,
                 metrics_collector=None,
             )
 
             _app.state.freshdesk_ticket_updated_handler = FreshdeskTicketUpdatedHandler(
                 idempotency_store=_fd_idem_store,
                 conversation_store=_fd_conv_store,
-                audit_logger=getattr(_app.state, "audit_logger", None),
+                ticket_orchestrator=getattr(_app.state, "ticket_orchestrator", None),
+                audit_logger=_fd_case_audit_logger,
                 metrics_collector=None,
             )
 
             _LOGGER_PRE.info(
                 "sprint2291_freshdesk_services_wired "
                 "verifier=%s idem=ok conv=ok resp_svc=%s "
-                "rag_proc=%s orchestrator=%s client_resolver=%s handlers=ok",
+                "rag_proc=%s orchestrator=%s client_resolver=%s "
+                "case_audit_logger=ok handlers=ok",
                 "ok(%s)" % _fd_webhook_mode if _fd_webhook_secret else "SKIPPED(no secret)",
                 "ok" if _fd_client is not None else "SKIPPED(no creds)",
                 "ok" if _app.state.freshdesk_rag_processor is not None else "SKIPPED(no creds)",

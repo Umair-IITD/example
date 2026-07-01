@@ -383,11 +383,23 @@ def _build_workflow_services(
     except Exception as exc:
         _LOG.warning("assembly: investigation_service failed to build error=%s", exc)
 
-    # 3. KnowledgeService
+    # 3. KnowledgeService — seeded with built-in SOP entries at startup
     try:
         from case_engine.knowledge import build_knowledge_service  # noqa: PLC0415
-        result["knowledge_service"] = build_knowledge_service(audit_logger=audit_logger)
-        _LOG.info("assembly: knowledge_service wired")
+        from case_engine.knowledge.models import (  # noqa: PLC0415
+            KnowledgeEntry,
+            KnowledgeEntryStatus,
+            KnowledgeEntryType,
+        )
+        _seed_entries = _build_seed_knowledge_entries()
+        result["knowledge_service"] = build_knowledge_service(
+            seed_entries=_seed_entries,
+            audit_logger=audit_logger,
+        )
+        _LOG.info(
+            "assembly: knowledge_service wired seed_entries=%d",
+            len(_seed_entries),
+        )
     except Exception as exc:
         _LOG.warning("assembly: knowledge_service failed to build error=%s", exc)
 
@@ -478,7 +490,11 @@ def _build_workflow_services(
                 action_gateway=gateway,
             )
             cs._wf_engine = wf_eng
-            cs._audit     = audit_logger
+            # DO NOT overwrite cs._audit here.
+            # build_case_service() creates case_engine.audit.AuditLogger (which has
+            # log_transition() and log_classification()). The audit_logger variable
+            # here is audit.logger.AuditLogger (Action Gateway logger), which has
+            # only emit() — wrong interface for CaseService.
             result["case_service"] = cs
             _LOG.info("assembly: case_service wired workflow_engine=%s", result["workflow_engine"] is not None)
     except Exception as exc:
@@ -590,3 +606,248 @@ def _build_workflow_services(
         _LOG.warning("assembly: ticket_orchestrator failed to build error=%s", exc)
 
     return result
+
+
+def _build_seed_knowledge_entries() -> list:
+    """
+    Build the startup KnowledgeEntry seed list from the approved support SOP playbook.
+
+    Source: SUPPORT_OPERATIONS_BLUEPRINT.md (Section 31, Knowledge System) and the
+    5 known KwikID support topics described there and in the flow_diagram.mermaid.
+
+    This function is deterministic — it always produces the same entries.
+    Adding a real StackOverflow Teams JSON export via StackOverflowImporter in the
+    future is purely additive: pass its output alongside these entries.
+
+    Returns a list[KnowledgeEntry] ready for build_knowledge_service(seed_entries=...).
+    """
+    from case_engine.knowledge.models import (  # noqa: PLC0415
+        KnowledgeEntry,
+        KnowledgeEntryStatus,
+        KnowledgeEntryType,
+    )
+
+    CREATED_AT = "2024-01-01T00:00:00Z"
+
+    entries = [
+        # ── 1. VKYC Session Failure ───────────────────────────────────────────
+        KnowledgeEntry(
+            entry_id="seed-vkyc-expired-session",
+            title="VKYC Session Reset — Expired or Timed-Out Session",
+            body=(
+                "A Video KYC session has expired or timed out before the user "
+                "could complete identification. "
+                "The session logs show EXPIRED_SESSION or session_timeout errors. "
+                "Resolution: reset the session from the Admin Portal so the user "
+                "can restart their VKYC journey without repeating completed steps."
+            ),
+            entry_type=KnowledgeEntryType.SOP,
+            tags=("vkyc", "session_reset", "expired_session", "session_timeout", "kyc"),
+            topic_keys=("VKYC_Session_Failure",),
+            root_cause_categories=("EXPIRED_SESSION", "TIMEOUT"),
+            recommended_actions=("SESSION_RESET",),
+            resolution_steps=(
+                "1. Navigate to the Admin Portal and locate the session by Session ID or URN.",
+                "2. Verify the session status shows EXPIRED or TIMED_OUT.",
+                "3. Click 'Reset Session' to restore the session to an in-progress state.",
+                "4. Confirm the reset succeeded — session status should change to ACTIVE.",
+                "5. Notify the user that their session has been reset and they may retry.",
+                "6. Add an internal note to the Freshdesk ticket with Session ID and outcome.",
+            ),
+            source="manual",
+            source_id="sop-vkyc-001",
+            accepted_answer=True,
+            score=20,
+            created_at=CREATED_AT,
+            status=KnowledgeEntryStatus.ACTIVE,
+        ),
+        KnowledgeEntry(
+            entry_id="seed-vkyc-liveness-failure",
+            title="VKYC Session Failure — Liveness Check Rejected",
+            body=(
+                "The KYC session failed because the liveness detection algorithm rejected "
+                "the user's video. This can occur due to poor camera quality, low lighting, "
+                "background motion, or the user not following liveness instructions. "
+                "If liveness_failure or LIVENESS_FAILURE appears in session logs, "
+                "advise the user to retry in better lighting and escalate if repeated failures occur."
+            ),
+            entry_type=KnowledgeEntryType.KNOWN_ISSUE,
+            tags=("vkyc", "liveness", "liveness_failure", "kyc", "manual_review"),
+            topic_keys=("VKYC_Session_Failure",),
+            root_cause_categories=("LIVENESS_FAILURE",),
+            recommended_actions=("SESSION_RESET", "MANUAL_REVIEW"),
+            resolution_steps=(
+                "1. Open the session summary and confirm the VKYC_OUTCOME is REJECTED.",
+                "2. Check the session logs for LIVENESS_FAILURE entries.",
+                "3. Review the video recording for environmental issues (lighting, motion, audio).",
+                "4. If user error: reset session and advise user on retry conditions.",
+                "5. If technical liveness engine issue: escalate to engineering with session ID and video evidence.",
+            ),
+            source="manual",
+            source_id="sop-vkyc-002",
+            accepted_answer=True,
+            score=15,
+            created_at=CREATED_AT,
+            status=KnowledgeEntryStatus.ACTIVE,
+        ),
+
+        # ── 2. OTP Delivery Failure ───────────────────────────────────────────
+        KnowledgeEntry(
+            entry_id="seed-otp-sms-delivery-failure",
+            title="OTP Delivery Failure — SMS Not Received by User",
+            body=(
+                "The user reports not receiving the OTP SMS. "
+                "Logs show GENERATE_OTP succeeded but SEND_SMS failed or returned a "
+                "provider timeout. This is an SMS_DELIVERY_FAILURE root cause. "
+                "Resolution: resend the OTP. If repeated failures occur for the same number, "
+                "check carrier blacklists or switch to email OTP delivery."
+            ),
+            entry_type=KnowledgeEntryType.SOP,
+            tags=("otp", "sms", "sms_failure", "sms_delivery", "otp_resend"),
+            topic_keys=("OTP_Delivery_Failure",),
+            root_cause_categories=("SMS_DELIVERY_FAILURE",),
+            recommended_actions=("OTP_RESEND",),
+            resolution_steps=(
+                "1. Locate the user by URN and confirm the phone number on record.",
+                "2. Check the SEND_SMS log entry — confirm OTP was generated but SMS dispatch failed.",
+                "3. Verify the phone number format (country code, no spaces, valid digits).",
+                "4. Trigger OTP Resend via the Admin Portal or Identity Reset API.",
+                "5. Confirm the user receives the new OTP.",
+                "6. If resend still fails, escalate to SMS provider or switch delivery channel.",
+                "7. Add internal Freshdesk note documenting the failure and resend outcome.",
+            ),
+            source="manual",
+            source_id="sop-otp-001",
+            accepted_answer=True,
+            score=18,
+            created_at=CREATED_AT,
+            status=KnowledgeEntryStatus.ACTIVE,
+        ),
+        KnowledgeEntry(
+            entry_id="seed-otp-quota-exceeded",
+            title="OTP Delivery Failure — Quota Exceeded or Rate Limited",
+            body=(
+                "OTP delivery is failing for multiple users simultaneously. "
+                "Logs show QUOTA_EXCEEDED or provider rate-limit responses on SEND_SMS. "
+                "This is a platform-wide SMS quota issue rather than a single-user failure. "
+                "Escalate to engineering immediately and pause OTP-dependent onboarding workflows."
+            ),
+            entry_type=KnowledgeEntryType.RUNBOOK,
+            tags=("otp", "sms", "quota_exceeded", "escalate"),
+            topic_keys=("OTP_Delivery_Failure",),
+            root_cause_categories=("QUOTA_EXCEEDED",),
+            recommended_actions=("ESCALATE",),
+            resolution_steps=(
+                "1. Confirm quota_exceeded in SEND_SMS logs for multiple sessions.",
+                "2. Do NOT attempt individual OTP resends — they will also fail.",
+                "3. Escalate immediately to engineering with log timestamps and affected user count.",
+                "4. Engineering contacts SMS provider to reset quota or failover to backup provider.",
+                "5. Once resolved, bulk-resend OTPs for affected users.",
+                "6. Update Freshdesk tickets for all affected users with resolution note.",
+            ),
+            source="manual",
+            source_id="sop-otp-002",
+            accepted_answer=True,
+            score=12,
+            created_at=CREATED_AT,
+            status=KnowledgeEntryStatus.ACTIVE,
+        ),
+
+        # ── 3. Document OCR Failure ───────────────────────────────────────────
+        KnowledgeEntry(
+            entry_id="seed-ocr-document-failure",
+            title="Document OCR Failure — PAN or Aadhaar Extraction Failed",
+            body=(
+                "The document OCR pipeline failed to extract identity data from a PAN card "
+                "or Aadhaar. Logs show PAN_VALIDATION or AADHAAR_VALIDATION failure events. "
+                "Root cause is typically DOCUMENT_FAILURE due to image quality, glare, or "
+                "damaged documents. Resolution: ask user to re-upload a clearer photo or "
+                "trigger an OCR retry if the system supports it."
+            ),
+            entry_type=KnowledgeEntryType.SOP,
+            tags=("ocr", "document", "pan", "aadhaar", "document_ocr", "document_failure"),
+            topic_keys=("Document_OCR_Failure",),
+            root_cause_categories=("DOCUMENT_FAILURE",),
+            recommended_actions=("RETRY", "MANUAL_REVIEW"),
+            resolution_steps=(
+                "1. Identify the failed document type from logs (PAN_VALIDATION vs AADHAAR_VALIDATION).",
+                "2. Check the DMS_OPERATION_LOG for the uploaded image — confirm it was received.",
+                "3. Review OCR confidence score in the session summary.",
+                "4. If confidence < threshold: ask user to re-upload a clearer, unobstructed photo.",
+                "5. If document is valid but OCR repeatedly fails: trigger manual document review.",
+                "6. Record the session ID and document type in the Freshdesk internal note.",
+            ),
+            source="manual",
+            source_id="sop-ocr-001",
+            accepted_answer=True,
+            score=16,
+            created_at=CREATED_AT,
+            status=KnowledgeEntryStatus.ACTIVE,
+        ),
+
+        # ── 4. Agent Portal Issue ─────────────────────────────────────────────
+        KnowledgeEntry(
+            entry_id="seed-portal-unavailable",
+            title="Agent Portal Issue — Portal Unavailable or Unresponsive",
+            body=(
+                "The Support Admin Portal is returning errors or is inaccessible to agents. "
+                "This blocks all investigation steps that require portal access. "
+                "Root cause is PORTAL_UNAVAILABLE — typically a backend service outage or "
+                "maintenance window. Agents should refresh the portal; if the issue persists, "
+                "escalate to the portal infrastructure team."
+            ),
+            entry_type=KnowledgeEntryType.RUNBOOK,
+            tags=("portal", "agent_portal", "portal_unavailable", "portal_refresh", "portal_down"),
+            topic_keys=("Agent_Portal_Issue",),
+            root_cause_categories=("PORTAL_UNAVAILABLE",),
+            recommended_actions=("PORTAL_REFRESH", "ESCALATE"),
+            resolution_steps=(
+                "1. Confirm the portal issue by attempting to load the portal in a new browser tab.",
+                "2. Check the portal status page or internal status channel for outage notices.",
+                "3. If transient: wait 2 minutes and refresh — most portal blips self-resolve.",
+                "4. If persistent (>5 minutes): escalate to portal infrastructure team with timestamp.",
+                "5. Queue any active investigations — do not attempt manual workarounds that bypass the portal.",
+                "6. Once portal is restored, continue queued investigations and update affected tickets.",
+            ),
+            source="manual",
+            source_id="sop-portal-001",
+            accepted_answer=True,
+            score=14,
+            created_at=CREATED_AT,
+            status=KnowledgeEntryStatus.ACTIVE,
+        ),
+
+        # ── 5. API Callback Failure ───────────────────────────────────────────
+        KnowledgeEntry(
+            entry_id="seed-api-callback-failure",
+            title="API Callback Failure — Webhook Not Delivered to Client System",
+            body=(
+                "A KYC completion or status callback was not delivered to the client's system. "
+                "CALLBACK_EVENTS logs show the callback was dispatched but no acknowledgement "
+                "was received, or the endpoint returned an error. "
+                "Root cause is CALLBACK_FAILURE. Resolution: retry the callback or investigate "
+                "the client's endpoint availability."
+            ),
+            entry_type=KnowledgeEntryType.SOP,
+            tags=("callback", "api", "webhook", "callback_failure", "callback_retry", "api_failure"),
+            topic_keys=("API_Callback_Failure",),
+            root_cause_categories=("CALLBACK_FAILURE",),
+            recommended_actions=("CALLBACK_RETRY", "ESCALATE"),
+            resolution_steps=(
+                "1. Locate the CALLBACK_EVENTS log for the affected session — note the endpoint URL and HTTP status.",
+                "2. Confirm whether the client endpoint was unreachable (timeout) or returned an error (4xx/5xx).",
+                "3. If client endpoint was temporarily unreachable: trigger callback retry via Admin Portal.",
+                "4. If client endpoint returned a 4xx error: notify the client's integration team.",
+                "5. If callback delivery has been failing for >1 hour: escalate to engineering.",
+                "6. Document the callback URL, failure status, and retry outcome in the Freshdesk note.",
+            ),
+            source="manual",
+            source_id="sop-callback-001",
+            accepted_answer=True,
+            score=17,
+            created_at=CREATED_AT,
+            status=KnowledgeEntryStatus.ACTIVE,
+        ),
+    ]
+
+    return entries

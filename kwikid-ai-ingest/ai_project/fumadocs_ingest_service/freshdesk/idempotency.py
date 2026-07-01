@@ -20,6 +20,7 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
@@ -27,6 +28,18 @@ LOGGER = logging.getLogger(__name__)
 
 _DEFAULT_TTL = 3600  # 1 hour in-memory retention
 _TABLE = "freshdesk_webhook_events"
+
+
+def _coerce_timestamp(ts: str) -> str:
+    """
+    Return ts unchanged if non-empty. When Freshdesk omits the event timestamp
+    (Format B Dispatch'r payloads have no top-level created_at), substitute the
+    current UTC time so the NOT NULL TIMESTAMPTZ column is always satisfied.
+
+    The DB schema requires a valid timestamp; an empty string causes:
+      "invalid input syntax for type timestamp with time zone: ''"
+    """
+    return ts if ts else datetime.now(timezone.utc).isoformat()
 
 
 class IdempotencyStatus(str, Enum):
@@ -168,7 +181,7 @@ class WebhookIdempotencyStore:
                 "idempotency_key":   key,
                 "ticket_id":         ticket_id,
                 "event_type":        event_type,
-                "event_timestamp":   event_timestamp,
+                "event_timestamp":   _coerce_timestamp(event_timestamp),
                 "processing_status": IdempotencyStatus.RECEIVED.value,
             }
             # INSERT — not upsert. If the key already exists (any status), the
@@ -206,12 +219,11 @@ class WebhookIdempotencyStore:
 
     def _db_insert(self, entry: IdempotencyEntry) -> None:
         try:
-            from datetime import datetime, timezone
             row = {
                 "idempotency_key":  entry.key,
                 "ticket_id":        entry.ticket_id,
                 "event_type":       entry.event_type,
-                "event_timestamp":  entry.event_timestamp,
+                "event_timestamp":  _coerce_timestamp(entry.event_timestamp),
                 "processing_status": entry.status.value,
             }
             self._sb.table(_TABLE).upsert(row).execute()
