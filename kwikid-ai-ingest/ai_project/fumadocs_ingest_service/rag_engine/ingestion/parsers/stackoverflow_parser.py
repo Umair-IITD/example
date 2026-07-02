@@ -6,20 +6,20 @@ objects ready for downstream classification, PII redaction, and embedding.
 
 Export files expected:
   posts.json          — questions + answers (1,639 posts in Think360 export)
-  comments.json       — 185 comments keyed by parentPostId
+  comments.json       — 192 comments keyed by postId
   posts2votes.json    — 838 vote records keyed by postId
   tags.json           — 484 tags with usage counts
   (users / badges files are ignored — never embedded)
 
 Output:
-  list[KnowledgeArticle] — one per question, best answer already selected
+  list[KnowledgeArticle] — one per question, ALL answers included
 
 Design decisions:
   - Defensive parsing: all dict access uses .get() with safe defaults
   - Every field is explicitly validated before use
   - No exception propagates from _parse_single_post — errors are counted
-  - All HTML stripped from bodyMarkdown before storage
-  - Comments appended to answer body (top 3 by score, for context richness)
+  - All answers included: accepted first, then by score descending, separated by ---
+  - Comments included for question AND all answers (no cap — corpus has 192 total)
   - Image classification and OCR metadata are attached to every ImageReference
     (OCR text is populated later during migration ingestion, not here)
 """
@@ -208,8 +208,8 @@ class StackOverflowParser:
         print(f"Parsed {len(articles)} articles")
     """
 
-    # Maximum number of top comments to append to the answer body
-    _MAX_COMMENTS = 3
+    # Minimum comment length to include (filters "thanks!" noise)
+    _MIN_COMMENT_CHARS = 20
 
     # Cached OCR engine — loaded once per process, reused for all images.
     # RapidOCR loads ONNX models on first instantiation (~2-3s); reloading
@@ -333,27 +333,59 @@ class StackOverflowParser:
             accepted_id = None
         tags_raw    = _parse_tags(question)
 
-        # Select best answer
-        answers     = export.answer_map.get(post_id, [])
-        best_answer = self._select_best_answer(answers, accepted_id)
+        # Include question-level comments in question body
+        q_comments = export.comment_map.get(post_id, [])
+        q_comment_text = self._format_comments(q_comments)
+        if q_comment_text:
+            question_markdown = question_markdown + q_comment_text
+
+        # Collect ALL valid answers sorted: accepted first, then score desc, then ID
+        all_answers = export.answer_map.get(post_id, [])
+        valid_answers = sorted(
+            [a for a in all_answers if a.get("postState", "Published") != "Deleted"],
+            key=lambda a: (
+                1 if (accepted_id is not None and a.get("id") == accepted_id) else 0,
+                int(a.get("score", 0)),
+                int(a.get("id", 0)),
+            ),
+            reverse=True,
+        )
 
         answer_body: Optional[str] = None
         answer_markdown: Optional[str] = None
         answer_post_id: Optional[int] = None
         answer_score: int = 0
+        answer_parts: list[str] = []
+        answer_md_parts: list[str] = []
 
-        if best_answer is not None:
-            answer_md = _normalize_markdown(str(best_answer.get("bodyMarkdown", "") or "")).strip()
-            answer_html = _normalize_markdown(_clean_text(str(best_answer.get("body", "")))).strip()
-            a_body = answer_md or answer_html
-            if a_body:
-                # Append top comments to answer body for extra context
-                comments = export.comment_map.get(best_answer.get("id", -1), [])
-                comment_text = self._format_top_comments(comments)
-                answer_body    = (a_body + comment_text) if comment_text else a_body
-                answer_markdown = answer_md if answer_md else a_body
-                answer_post_id = best_answer.get("id")
-                answer_score   = int(best_answer.get("score", 0))
+        for i, ans in enumerate(valid_answers):
+            ans_md   = _normalize_markdown(str(ans.get("bodyMarkdown", "") or "")).strip()
+            ans_html = _normalize_markdown(_clean_text(str(ans.get("body", "")))).strip()
+            a_text   = ans_md or ans_html
+            if not a_text:
+                continue
+
+            # Include all comments for this specific answer
+            ans_comments = export.comment_map.get(ans.get("id", -1), [])
+            comment_text = self._format_comments(ans_comments)
+            if comment_text:
+                a_text = a_text + comment_text
+
+            answer_md_parts.append(ans_md or a_text)
+
+            if i == 0:
+                # Primary answer: carry metadata for article record
+                answer_post_id = ans.get("id")
+                answer_score   = int(ans.get("score", 0))
+                answer_parts.append(a_text)
+            else:
+                score  = int(ans.get("score", 0))
+                header = f"Additional Answer (score={score}):" if score > 0 else "Additional Answer:"
+                answer_parts.append(f"{header}\n{a_text}")
+
+        if answer_parts:
+            answer_body     = "\n\n---\n\n".join(answer_parts)
+            answer_markdown = "\n\n".join(answer_md_parts)
 
         article_type = "qa_pair" if answer_body else "question_only"
         canonical_url = _extract_canonical_url(question, post_id)
@@ -620,23 +652,23 @@ class StackOverflowParser:
             return None
         return max(valid, key=lambda a: (int(a.get("score", 0)), int(a.get("id", 0))))
 
-    def _format_top_comments(self, comments: list[dict]) -> str:
-        """Format top N comments as a brief addendum to the answer body."""
+    def _format_comments(self, comments: list[dict]) -> str:
+        """Format all substantive comments as an addendum. Sorted by score desc."""
         if not comments:
             return ""
-        scored = sorted(
-            comments,
-            key=lambda c: int(c.get("score", 0)),
-            reverse=True,
-        )[:self._MAX_COMMENTS]
+        scored = sorted(comments, key=lambda c: int(c.get("score", 0)), reverse=True)
         parts = []
         for c in scored:
             text = _normalize_markdown(str(c.get("bodyMarkdown", "") or c.get("body", ""))).strip()
-            if text and len(text) > 20:
+            if text and len(text) >= self._MIN_COMMENT_CHARS:
                 parts.append(f"  - {text}")
         if not parts:
             return ""
-        return "\n\nRelated comments:\n" + "\n".join(parts)
+        return "\n\nComments:\n" + "\n".join(parts)
+
+    def _format_top_comments(self, comments: list[dict]) -> str:
+        """Kept for backward compatibility — delegates to _format_comments."""
+        return self._format_comments(comments)
 
 
 # ---------------------------------------------------------------------------
