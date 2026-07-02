@@ -580,20 +580,26 @@ class KnowledgePipeline:
                 "index_version":   self._settings.index_version,
             })
 
-        # Quality gate — reject boilerplate, tiny, or repetitive chunks
-        valid_records, rejected = self._quality_filter.filter_batch(
-            raw_records,
+        # Quality gate — reject boilerplate, tiny, or repetitive prose chunks.
+        # Code chunks (CODE_SAMPLE, COMMAND) bypass the gate: short code blocks
+        # (CSV schemas, single commands) are semantically valuable despite having
+        # few whitespace-delimited tokens and failing min_token_count.
+        code_records  = [r for r in raw_records if r["chunk_type"] in ("CODE_SAMPLE", "COMMAND")]
+        prose_records = [r for r in raw_records if r["chunk_type"] not in ("CODE_SAMPLE", "COMMAND")]
+
+        valid_prose, rejected = self._quality_filter.filter_batch(
+            prose_records,
             content_key="content",
             context_key="article_id",
         )
         if rejected:
             LOGGER.info(
-                "Knowledge article %s: %d/%d chunks rejected by quality filter",
-                article_id, len(rejected), len(raw_records),
+                "Knowledge article %s: %d/%d prose chunks rejected by quality filter",
+                article_id, len(rejected), len(prose_records),
             )
             record_knowledge_quality_failure(count=len(rejected))
 
-        return valid_records
+        return valid_prose + code_records
 
     # ── Private: batch embedding + upsert ─────────────────────────────────────
 

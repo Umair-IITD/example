@@ -162,16 +162,46 @@ class KnowledgeChunker:
         segments = self._split_into_segments(text)
         chunks: list[KnowledgeChunk] = []
         idx = start_index
+        # Short segments are carried forward and prepended to the next long segment
+        # rather than being silently dropped. This preserves numbered steps, section
+        # headers, and one-liner commands that are integral to operational procedures.
+        carry: str = ""
 
         for seg_type, seg_content in segments:
             seg_content = seg_content.strip()
-            if not seg_content or len(seg_content) < self._min_chunk_chars:
+            if not seg_content:
                 continue
 
             if seg_type == "code":
-                # Code blocks: keep intact, truncate only if necessary
-                content, was_truncated = self._safe_code_block(seg_content, article_id)
-                if content and len(content.strip()) >= self._min_chunk_chars:
+                # Code blocks: never dropped on size — commands like `python foo.py`
+                # are as operationally valuable as a 500-char prose block.
+                # Flush any accumulated carry into the previous chunk first.
+                if carry:
+                    if chunks:
+                        prev = chunks[-1]
+                        chunks[-1] = KnowledgeChunk.from_content(
+                            prev.content + "\n" + carry,
+                            article_id=article_id,
+                            chunk_index=prev.chunk_index,
+                            chunk_type=prev.chunk_type,
+                            index_version=index_version,
+                            is_code=prev.is_code,
+                        )
+                    else:
+                        # Carry exists but no previous chunk — create a prose chunk
+                        chunks.append(KnowledgeChunk.from_content(
+                            carry,
+                            article_id=article_id,
+                            chunk_index=idx,
+                            chunk_type=self._prose_chunk_type,
+                            index_version=index_version,
+                            is_code=False,
+                        ))
+                        idx += 1
+                    carry = ""
+
+                content, _was_truncated = self._safe_code_block(seg_content, article_id)
+                if content and content.strip():
                     chunks.append(KnowledgeChunk.from_content(
                         content,
                         article_id=article_id,
@@ -181,8 +211,20 @@ class KnowledgeChunker:
                         is_code=True,
                     ))
                     idx += 1
+
             else:
-                # Prose: token-split to target window
+                # Prose/command segment.
+                # Short segments are carried forward rather than dropped.
+                if len(seg_content) < self._min_chunk_chars:
+                    carry = (carry + "\n" + seg_content).strip() if carry else seg_content
+                    continue
+
+                # Prepend any carried short content to this long segment.
+                if carry:
+                    seg_content = carry + "\n" + seg_content
+                    carry = ""
+
+                # Token-split to target window.
                 parts = safe_split_by_tokens(
                     seg_content,
                     max_tokens=self._chunk_target_tokens,
@@ -214,6 +256,28 @@ class KnowledgeChunker:
                         is_code=False,
                     ))
                     idx += 1
+
+        # Flush any trailing carry into the last chunk (or create one).
+        if carry:
+            if chunks:
+                prev = chunks[-1]
+                chunks[-1] = KnowledgeChunk.from_content(
+                    prev.content + "\n" + carry,
+                    article_id=article_id,
+                    chunk_index=prev.chunk_index,
+                    chunk_type=prev.chunk_type,
+                    index_version=index_version,
+                    is_code=prev.is_code,
+                )
+            else:
+                chunks.append(KnowledgeChunk.from_content(
+                    carry,
+                    article_id=article_id,
+                    chunk_index=idx,
+                    chunk_type=self._prose_chunk_type,
+                    index_version=index_version,
+                    is_code=False,
+                ))
 
         return chunks
 

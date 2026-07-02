@@ -58,10 +58,12 @@ class HybridRAGProvider:
         retriever:      Any,
         top_k:          int = _DEFAULT_TOP_K,
         default_tenant: str = _DEFAULT_TENANT,
+        index_version:  str = "v2",
     ) -> None:
-        self._retriever     = retriever
-        self._top_k         = top_k
+        self._retriever      = retriever
+        self._top_k          = top_k
         self._default_tenant = default_tenant
+        self._index_version  = index_version
 
     def retrieve(self, query: str, topic: str = "") -> dict[str, Any]:
         """
@@ -81,6 +83,7 @@ class HybridRAGProvider:
                 top_k=self._top_k,
                 include_sop=True,
                 exclude_escalation=True,
+                index_version=self._index_version,
             )
             response = self._retriever.retrieve(request)
             chunks: list[dict[str, Any]] = [

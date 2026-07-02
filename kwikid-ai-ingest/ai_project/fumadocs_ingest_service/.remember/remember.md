@@ -1,39 +1,14 @@
 # Handoff
 
 ## State
-Sprint 2.36 (Knowledge Layer Final Certification) IN PROGRESS.
+Sprint 2.36A COMPLETE. Knowledge Layer v1.0 CERTIFIED GO (2026-07-02). Mathematical audit passed all 12 phases: 325 articles / 1,314 chunks / 0 null embeddings / 0 orphans / 0 duplicates / 0 missing. One gap found and repaired (so_1517 "NRFSI zip recovery" — targeted mini-export re-ingestion). Benchmark: 30/30 queries 100%, retrieval reconciliation 99/100 articles (99%).
 
-OCR verification COMPLETE — all 13 sample images returned text, 100% success rate:
-- 5 posts tested: ids [76, 82, 125, 150, 170]
-- Image classes hit: FLOWCHART (10), TABLE (1), CONFIG_SCREEN (1)
-- OCR confidence range: 0.92–0.98
-- OCR text NOT in embed_text: 13/13 PASS
-
-Engine caching fix applied to `rag_engine/ingestion/parsers/stackoverflow_parser.py`:
-- Added `_ocr_engine: Optional["RapidOCR"] = None` class var
-- `_run_ocr()` now lazy-inits and reuses the engine (was re-creating per image)
-- Speedup: 8.9h → ~4.9h for full corpus
-
-Real data path (NOT ./stackoverflow/): `C:/Users/Umair.Alam/Desktop/kwikid_support_system/stackoverflow/`
-Ingest command: `python scripts/ingest_knowledge.py --source C:/Users/Umair.Alam/Desktop/kwikid_support_system/stackoverflow`
-
-## Next — UNBLOCKED after user applies B3_006 in Supabase SQL editor
-
-Still need user to run 4 SQL blocks (see previous chat):
-1. Backup SOPs → 2. Soft-disable fumadocs SOPs → 3. Apply B3_006 → 4. Reset content_hash to NULL
-
-After B3_006 confirmed:
-5. Live ingestion (with OCR): `python scripts/ingest_knowledge.py --source C:/Users/Umair.Alam/Desktop/kwikid_support_system/stackoverflow`
-6. Post-migration SQL checks
-7. Retrieval benchmark: `python tests/benchmark_knowledge_retrieval.py`
-8. Manual spot checks
-9. Hard-delete legacy SOPs (IRREVERSIBLE)
-10. Issue GO/NO-GO
+## Next
+Pending tasks (priority order): #10 async FastAPI handlers (asyncio.to_thread), #11 Prometheus metrics, #12 Docker hardening (multi-stage, non-root, health checks), #13 Redis + v2 chunking config fields, #14 SQL migrations B1_007/B1_008 (FTS for RAG tables).
 
 ## Context
-- Live ingestion expected runtime: ~4.9h OCR + ~7min embeddings (1,313 chunks × OpenAI API)
-- 362 articles in DB have content_hash set → will SKIP without step 4 (reset content_hash)
-- 3 fumadocs SOPs active: Account Lockout, OTP Delivery Failure, Video KYC Session Failure
-- Backup tables MISSING (must create in step 1 before touching rag_sop_library)
-- SUPABASE_KEY is service_role — never expose to browser
-- `exclude_escalation=True` in rag_adapter.py — CRITICAL security fix, do not revert
+- `exclude_escalation=True` in `case_engine/knowledge/rag_adapter.py:83` — NEVER revert (security fix)
+- `index_version='v2'` must be passed in every `RetrievalRequest` that should include knowledge chunks; default `'v1'` excludes them
+- `B3_KNOWLEDGE_SOURCE_DIR=C:/Users/Umair.Alam/Desktop/kwikid_support_system/stackoverflow` (absolute path in .env)
+- Knowledge corpus = 802 SO for Teams posts; 325 ingested, 428 validator/classifier rejected, 49 chunk-builder rejected
+- `scripts/verify_runtime.py --skip-ocr` is the standard pre-flight check (38 PASS, 0 FAIL)
