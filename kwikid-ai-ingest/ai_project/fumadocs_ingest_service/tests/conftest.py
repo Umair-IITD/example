@@ -10,7 +10,15 @@ a real Supabase / external service connection to pass.
 Uses os.environ.setdefault so an explicit override in the shell still wins.
 """
 import os
+import pytest
 
 # Ensure tests default to inmemory audit backend regardless of what .env contains.
 # Individual tests that need to test the supabase backend use monkeypatch.setenv.
 os.environ.setdefault("AUDIT_BACKEND", "inmemory")
+
+
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers",
+        "integration: marks tests that require live DB / API credentials (deselect with -m 'not integration')",
+    )

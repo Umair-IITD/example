@@ -20,6 +20,9 @@ from __future__ import annotations
 import os
 import sys
 import time
+
+if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
+    sys.stdout = open(sys.stdout.fileno(), mode="w", encoding="utf-8", buffering=1)
 from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Optional

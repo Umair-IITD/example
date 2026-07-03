@@ -1,0 +1,49 @@
+{
+  "version": "2.1",
+  "certified_at": "2026-07-03T00:00:00+00:00",
+  "generated_at": "2026-07-03T12:19:10.689142+00:00",
+  "git_commit": "133c06852b19c6955fa5ea1af47285fcc85b91a1",
+  "branch": "major-architecture-change",
+  "corpus": {
+    "articles": 375,
+    "chunks": 2293,
+    "total_images": 672,
+    "ocr_images": 441,
+    "index_version": "v2",
+    "avg_quality_score": 0.5169,
+    "source_dir": "stackoverflow"
+  },
+  "certification": {
+    "checks_passed": 24,
+    "checks_total": 24,
+    "pass_rate": "24/24",
+    "benchmark_queries": 30,
+    "benchmark_hits": 30,
+    "benchmark_hit_rate_pct": 100.0,
+    "avg_latency_ms": 439,
+    "p95_latency_ms": 516,
+    "verdict": "PASS"
+  },
+  "model_versions": {
+    "embedding_model": "text-embedding-3-small",
+    "embedding_dimensions": 1536,
+    "chunker_version": "v2",
+    "min_code_chars_threshold": 60,
+    "chunk_target_tokens": 1200,
+    "chunk_overlap_tokens": 150,
+    "index_version": "v2"
+  },
+  "invariants": {
+    "exclude_escalation": true,
+    "index_version_required": "v2",
+    "upsert_key": [
+      "article_id",
+      "chunk_index",
+      "index_version"
+    ],
+    "quality_score_floor": 0.55,
+    "knowledge_similarity_boost": 0.08
+  },
+  "freeze_status": "FROZEN",
+  "freeze_note": "Knowledge Layer v2.1 is FROZEN. No ingestion, parser, OCR, chunking, retrieval, or embedding changes may be made without running scripts/certify_freeze.py and getting 24/24 checks PASS."
+}

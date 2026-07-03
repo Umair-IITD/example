@@ -1,0 +1,1884 @@
+{
+  "generated_at": "2026-07-03T12:19:39.010152+00:00",
+  "version": "2.1",
+  "total_articles": 375,
+  "total_chunks": 2293,
+  "global_hash": "sha256:86d50e534a9d7e72019fd60cd3b5158c4f0c6ce218356a44afc3c045760043cd",
+  "articles": {
+    "so_3": {
+      "title": "What is a tag?",
+      "article_hash": "sha256:82c1880d8fe07a81ded6df4d757720ab5a1735a87dceaec3cc49562f3ed5e034",
+      "chunk_count": 2
+    },
+    "so_7": {
+      "title": "When should I use Stack Overflow for Teams?",
+      "article_hash": "sha256:3ca99088bca5c18b179a508ef22491756dcf4d0909fd9aae0cffb14bd3d626c7",
+      "chunk_count": 3
+    },
+    "so_9": {
+      "title": "What is Stack Overflow for Teams?",
+      "article_hash": "sha256:0c40304010bc44be3e6889cc9e9748a8b097321f60fcb634e013d14115d7c1e9",
+      "chunk_count": 1
+    },
+    "so_13": {
+      "title": "How to deploy the agent portal on fino (on-prem) server?",
+      "article_hash": "sha256:fbc3a3218b1133549ed5d58e154e68aa5fede338b6df576ce3b38253eb20572d",
+      "chunk_count": 3
+    },
+    "so_15": {
+      "title": "Axios MonkeyPatch for signature verification",
+      "article_hash": "sha256:0504d4cb2e706eab8528084f4a5c9801b6499d59b0e9a70d17a81d70f1fcd404",
+      "chunk_count": 11
+    },
+    "so_24": {
+      "title": "How do you do put booking in TCOOKP",
+      "article_hash": "sha256:d299edabce30909c57acb801e50c015a8d365591692d733b96785e08edbb20b4",
+      "chunk_count": 4
+    },
+    "so_26": {
+      "title": "What do I do if a booking isn't available to an agent because its too old or if ",
+      "article_hash": "sha256:5dac5af2f20e940dbc5a73cde9143d0e6b46ae40c593af568680d84f26817d85",
+      "chunk_count": 3
+    },
+    "so_28": {
+      "title": "How to release any frontend portal (Agent, User or Admin)?",
+      "article_hash": "sha256:a6434d8f2a18a85ef7a2ac5d967e3399f8adf2b910d621e90eeac54d8501b984",
+      "chunk_count": 1
+    },
+    "so_32": {
+      "title": "how to complete, incomplete video in fino_prod?",
+      "article_hash": "sha256:9128d603c63f6a2da5d3e347ba340959c4b94bae582f3ee6ea8da000b12b06d2",
+      "chunk_count": 1
+    },
+    "so_35": {
+      "title": "All details are missing or all document are missing",
+      "article_hash": "sha256:03d4cc61969d98c28cb52a46635469bfc0b013c92b33b798f376236001f2a88e",
+      "chunk_count": 3
+    },
+    "so_39": {
+      "title": "Bajaj missing XML and user_ip",
+      "article_hash": "sha256:750dcefa2eb6aa524bbcb014ce3febf1b36a3c6e4d51a30a99dabc19de8495c0",
+      "chunk_count": 4
+    },
+    "so_43": {
+      "title": "How to clean-up FINO Production server when disk-space is critical?",
+      "article_hash": "sha256:e536e202cae3fd761644170ce1ee9330974b350d7f4d42481d6aaa8d5e504e40",
+      "chunk_count": 1
+    },
+    "so_236": {
+      "title": "CBI Video recovery",
+      "article_hash": "sha256:9ea92d13b7030ef7e6da505834b439b6ae062373904634cbf768acacb5e1ca74",
+      "chunk_count": 24
+    },
+    "so_45": {
+      "title": "How to hit webhook event for a specific client?",
+      "article_hash": "sha256:88b6f13caadf1d059bc7fd2fc801563a479dcad6b467f2b38530dcdeae34b913",
+      "chunk_count": 4
+    },
+    "so_47": {
+      "title": "Video Call not getting connected?",
+      "article_hash": "sha256:c9e20aabd21e2d1a3e781c657ee97ef53bb65ccc98f723fb0a2525008858900d",
+      "chunk_count": 1
+    },
+    "so_73": {
+      "title": "send_otp and verify_top",
+      "article_hash": "sha256:a9237f1b6b70d2d90656a49305916da84d520e844937d76f043be100b9ef1d06",
+      "chunk_count": 3
+    },
+    "so_75": {
+      "title": "How to secure a app using CHAAND?",
+      "article_hash": "sha256:27c35a12755f51d8feb7c2dd9ae18cefba289f89725ee5b48e80174f2af954db",
+      "chunk_count": 4
+    },
+    "so_79": {
+      "title": "Kwikid-Facematch-Application",
+      "article_hash": "sha256:db85ac17e482db7d0118e49500d1c1700bcf1c052f1f35abe9206b4f0357584f",
+      "chunk_count": 1
+    },
+    "so_90": {
+      "title": "Self Hosted Flagsmith",
+      "article_hash": "sha256:c639cb355f6b2317c69951ef1283fe3b58ad070fabf445bf512448f5353c5e56",
+      "chunk_count": 2
+    },
+    "so_95": {
+      "title": "How to add missing audit status/ feedback in BFL prod?",
+      "article_hash": "sha256:d850369621215870040a7c842017adac62d9720c181653f21189309bf91cb5fc",
+      "chunk_count": 2
+    },
+    "so_97": {
+      "title": "Transfer Data to and from android native (Java/ Kotlin) and JS (Ionic), which is",
+      "article_hash": "sha256:0cd2cc3e6c0e124e06d5bd0d1d8ad8e65c0ea75abaa6a02538dd38f6472bd8c8",
+      "chunk_count": 10
+    },
+    "so_100": {
+      "title": "How to release audit lock for CBI",
+      "article_hash": "sha256:180c4dc56afb9e6667fe5fc279cc4a9d01ec1b4d5ba2357831c83b0d32d37180",
+      "chunk_count": 3
+    },
+    "so_104": {
+      "title": "td-agent | Software | td-agent installation on Rhel (Linux)",
+      "article_hash": "sha256:bb70c79959d1d8e586ff0155150874ce0326cdb8857f062c1f43259393f06cea",
+      "chunk_count": 2
+    },
+    "so_106": {
+      "title": "BOB_prod | agent | Location missing or Half location",
+      "article_hash": "sha256:b966c691666c67f8c8db2fd0d6e0493f04fe7c25a25ea3f4d5927c12276192fd",
+      "chunk_count": 2
+    },
+    "so_293": {
+      "title": "How to update feedback and feedback type through cli?",
+      "article_hash": "sha256:80a79b311404115660ebae5f3c888ce60c64479f5782e55f523701799cac4776",
+      "chunk_count": 1
+    },
+    "so_109": {
+      "title": "how update session status via an api",
+      "article_hash": "sha256:a83ff61513f612f82c1333c0eacb29f6041fd99c47e59485c7baf8bdb49810cf",
+      "chunk_count": 1
+    },
+    "so_111": {
+      "title": "How to generate Summary PDF for the session?",
+      "article_hash": "sha256:1793d1e33bafc98cee0cb6bfd43717740a25936a0938ac4a2835be2cf92a1cc6",
+      "chunk_count": 1
+    },
+    "so_119": {
+      "title": "SUMI - Standard Unified ML Interface",
+      "article_hash": "sha256:ead43b4bb8c41b34da4de53adb7180a498ba25c400f74cd508c8b52ca83dc907",
+      "chunk_count": 10
+    },
+    "so_137": {
+      "title": "How to add fluentd login agent for your application?",
+      "article_hash": "sha256:437f01b04db5d44a481a2e7fe52183ad381f440697827899ae7cda097f5d3b58",
+      "chunk_count": 7
+    },
+    "so_140": {
+      "title": "API to get the total volume of clients from a perticular start date to end date",
+      "article_hash": "sha256:dd1a075af617b6177ddbe513e503b61f0bfdcb0224c100f6e9b83397b2b0700d",
+      "chunk_count": 8
+    },
+    "so_143": {
+      "title": "DB not found in bolt",
+      "article_hash": "sha256:80fa843611dd08755e6c72a44b004e7aaa3a4f31b328ad6819f0a2682f871d27",
+      "chunk_count": 1
+    },
+    "so_580": {
+      "title": "How to test Build files locally for frontend application (react or angular)?",
+      "article_hash": "sha256:400c1e4794febc6d59d8692e88f1548f09004a1c65629e527eda1bc56069a5a5",
+      "chunk_count": 1
+    },
+    "so_151": {
+      "title": "botocore.exceptions.ClientError Invalid KeyConditionExpression: Attribute name i",
+      "article_hash": "sha256:1fe7b318ef8e1f07b64893f90a883adf3b87136a2a6c507920a52e62b29b699f",
+      "chunk_count": 4
+    },
+    "so_175": {
+      "title": "How to get access token for refractored APIs auth?",
+      "article_hash": "sha256:562c32630ea129315eadfaddf8e762ec1daf09f4a259f54ad75677e2ceb49628",
+      "chunk_count": 4
+    },
+    "so_180": {
+      "title": "How to add missing Name, DOB or Location in NRFSI?",
+      "article_hash": "sha256:dea9633cbfe9a37c1c6f11d7229570246d6374826bee1c75712435c7f62b066b",
+      "chunk_count": 5
+    },
+    "so_183": {
+      "title": "CBI Checklist - SA Customer AOF",
+      "article_hash": "sha256:2a02eb6a71c23b6c1ddafbe33944940ed6a0a3918c67069bd340969b30afcfc0",
+      "chunk_count": 5
+    },
+    "so_582": {
+      "title": "How to locally setup tsh client (teleport)?",
+      "article_hash": "sha256:1154933dc71690cb71a4e15c611321a00e20fcfad044a1f63a6d26c01e096d7b",
+      "chunk_count": 9
+    },
+    "so_188": {
+      "title": "Not able the body printed",
+      "article_hash": "sha256:15ea752ea24bb20df60a03410baa330df15de8f9f0ef4834fbbfa6f241e17eb8",
+      "chunk_count": 1
+    },
+    "so_193": {
+      "title": "Use of Between gives when quering through inde",
+      "article_hash": "sha256:8fc8680b3fc9fca644f7c2077e495c298c3eb4d532304ae726fe900a748ac12e",
+      "chunk_count": 1
+    },
+    "so_218": {
+      "title": "SUMI --Standard Unified ML Interface",
+      "article_hash": "sha256:59540cd0a7532262be3d550b8fa8d6a36761b73b5100983015fd7e2c2424a3df",
+      "chunk_count": 12
+    },
+    "so_221": {
+      "title": "Clickhouse vs Elasticsearch",
+      "article_hash": "sha256:e57e3eb0b50a110ae4fac35f34fd069d010fafa6302ad9c9986f7471cecdf3b8",
+      "chunk_count": 21
+    },
+    "so_227": {
+      "title": "CBI Database Details UAT",
+      "article_hash": "sha256:1431e63de15f293f72efd2a5720140eb2d97fa33bf92ee3de2e1b8155b0bb0d1",
+      "chunk_count": 4
+    },
+    "so_242": {
+      "title": "What is a checksum that we share with BOB ? and how to extras it for the given s",
+      "article_hash": "sha256:e9112c969ceed6af16595612c313359af7a4938789441b19b53ceeb67de2e6de",
+      "chunk_count": 4
+    },
+    "so_246": {
+      "title": "How to check storage in linux server and how to delete any big file to clear sto",
+      "article_hash": "sha256:34937a2596f2d638c8c114ba8c1bb26da54345bff5af81a20683ae8af8d1f393",
+      "chunk_count": 1
+    },
+    "so_250": {
+      "title": "how to remove multiple data from message_in_queue from dynamo db?",
+      "article_hash": "sha256:02614bbca7176ed09c7b16ecd451a991d9c1851773d4460cc1b0d102ced302d1",
+      "chunk_count": 3
+    },
+    "so_253": {
+      "title": "CBI DR Drill",
+      "article_hash": "sha256:2a084fed41d8e76dddd9e4a660b9a0ce5b009ce9ddd245748300db2e6ec91615",
+      "chunk_count": 3
+    },
+    "so_529": {
+      "title": "how to get data from pgadmin when the user_id does not have pickup id?",
+      "article_hash": "sha256:5df273454948c1750a74ae3cf7a3dc0f2d2746b1e30259dd6a2f72d5340d6f1c",
+      "chunk_count": 15
+    },
+    "so_547": {
+      "title": "CBI prod - Media relay - start redis AUTH error",
+      "article_hash": "sha256:06ffcc808c397b45a00002d892dba3fbdb57293cae120ba3ef345855119adf11",
+      "chunk_count": 5
+    },
+    "so_1611": {
+      "title": "How to add server to Teleport?",
+      "article_hash": "sha256:9faddafd0f0ce0ec0a1fd440cc80fb0444dc5d30bf052b8bd4602009ea9be760",
+      "chunk_count": 7
+    },
+    "so_257": {
+      "title": "RBL and Digiremit Repush Postman Collection",
+      "article_hash": "sha256:11879cf6d97fac51de915bc7cb8114cff89a23b7aad2cf5db3fe9535baad22b7",
+      "chunk_count": 2
+    },
+    "so_261": {
+      "title": "How to Add any summary Page details through Script?",
+      "article_hash": "sha256:b1f7d4115c452a90599c668238ef17c0e1123092bd3d31cce4ef1517a32c974f",
+      "chunk_count": 2
+    },
+    "so_270": {
+      "title": "CBI how to clear queues",
+      "article_hash": "sha256:9c64baf5b86467345fe4a0b3d58747420c069ed914bc8add85bfcb52eae78bc2",
+      "chunk_count": 6
+    },
+    "so_277": {
+      "title": "How to check Aadhaar UIDAI response in click house?",
+      "article_hash": "sha256:a2aa83e21c8f7ef33b0459c367a3d159d0f0cddc049ba2bb8bc3c713bc5a8687",
+      "chunk_count": 2
+    },
+    "so_283": {
+      "title": "Call Connectivity Issues in RBL",
+      "article_hash": "sha256:6d9edf08d6cf5d7946472b793b440df8b4ebcfd3663126db038a7bf27b157c0b",
+      "chunk_count": 1
+    },
+    "so_285": {
+      "title": "How To add bajajfin dovd documents in zip file if it is not present?",
+      "article_hash": "sha256:a0a17ce0325c069de6eeeded58011f9dedcf1f5f38ff3a995234bc0b9a63125a",
+      "chunk_count": 2
+    },
+    "so_289": {
+      "title": "How to know which operating system you are on the server?",
+      "article_hash": "sha256:e4f4b6d939aa32d8bde10457e7bc6841d4b308f3c3542960165b6e06da0bc4fa",
+      "chunk_count": 1
+    },
+    "so_903": {
+      "title": "TATA | Short Video Issue on Auditor Portal",
+      "article_hash": "sha256:3e74ebc7db971c690d31292595025bdcbc69fd1ca221e0226af02de74934287e",
+      "chunk_count": 4
+    },
+    "so_304": {
+      "title": "How to split excel data if you have for multiple months together?",
+      "article_hash": "sha256:330fe39e66a4c1de4f7bc9385aa5265d6394d9ad749ca1cac05874fdb751803f",
+      "chunk_count": 2
+    },
+    "so_307": {
+      "title": "How to check if the agent exists or not in our database?",
+      "article_hash": "sha256:bf7ab01e1e076127e2eaf202c88aea774194e240e3225d77f2c09bebde1fd55c",
+      "chunk_count": 3
+    },
+    "so_310": {
+      "title": "How to Recover BFL/RBL videos through API script?",
+      "article_hash": "sha256:dd85a19206643f70decb233cdf604f810f4a88588816d07b17a10647b1958468",
+      "chunk_count": 1
+    },
+    "so_324": {
+      "title": "How to change ownership of the user in Rhel s390x server?",
+      "article_hash": "sha256:50da01812374a74fd38cc5c0d6f076cb51cb24744b4292ba80883ffda252cd03",
+      "chunk_count": 8
+    },
+    "so_326": {
+      "title": "How to create minio.service in rhel server s390x?",
+      "article_hash": "sha256:5f96af9095312dde6acc53b5c1a66c7c78ad631b28dce79c6f61b1a5fb2d5fc7",
+      "chunk_count": 1
+    },
+    "so_334": {
+      "title": "How to create a s3 bucket name through cli command?",
+      "article_hash": "sha256:ae5adccb0a41c409afc3dfda83337460d1bfa258164248c25dcb23f0054d686a",
+      "chunk_count": 3
+    },
+    "so_336": {
+      "title": "New queue and dequeue logic for free mode VKYC call",
+      "article_hash": "sha256:1d9b2fa9a098a860a9323174785058c9e701fb78602fb90c9df72e2a2462349a",
+      "chunk_count": 4
+    },
+    "so_340": {
+      "title": "What is functions in python and how to use it in your srcipt?",
+      "article_hash": "sha256:9c0e7ffb9216f9f520f59b61c8f503cbad98cb8be5b9806220d80ef68667d0e7",
+      "chunk_count": 6
+    },
+    "so_342": {
+      "title": "How to enable/ disable Pan card restrictive verification - NSDL",
+      "article_hash": "sha256:d57043cc0fa95e2a9781f6f81cb3b4718da56e01ba992436e918d5ecda7e8fc6",
+      "chunk_count": 3
+    },
+    "so_351": {
+      "title": "how to mount to different path in rhel server for any containers to run?",
+      "article_hash": "sha256:37a6420924d2a3f4f81388ac8a2ba48c68df535ba32ed320ec21e9dbaf95f8ef",
+      "chunk_count": 2
+    },
+    "so_590": {
+      "title": "SSL | Convert .pfx to cert and key file for nginx",
+      "article_hash": "sha256:f4cd032cb230fb4331be36d116c208fea0ef7aa0b7a40e290460640ce8faa637",
+      "chunk_count": 2
+    },
+    "so_368": {
+      "title": "To dynamically change the VKYC journey based on client extras [dynamicStepSequen",
+      "article_hash": "sha256:d7c2d28f33ba7d6df23744fbea79cb534c05e27bd0512e9a9fac16654534abdc",
+      "chunk_count": 3
+    },
+    "so_370": {
+      "title": "How to create/ maintain Client's Journey?",
+      "article_hash": "sha256:f4a841de6e1155963c0a15fc22660c817f7df0bf1b72cff37fa68970817c7324",
+      "chunk_count": 2
+    },
+    "so_387": {
+      "title": "How to add forms to Client's Journey?",
+      "article_hash": "sha256:899ffe8bff831f5c44347e85a90e9990a71677bf636c2d5a1042631190885be0",
+      "chunk_count": 2
+    },
+    "so_389": {
+      "title": "What is a 'source' in config?",
+      "article_hash": "sha256:ae8296df157ae4d42ce532cc640d3510e97731c9eb547374505e837e3fdd20db",
+      "chunk_count": 23
+    },
+    "so_391": {
+      "title": "What is a 'rule' in config?",
+      "article_hash": "sha256:b31e2263a2ebd57d3cb3f167098d001b28e01bfa4128f819a4a562837c465cd4",
+      "chunk_count": 12
+    },
+    "so_402": {
+      "title": "how to check processes by memory utilization?",
+      "article_hash": "sha256:2cb43853ea17ee909122fcfcd2b582b036c7aa55ef587d93a03676e4afb00f2c",
+      "chunk_count": 4
+    },
+    "so_405": {
+      "title": "how to debug bajajfin sendlink error if ever encountered?",
+      "article_hash": "sha256:38b08dbb5bc5a71fd9283b6a05a8df0c283b803e9ed2d507890a2c55bd62f4f2",
+      "chunk_count": 5
+    },
+    "so_407": {
+      "title": "KwikID AWS DynamoDB Database Details",
+      "article_hash": "sha256:1975c3c76f265360a2244f7b58050aadd5a46479cec3da16717114b28a0d2f5e",
+      "chunk_count": 2
+    },
+    "so_409": {
+      "title": "KwikID AWS S3 Bucket Details",
+      "article_hash": "sha256:d7a71823c863ae7f60b247eba9d9ef829b2bac840ee670dc479939b29124b902",
+      "chunk_count": 2
+    },
+    "so_411": {
+      "title": "How do I setup coturn with docker?",
+      "article_hash": "sha256:234c68479a50bfcbf3ef210360a3626c6cae5dc7cb51e2e5b3127ff5dbeb35ad",
+      "chunk_count": 6
+    },
+    "so_415": {
+      "title": "How to configure backend event config using flagsmith?",
+      "article_hash": "sha256:d0f18c0c7e0cc0bc723fe062ca1a4ba0cde90af6fbffd5d90398b7982e3a7ced",
+      "chunk_count": 4
+    },
+    "so_426": {
+      "title": "What all things to Check in server for Space Storage?",
+      "article_hash": "sha256:0740e55944ff259018cc9a043546ca68e32b60279c162a9101745361d55dc787",
+      "chunk_count": 1
+    },
+    "so_436": {
+      "title": "BOB bank api monitoring",
+      "article_hash": "sha256:9b681dd3a24f44b534d8ef70160ec5c496a5496d90cfff91153361c263b71c69",
+      "chunk_count": 1
+    },
+    "so_440": {
+      "title": "How to migrate from BOB_aws to Think_aws blobs and dynamodb session_data?",
+      "article_hash": "sha256:2994c34f79e30e129e07813ca39a00d43db6e3504e39581ccdf6288b70561adf",
+      "chunk_count": 1
+    },
+    "so_444": {
+      "title": "How to view waiting api hits through awk command for any agents?",
+      "article_hash": "sha256:1d18521e1e3e9067b212cab019c07ec3a9af089100f34bded33d294cd7c0328c",
+      "chunk_count": 1
+    },
+    "so_446": {
+      "title": "How to query in postgress sql for user_status and session_status?",
+      "article_hash": "sha256:ab373e62beef949c84db8723591cb4c70f6a38be42280b279df77bee9ea11ca2",
+      "chunk_count": 2
+    },
+    "so_592": {
+      "title": "How to deploy frontend build folder generated from bitbucket pipeline on server,",
+      "article_hash": "sha256:9971bfee47e9f8e955ebbbdebfa9acac2f426e21d1a6aadcf93553b09eab892c",
+      "chunk_count": 7
+    },
+    "so_453": {
+      "title": "RBL | How to retrigger Callback Manually for RBL through script?",
+      "article_hash": "sha256:9e131cd9e5932785f165ab6b01f8ed2f148700b97fcdb83ec6f0dcdfd4407670",
+      "chunk_count": 39
+    },
+    "so_459": {
+      "title": "How to resolve this error?",
+      "article_hash": "sha256:1b34a7163c5c366f1588004708bc75d85dcbc81b783235fbe690379e30e0009c",
+      "chunk_count": 5
+    },
+    "so_466": {
+      "title": "TCOOKP (Thomas cook) connectivity test",
+      "article_hash": "sha256:f3472a70f77d4b7b18584ff1f81ce542a7a8e6c83ba7e9c974001936f17724e8",
+      "chunk_count": 1
+    },
+    "so_483": {
+      "title": "How to hit webhook event for a specific through script?",
+      "article_hash": "sha256:79a08ff9646686b97db60c7fdfd8c68562d64c2e7b95a5ffb11d9b4dffab29eb",
+      "chunk_count": 2
+    },
+    "so_490": {
+      "title": "Clear disk space which consume more than 80% space",
+      "article_hash": "sha256:3f21d18e5a5e8bf36843b341df4c8aa6942bccdb4bf41d3f3c93e38186423703",
+      "chunk_count": 2
+    },
+    "so_495": {
+      "title": "How to check the Blobs version for unity using the CLI command?",
+      "article_hash": "sha256:d06883f4b0800aa092c58846f6a9839e91730469b6654d7c288c22af2f24039d",
+      "chunk_count": 14
+    },
+    "so_500": {
+      "title": "how to add network speed check for user portal on permission page?",
+      "article_hash": "sha256:eb299e54a5b11749f8ed97793ec9ede9c4ff3a483e74ccdfa3e7300ec0dbf59e",
+      "chunk_count": 2
+    },
+    "so_595": {
+      "title": "TCOOKP | Basic Info is missing | Summary Data Update",
+      "article_hash": "sha256:698126937ef09b5c2dda31a1643db92a57659de5d5bb7629ff7556e96c128de1",
+      "chunk_count": 2
+    },
+    "so_518": {
+      "title": "summary page details not showing & SFDC receiving pan value null.?",
+      "article_hash": "sha256:6cdd2b0efbae1f16839c7fa30e1d19d3f8769f8e5b457c76fa285f97f3f0d843",
+      "chunk_count": 1
+    },
+    "so_539": {
+      "title": "How to setup Docker locally to development?",
+      "article_hash": "sha256:173ff20b66fdbd125d7515a90356393729836163296d9e0db9ef44fbde113d9e",
+      "chunk_count": 4
+    },
+    "so_533": {
+      "title": "How to change agent_id in schduled calls tab canarabank?",
+      "article_hash": "sha256:4913544c093a777e6c3c171ef67feef25a926a44e2043e82136737b88d53d43a",
+      "chunk_count": 7
+    },
+    "so_623": {
+      "title": "CBI DR DRILL Checklist",
+      "article_hash": "sha256:22085ff3288dc86e753efed88ad4b9024b9a3eba267529172ed2228136a1ee72",
+      "chunk_count": 18
+    },
+    "so_551": {
+      "title": "What are code level defined 'patterns' which can be used in config?",
+      "article_hash": "sha256:e56377a4fffe3d7b2a3a0c82479366a71cad89bc18133c1d671a595f76977d93",
+      "chunk_count": 5
+    },
+    "so_572": {
+      "title": "Check connectivity of API endpoint through telnet | RBL | command",
+      "article_hash": "sha256:280cce830d7ecb470796bbec5c427e9676e083e63e544b3f26840b475b7156b6",
+      "chunk_count": 2
+    },
+    "so_558": {
+      "title": "How to delete sessions from pgadmin for RBL when session is already auditor appr",
+      "article_hash": "sha256:6ee5b387d7423257c0096f73b2979e4bac7e1b65e8b2acc14d0c8fdd3d51e29a",
+      "chunk_count": 8
+    },
+    "so_570": {
+      "title": "How to check table names in postgresql | RBL | kwikid_vkyc_approved_session_stat",
+      "article_hash": "sha256:f7f171646608e934b73298e1015b12ebffe59911f62b8314ac39ca8ad309be6c",
+      "chunk_count": 5
+    },
+    "so_574": {
+      "title": "How to update incorrect Residence photo and office Photo | bajajfin | AWS s3 and",
+      "article_hash": "sha256:61ef05e932e09abd8603fda43a61a806922a2f9b4396cce1fac47fce48da97c3",
+      "chunk_count": 12
+    },
+    "so_576": {
+      "title": "How to check audit is completed or not | TCOOK_BR | TCOOKP | cli command",
+      "article_hash": "sha256:d4bcdb15f89bf63b45e51e9e3c880a66e4fcbcf2a16aae67ac06a61a939c5052",
+      "chunk_count": 13
+    },
+    "so_597": {
+      "title": "How to change & deploy config file, especially in case of RBL p2admin?",
+      "article_hash": "sha256:9ff54233dd8cc682bd3350cb6e96d8b324f72477bf847b9052b89c1246a557cb",
+      "chunk_count": 4
+    },
+    "so_599": {
+      "title": "Fino | all_uploaded_confirmation giving 504 | nginx and container",
+      "article_hash": "sha256:71652b21577d7b6f3a9694b9d0413ba44fa892f1edde1239d14cfc5723f00d1d",
+      "chunk_count": 1
+    },
+    "so_601": {
+      "title": "How to check \"which docker? - which mount source? - which repo/branch?\" on serve",
+      "article_hash": "sha256:4214a92688fa9837a30acf8819358bec51a4e123b66af0f5da10d6d014a44226",
+      "chunk_count": 2
+    },
+    "so_605": {
+      "title": "how to register new agent for CBI DC?",
+      "article_hash": "sha256:d84d46a278cc9aa9940f72f0f98edb8dc16a4657c554b7b19f08b17c4b5d9c71",
+      "chunk_count": 6
+    },
+    "so_621": {
+      "title": "How can I find out whether BOB_prod cases are still on hold or have been approve",
+      "article_hash": "sha256:e383aa6c27c3aa78dfc012f41ec524e4a2ddf348514e450025bed0335f6e185a",
+      "chunk_count": 1
+    },
+    "so_655": {
+      "title": "How to remove RBL agents from auto assignment rule?",
+      "article_hash": "sha256:f739380e17c888d63411933a9ad7b5f877c8657b9aceafaeaf97025d2e021257",
+      "chunk_count": 1
+    },
+    "so_659": {
+      "title": "TCook | VKYC Agent Assignment",
+      "article_hash": "sha256:bc0da94938327245ec8e4afb805259ab86a1e89910e3b06251905adc5a3455f6",
+      "chunk_count": 3
+    },
+    "so_631": {
+      "title": "How to check waiting for agent issue through script -- RBL",
+      "article_hash": "sha256:2dc586d673504b3630f80f157c788e9e38c29b8f3483b89f87cd44d95abb49a4",
+      "chunk_count": 5
+    },
+    "so_646": {
+      "title": "Unity Audit lock removing steps:",
+      "article_hash": "sha256:2d5293c4b3daa86bdabc8b156893feb59038f0f9bcfd3d1770a963c23405b343",
+      "chunk_count": 10
+    },
+    "so_663": {
+      "title": "RBL | Case not found issue",
+      "article_hash": "sha256:b237526a08989f11145ff99ce5298320845ae23931fdf311580c14f702bee505",
+      "chunk_count": 1
+    },
+    "so_667": {
+      "title": "RBL Username /Address blank issue",
+      "article_hash": "sha256:e53b515c26a0865ec5859927cf23282a7850e29e0accb85c73af395a0bccae28",
+      "chunk_count": 3
+    },
+    "so_668": {
+      "title": "RBL | How to check Callback Status",
+      "article_hash": "sha256:756caed8c091b471a98b59b183a13104d2d78504e4569451f9aab1f918d63d1e",
+      "chunk_count": 3
+    },
+    "so_670": {
+      "title": "Disk_sapce_altert | dump file removing",
+      "article_hash": "sha256:9ef7c956c5935690f21dcb0ae4ebaf67ba9684c82c9325d056266d4b074bae1e",
+      "chunk_count": 1
+    },
+    "so_683": {
+      "title": "How to repush BDMS cases",
+      "article_hash": "sha256:0cb540b26b9f5ae6c5398bb5ece6984afd953a4ca99a46fe7be217f5bb9dea55",
+      "chunk_count": 8
+    },
+    "so_690": {
+      "title": "Unity | Unable to download report",
+      "article_hash": "sha256:0938e2aa51f6749cf4e6ed93eebfdbf0e8c0710679bcd3f525a440da3b17f911",
+      "chunk_count": 2
+    },
+    "so_694": {
+      "title": "Table Update in CBI UAT",
+      "article_hash": "sha256:e68ee9d194f15ac07aaaca6dde99a4fd6ca280418c6403c06db001558b185586",
+      "chunk_count": 4
+    },
+    "so_1337": {
+      "title": "Unity Admin Config",
+      "article_hash": "sha256:9f4cb2b40b5f5a6cb940e4007eee3464c15d5ba7d411ea12930de9d3ba7f3977",
+      "chunk_count": 41
+    },
+    "so_700": {
+      "title": "RBL | Missing Auditor Feedback",
+      "article_hash": "sha256:11213c14e90f94869afe9e08faa86355567003fb291414c07eac45074f4455db",
+      "chunk_count": 1
+    },
+    "so_703": {
+      "title": "CBI | PROD | How to update session status from cli?",
+      "article_hash": "sha256:7ba450bd158f2d75641022fcc50f976dd23ebe795cb1bec107fea8009fc74c34",
+      "chunk_count": 6
+    },
+    "so_705": {
+      "title": "How to create Zip file in fino | also Downlond button recover?",
+      "article_hash": "sha256:ba1ec247b2845cd7018833a48a7ea705ae7ee2d0b4313164895c16935917d36c",
+      "chunk_count": 1
+    },
+    "so_709": {
+      "title": "CBI | UAT | How to generate agent token?",
+      "article_hash": "sha256:7db06e040cc7257f9ca9b16a7cdc14262a1f3f02e6cd4b6b879292f72ba66ff7",
+      "chunk_count": 2
+    },
+    "so_715": {
+      "title": "Unity | REKYC | How to run the monthly script for Rekyc Customers?",
+      "article_hash": "sha256:e52270cf258bc8e03869a870e75ddf41a5b81c9e7fe605ccea21c5f782bf3b54",
+      "chunk_count": 13
+    },
+    "so_762": {
+      "title": "RBL || Video recovery (script) -with ffmpeg logic (on server) V2",
+      "article_hash": "sha256:63899b53127e7905e3f71453465e7febf2eed14d553b7d204c05ab14777ec427",
+      "chunk_count": 3
+    },
+    "so_720": {
+      "title": "Memory-Space canara.prod.vkyc.app.base - Is Down",
+      "article_hash": "sha256:59db36baf5266e8787b3e06b53d8b2940aac6cdd57b93c1ae871b5cb513f77e6",
+      "chunk_count": 5
+    },
+    "so_729": {
+      "title": "FINO NSDL log",
+      "article_hash": "sha256:11d2f7c602603e4a21157339b382f4b9b8f05f43cd55f74478c49616965b38c3",
+      "chunk_count": 7
+    },
+    "so_731": {
+      "title": "Unity WINTWEALTH new session id created - temporary fix",
+      "article_hash": "sha256:c1855fc7c7f2cf0a2293f10d15653a047df9285566676ba491715d368aa3c732",
+      "chunk_count": 5
+    },
+    "so_734": {
+      "title": "Shell script for CPU utilisation monitor in Uptime Kuma",
+      "article_hash": "sha256:9dc8489840a371fc133c721ef05a4b4b794e6cfc96e64ff9b5d655d492c838b1",
+      "chunk_count": 2
+    },
+    "so_750": {
+      "title": "Bajaj | Missing IP Address | how to recover",
+      "article_hash": "sha256:81365ecfd4c24b477e24f4d2a4090c4353a72656521291de7d39d9a8549bdf0a",
+      "chunk_count": 4
+    },
+    "so_752": {
+      "title": "Unity || vkyc link generation response",
+      "article_hash": "sha256:282d7211f30a5bfa5855d3101f69cf5605b7804a8c3b595e7ca8d131cb398f6c",
+      "chunk_count": 1
+    },
+    "so_893": {
+      "title": "How to analyze Nginx logs by session ID or user ID?",
+      "article_hash": "sha256:97c77b05e5bf37640dc868ed72465a4323efb7e643e14601dc3245bc6cabe47e",
+      "chunk_count": 6
+    },
+    "so_748": {
+      "title": "Check Customer EKyc Status",
+      "article_hash": "sha256:803e0f73e523dca60b66df3b9af9a2b0b38ab8d117703acc27405919d9e8348e",
+      "chunk_count": 4
+    },
+    "so_760": {
+      "title": "Unity Production | How to Repush CBS Cases?",
+      "article_hash": "sha256:3734d247c2e0041e7d13ca43008be1064b9072d7b148f6201810232cfd0a50cc",
+      "chunk_count": 12
+    },
+    "so_772": {
+      "title": "What are the essential Git commands every developer should know?",
+      "article_hash": "sha256:58daf9e5eb0dbd4a28f7b008eb5aaad3e18d4a3942d9b6baad7d94addda6ba9d",
+      "chunk_count": 4
+    },
+    "so_775": {
+      "title": "BajajFin Prod | Portal Down Scenario - Patching Activity/Random reasons",
+      "article_hash": "sha256:1c1f06a601a6adc491daa002a49c3c65b974a638b476e39285aafb67cf88ad8b",
+      "chunk_count": 3
+    },
+    "so_785": {
+      "title": "UNITY | Check callback logs on S3",
+      "article_hash": "sha256:87e0a6d5518205e63c5ab73cf77370da674040f16d6dd2bf05c561eab339fc58",
+      "chunk_count": 5
+    },
+    "so_918": {
+      "title": "How to Copy Canara Bank Schedule Slots from DC Server to DR Server",
+      "article_hash": "sha256:603fcc6d59db3934da02c156efb7874383875998fdb9c3cf53964414d5197580",
+      "chunk_count": 15
+    },
+    "so_789": {
+      "title": "RBL Audit-lock remove [script] V3 [dyanamo/pg_admin]",
+      "article_hash": "sha256:ffe011980c3496a5228b9e814688a9868204ff2919a51c222f9f49d195c3bbf7",
+      "chunk_count": 1
+    },
+    "so_793": {
+      "title": "What to do when pandas is unable to read my Excel file?",
+      "article_hash": "sha256:85e9a268cb3a5aa3b0277a8d3a16b148d4ac854392785a45209e9b9ca7e854f9",
+      "chunk_count": 4
+    },
+    "so_795": {
+      "title": "What to do when you have 2 different excel or csv and you want to merge?",
+      "article_hash": "sha256:a38dd79f6d616f0d77ad19457187c1172ffdd32a47085c94afaf017bacf5fac3",
+      "chunk_count": 8
+    },
+    "so_807": {
+      "title": "How to resolve link_expiry issue if the link is opened twice?",
+      "article_hash": "sha256:b52f1e9194dcfbc7c9ee74749222c4d5731b9f0ae4b1babe671af306542fe2a6",
+      "chunk_count": 1
+    },
+    "so_812": {
+      "title": "Resolving '[object Object]' is not valid JSON error in React application",
+      "article_hash": "sha256:70b88ed9635e5b83517ecf4c58a8bd0ddfe50e4663873c12a73565ef010aa49e",
+      "chunk_count": 6
+    },
+    "so_1038": {
+      "title": "RBL | How to Check and Recover Agent Video Files on an RBL Server?",
+      "article_hash": "sha256:7f4178e731ffe4ccfc36925a344db036facd0e96560c12d55498a47858639186",
+      "chunk_count": 6
+    },
+    "so_814": {
+      "title": "React TypeError: selectedValue.toLowerCase is not a function",
+      "article_hash": "sha256:5e904d7f1f57a923024e28511452bf43b67a9b5ee04d654c3d5c68fc9b568635",
+      "chunk_count": 7
+    },
+    "so_818": {
+      "title": "UDP Testing Guide: Server to Mac, Server to Server",
+      "article_hash": "sha256:fd41a5378388bc33dcc3279e1099d04a9565b79f3bfeb23f095464ebe7e1bc08",
+      "chunk_count": 7
+    },
+    "so_824": {
+      "title": "How to manage the pion-port-range process for UDP communication?",
+      "article_hash": "sha256:0089464fb91431aeefbe3cd40be171b2a2e0a18a66974a1fbd2c44d1dd0864f7",
+      "chunk_count": 7
+    },
+    "so_829": {
+      "title": "React Component to Hide Empty Fields in Dynamic Forms",
+      "article_hash": "sha256:c00f694cd6310b7e177b8bb74e8be179afc91540ce5d40c40462382159cab0c6",
+      "chunk_count": 17
+    },
+    "so_841": {
+      "title": "Using Nginx as a File Server for Air-Gapped Systems",
+      "article_hash": "sha256:d6786baf529204d0d902a4e1a8b0b3d98685b3a0b32563c7810a744e9ad6384e",
+      "chunk_count": 13
+    },
+    "so_845": {
+      "title": "RBL | remvoed session from front/back-end --[update_client_name]",
+      "article_hash": "sha256:700d6f87743304f649be45b14de66077a0ac78178bfbeb7b7566a52a4a1c991d",
+      "chunk_count": 2
+    },
+    "so_852": {
+      "title": "How to download KwikID Scylla DB client reports from script?",
+      "article_hash": "sha256:4c3ed6273ade52908de7bcb36ce2fae741275c45340bce22f6a3cf5825de1146",
+      "chunk_count": 3
+    },
+    "so_849": {
+      "title": "How to set Custom Live User Queue Counts using Config",
+      "article_hash": "sha256:6fcae4fd4b259a2fc04e1c629eb9471a4201ab65b8e9965703ff47cbbb33ffce",
+      "chunk_count": 4
+    },
+    "so_856": {
+      "title": "Bajaj agent and user socket not connecting",
+      "article_hash": "sha256:3f3be765e75421a1bdec956354fa05c86be72d1aac9b822db1a2a559f5701e95",
+      "chunk_count": 1
+    },
+    "so_940": {
+      "title": "How to update custname blank in RBL",
+      "article_hash": "sha256:ae5cfd7f683e75a9bde3992696b3afaa204fd824d5532c4309f1d3e345fef21e",
+      "chunk_count": 1
+    },
+    "so_866": {
+      "title": "Troubleshooting 502 Bad Gateway Error in Face Match Custom API",
+      "article_hash": "sha256:ad8d288e71d6c09b0a124152256ca1c610897659375d197e42a67005604a17d6",
+      "chunk_count": 8
+    },
+    "so_870": {
+      "title": "Python script to perform VLOOKUP-like operation between two CSVs with multiple m",
+      "article_hash": "sha256:4556a19d6c5ac1811873c42c4b62be28c588adf3578db97a56c10d7141e64a89",
+      "chunk_count": 4
+    },
+    "so_872": {
+      "title": "How to update multiple DigiRemit session status callbacks",
+      "article_hash": "sha256:a436c6445aa3d8509f8358ce1a262b02f259554186a90fb03ca12c33e6e53f71",
+      "chunk_count": 2
+    },
+    "so_874": {
+      "title": "CBI RRB | Nginx SSL Certificate Chain Verification Error with DigiCert Certifica",
+      "article_hash": "sha256:45013fbd98562d60b3dfb5e65f03cc0a0700d812f1873be927d6a56dcf0858d8",
+      "chunk_count": 11
+    },
+    "so_880": {
+      "title": "CBI RRB | How to create new SQS queue for client?",
+      "article_hash": "sha256:47003877d164841bb0aee501c7480c89d2781eace46ecfc3eab7a1bfd515b492",
+      "chunk_count": 2
+    },
+    "so_887": {
+      "title": "How to update canara aadhaar_reference_number in the value of aadhaar_number?",
+      "article_hash": "sha256:ea64c2f2349d0bfc87fea50353a1e26d22411d2eb591f870f6524520f4ecd397",
+      "chunk_count": 2
+    },
+    "so_878": {
+      "title": "CBI DKYC - How to upload Frontend Configurations on CBI DKYC UAT Minio",
+      "article_hash": "sha256:ee54d76b283049d4022755916ace286d06bfc8f2e637d400ce530b09f5a3a46d",
+      "chunk_count": 10
+    },
+    "so_890": {
+      "title": "How to Debug a PAN Verification API Issue in Unity?",
+      "article_hash": "sha256:2a3b5ed0e890f849d9b469c5014bb485c51c0971ed6aff95888af86c16cd8e04",
+      "chunk_count": 42
+    },
+    "so_899": {
+      "title": "bajaj After After patching, on both servers please do the following:?",
+      "article_hash": "sha256:b0887c2dba30fc9f2f9edd6fb70120cc40cc62155c5165cb235d07d622dd6ac7",
+      "chunk_count": 1
+    },
+    "so_905": {
+      "title": "How to retrigger CBS customer creation for failed cases in Unity?",
+      "article_hash": "sha256:e31820e89082381720377a1cd83ea7c575dd6945726b720ba6147a7705a538b0",
+      "chunk_count": 10
+    },
+    "so_913": {
+      "title": "How to start turn server through nohup for unity?",
+      "article_hash": "sha256:29cf52ff8900e6c7cdc8dbe23f3d84d207f81bd8e7f2f0ebda434a7b3c91d720",
+      "chunk_count": 7
+    },
+    "so_908": {
+      "title": "unity | uat | steps to restart services",
+      "article_hash": "sha256:ce59ae8914eccfb1bb2cd2a5dade2ffc6346edefcdc7c90e51eda900cee95051",
+      "chunk_count": 16
+    },
+    "so_916": {
+      "title": "CBI | VKYC | PROD - Updating branch master data across backend and frontend for ",
+      "article_hash": "sha256:6af92e4cbf49de1684be54287048fe1249d6cfcec62e1f0c7f7a960794395417",
+      "chunk_count": 22
+    },
+    "so_921": {
+      "title": "Debugging Nginx Port 8000 Service Connection Issues - Unity DKYC service down er",
+      "article_hash": "sha256:4cae4524e3cfd562afe83333ddfddf0b6e258aae23798bafbf2cbde20482951d",
+      "chunk_count": 4
+    },
+    "so_925": {
+      "title": "How to recover video in canarabank through postman?",
+      "article_hash": "sha256:a66b803a6bba6548a85e85f87ee494b485025861385fa12c01d59b5cee0b0583",
+      "chunk_count": 2
+    },
+    "so_933": {
+      "title": "Failed to connect to socket server?",
+      "article_hash": "sha256:b5eb7676af8ea934fa4dcae2813412a4bc2fd05a7e09eceb7dc39b83b6d3a33a",
+      "chunk_count": 3
+    },
+    "so_936": {
+      "title": "How to get session id againt user id | CBI",
+      "article_hash": "sha256:b910cbde3d9e55bcb208d16133218f28996153763071194f90f62444fbc434f7",
+      "chunk_count": 1
+    },
+    "so_938": {
+      "title": "New SSL Certificate details does not reflect in CBI",
+      "article_hash": "sha256:97872ab47704dd6515bfd490d830c1fe6c1d363624fb22eea9a78e84d07f5afd",
+      "chunk_count": 4
+    },
+    "so_942": {
+      "title": "RupeeRedee | daily report | script",
+      "article_hash": "sha256:8954b6f4c92e0127040d7fe0eef91a55e01f6ec5dd27df8b6857418f30dcfe18",
+      "chunk_count": 3
+    },
+    "so_951": {
+      "title": "How to verify the ADV URL configuration and check service logs for the Vault API",
+      "article_hash": "sha256:e6c5b0e63a0dfc8614894b9b898d512cd83d68991fe75e892ae694e5e975fd04",
+      "chunk_count": 6
+    },
+    "so_1013": {
+      "title": "How to trigger callbacks manually for agent approval for unity?",
+      "article_hash": "sha256:a4849f81197c00ab2ce88ac2c0e81c91f0824efe1e1c6abb2b920b37e10a06de",
+      "chunk_count": 3
+    },
+    "so_949": {
+      "title": "How to Update Relationship Officer ID and Mappings in UAT/Production | Unity?",
+      "article_hash": "sha256:a394e688e441fba4e9eb5f55a8bcddf9edb59406e75e0c8bbfe6c9ff9671543c",
+      "chunk_count": 9
+    },
+    "so_959": {
+      "title": "Clickhouse server clean-up",
+      "article_hash": "sha256:233aeff4023f59d96e5226c45d93653494dc42b9c2d5f988487bacea70273d30",
+      "chunk_count": 5
+    },
+    "so_961": {
+      "title": "Fino: Signalling Server Went Down",
+      "article_hash": "sha256:295a718af7301bd9438631b936b292f2d65655803f8439433bb050732f7f8aba",
+      "chunk_count": 2
+    },
+    "so_969": {
+      "title": "billingservice.kwikid (172-31-14-122) [Server-Space]",
+      "article_hash": "sha256:86c99608f6efb229c69470bdda0ef7cd90b87cd262d7f028acdbc6bdfedfe557",
+      "chunk_count": 1
+    },
+    "so_971": {
+      "title": "How can we find the admin access IDs for all domains in RBL?",
+      "article_hash": "sha256:3eb4fef270a674d106720c0234314bd824bf6e8831ef29ef989c9b1342eb10da",
+      "chunk_count": 1
+    },
+    "so_973": {
+      "title": "How can we change the password for single and multiple agent IDs across all doma",
+      "article_hash": "sha256:d45cf1a186ce89b5368968958e7b973d5b84ff39ca27238986db3c44ffbfc34b",
+      "chunk_count": 1
+    },
+    "so_975": {
+      "title": "How can we find the user ID associated with a session ID in Unity?",
+      "article_hash": "sha256:f6006f95231c0ace48db5c9317c23fb4872f1c41f9ffae2d2bb951188b4ad845",
+      "chunk_count": 1
+    },
+    "so_978": {
+      "title": "How to re-trigger DMS push in TATA?",
+      "article_hash": "sha256:f45560baf76cc15bb124eaf6b8d6dc881b153e8bd39fe3f68730cf52162db6ac",
+      "chunk_count": 3
+    },
+    "so_981": {
+      "title": "Clearing podman/docker logs on MSR Server for freeing up server space",
+      "article_hash": "sha256:757a770a12e10393d8e380b2bf7af947de810aabe1408f157c4c88936c0efe96",
+      "chunk_count": 2
+    },
+    "so_991": {
+      "title": "How to access FINO's DC MINIO server?",
+      "article_hash": "sha256:585e4d8df85d8556b7a46bb7b035936620a51f0d1bc6a7dc5e9b9c76deb1043e",
+      "chunk_count": 1
+    },
+    "so_993": {
+      "title": "How to Monitor Celery Tasks and RabbitMQ Queues in Our System for Unity?",
+      "article_hash": "sha256:b34f69805d61623308ed35a82f1a1bf4f284b31562605556dce3d405615e623e",
+      "chunk_count": 6
+    },
+    "so_995": {
+      "title": "How to create aadhaarpdf_url if missing in Unity?",
+      "article_hash": "sha256:b236ccd2c9ada7fe131798437ba482dc622912720d57f88404c9a5987f76918e",
+      "chunk_count": 5
+    },
+    "so_1339": {
+      "title": "Unity User Config",
+      "article_hash": "sha256:21c7729a0c5d8048f6931d042d177de6088525925f018efe96e1a1a80c340fa6",
+      "chunk_count": 1
+    },
+    "so_997": {
+      "title": "Socket Issue in BajajFin | PROD",
+      "article_hash": "sha256:5642ed1e403c6acbeac8f6484157a3fec38a9c58a039927927f231971095284e",
+      "chunk_count": 3
+    },
+    "so_1001": {
+      "title": "How to Reset Login Locks for RBL Agent/Admin Accounts in DynamoDB through AWS CL",
+      "article_hash": "sha256:3d9febe5b46555f4bc95b4239a61eb6411a721445b74f1c816d89eb3ab886451",
+      "chunk_count": 2
+    },
+    "so_1004": {
+      "title": "How to Re-Trigger Callbacks in RBL's UAT Environment via Event Task Binder?",
+      "article_hash": "sha256:36b4c0814f7ad495242cf2029fc0beb956151928d77521b08c5b8401d6ccfd84",
+      "chunk_count": 7
+    },
+    "so_1028": {
+      "title": "how to recover aadhaar_pdf for unity Blostem_vkyc?",
+      "article_hash": "sha256:851dd6cd0ebae9c28e85fb244a79a374b6ad6e5fb494fe6a2911693bb5414d85",
+      "chunk_count": 4
+    },
+    "so_1341": {
+      "title": "Unity Agent Config",
+      "article_hash": "sha256:a3f3de1f30da3625b940b8feccb1776679831f22378d30026c0232f4864176eb",
+      "chunk_count": 2
+    },
+    "so_1018": {
+      "title": "Canara | Steps to generate token",
+      "article_hash": "sha256:eb8a3c8d3a7c01d3dd1f3c8ee74216244de1d3dd4e73b4149aefb80036318bc6",
+      "chunk_count": 9
+    },
+    "so_1020": {
+      "title": "How to change Spark Capital's Emsigner Password in Flagsmith?",
+      "article_hash": "sha256:ad3afd6144739eb29573488a86e02061eae5b460f203a1e5cbb4393adc71a501",
+      "chunk_count": 6
+    },
+    "so_1026": {
+      "title": "RBL | user status tab -fetech error | special charater",
+      "article_hash": "sha256:01d0394d73a138dd19cc8da0bf73dc7abe728658e8816a8895bef06f1080106f",
+      "chunk_count": 10
+    },
+    "so_1034": {
+      "title": "Bajaj | Ekyc adhar pdf missing in zip | genrated zip file",
+      "article_hash": "sha256:e282d735973ad976d1a2c70e8fcd88aa8f474a169bf7045c1700a8f491dd74cb",
+      "chunk_count": 1
+    },
+    "so_1036": {
+      "title": "RBL | Source Of Income /Monthly income value -missing | v1",
+      "article_hash": "sha256:bc2f7896d4266dc3776463c0a851e7127cfac8ea706c57c5cf4932ad87db6a6f",
+      "chunk_count": 2
+    },
+    "so_1365": {
+      "title": "BOBRRBUP | bupgb | Branch Update",
+      "article_hash": "sha256:7c2340425c7c4c6caaa797e5151beaacf7a4626623663822e7bbeac8b4853db8",
+      "chunk_count": 12
+    },
+    "so_1043": {
+      "title": "How to Execute the Aadhaar PDF Recovery Script for CBI?",
+      "article_hash": "sha256:25ffe7b638cce60531951f66761a373f93f4c13be3c55367225ce8949c892e1c",
+      "chunk_count": 17
+    },
+    "so_1055": {
+      "title": "Troubleshooting Guide: Adding Missing PERSONAL_DETAILS Structure to DynamoDB Rec",
+      "article_hash": "sha256:2b007e6bed2c052293a38735b74ea4fa5260f5f1c2fab14b35a46a6a812bf9a4",
+      "chunk_count": 18
+    },
+    "so_1060": {
+      "title": "Creating Users (Maker/Checker) in CBI's DKYC",
+      "article_hash": "sha256:af9ab6bac934d1ad313bb835d93191cec6d7956d642de32924c5481ca88d1318",
+      "chunk_count": 5
+    },
+    "so_1053": {
+      "title": "Canara | how to extract urn,user_id,user_ip,name form summary data and store it ",
+      "article_hash": "sha256:0ecb52a4696872bacf26350b7ee15aee9697aad06ee8f1b8bc33b346689017c1",
+      "chunk_count": 4
+    },
+    "so_1064": {
+      "title": "How to update CBI rekyc value if there is a discrepancy in the frontend?",
+      "article_hash": "sha256:4674ae15fb37bcca2fe8281d57e5d73ff7fcd526fe2d603983d940172da98927",
+      "chunk_count": 8
+    },
+    "so_1077": {
+      "title": "Karnatagb | how to recovery video in Kgb",
+      "article_hash": "sha256:1168e1908f1cab73e8c176e8c5b7bd80e564286c1f13113df5959b754f1aaa74",
+      "chunk_count": 3
+    },
+    "so_1304": {
+      "title": "CBI | How to extract Data Dump",
+      "article_hash": "sha256:7c448412b178b16ecf32302546deb924cc5bb1b56f3b339a692a98651a1ba254",
+      "chunk_count": 4
+    },
+    "so_1068": {
+      "title": "Shinhan | How to fetch ckyc data form session id and to convert it to csv file",
+      "article_hash": "sha256:55eafec42cec6056b774f3b3d925147293be14840e35b74ff6bb5041d570e2b8",
+      "chunk_count": 3
+    },
+    "so_1079": {
+      "title": "BAJAJ | how to create user link -from session id",
+      "article_hash": "sha256:60fac732de3fec4b7815f43b2a73b31ec16a56e6431fb754491d397be809c183",
+      "chunk_count": 4
+    },
+    "so_1084": {
+      "title": "Missing Aadhaar Reference Number in CBS Callback Logs | BLOSTEM_VKYC | unity",
+      "article_hash": "sha256:04660f70b1e241aa78d19db30c816eab0f205b6c93b8dd4e342357014d5e491d",
+      "chunk_count": 6
+    },
+    "so_1121": {
+      "title": "SendLink SMS Logs | fly-hi-financial-services-ltd_uat",
+      "article_hash": "sha256:c3411cc148d459382731b928fa9a3c4ec63f36d9396952019206061169aaa192",
+      "chunk_count": 2
+    },
+    "so_1101": {
+      "title": "Pfizer | how to bulck_sendline",
+      "article_hash": "sha256:fc2fb5f8f2056f0e2ac56f4739e5bb8c9fd02b5d9231d89b31412968d19dd02c",
+      "chunk_count": 5
+    },
+    "so_1117": {
+      "title": "CBI dkyc account creation",
+      "article_hash": "sha256:158950d249406c6a10bdb5c64b6dc367aac733d0609f26e131255b3f23f88983",
+      "chunk_count": 7
+    },
+    "so_1125": {
+      "title": "BoB -UP | Video Recovery and add URL Script",
+      "article_hash": "sha256:c785f9fa75d5d896276698991ee126eb33b454fff001935acb0a472767b20e94",
+      "chunk_count": 2
+    },
+    "so_1128": {
+      "title": "RBL | How to check callback logs for RBL in Clickhouse?",
+      "article_hash": "sha256:1af58e4dc2a89cd0b75baa3e55f81b05774112f765bc5234039c9e1766d6fce2",
+      "chunk_count": 3
+    },
+    "so_1138": {
+      "title": "BOB Mobile no and agent id is not whitelisted error issue?",
+      "article_hash": "sha256:a774156026b033907736b1e60dc4353ea386f7cc9bd51f8e47f1eca6335e370e",
+      "chunk_count": 1
+    },
+    "so_1146": {
+      "title": "Python script to backup config file",
+      "article_hash": "sha256:5cbba11651e5b5ab2c6d83616bbd6505a79ba20bacd07bfc4b9fcbe18e2fab82",
+      "chunk_count": 2
+    },
+    "so_1371": {
+      "title": "How to Monitor and Manage High Memory Usage in Docker Containers",
+      "article_hash": "sha256:0f49852117009e27fbdcc8eb19d6e8e15342effb7fc7f8c0f0d370a39a72c06d",
+      "chunk_count": 10
+    },
+    "so_1376": {
+      "title": "How to Rotate AWS Credentials on the RBL UAT Server",
+      "article_hash": "sha256:cea265b1667415eff0952b0f954141b9186faa33c47ffc11f8b4ce9639edc809",
+      "chunk_count": 5
+    },
+    "so_1165": {
+      "title": "Bajaj | how to extract selfi-pan-match score form session id",
+      "article_hash": "sha256:9153f54e19b1b6cff46c782eabb454b12c76a9176b572f9c572c0f72ac8a6b13",
+      "chunk_count": 2
+    },
+    "so_1155": {
+      "title": "Bajaj | get_session_detail form session id",
+      "article_hash": "sha256:4574b78fd93460841af28fc0a6c2c9e612e6260ac88ec052f93eca07ff034129",
+      "chunk_count": 4
+    },
+    "so_1168": {
+      "title": "RBL | How to check the Callback in s3 bucket",
+      "article_hash": "sha256:b445791da3b7c585d81bfcf55fb4d2fcc9d6d3e5bea93e616b3cc65abd54b41d",
+      "chunk_count": 8
+    },
+    "so_1172": {
+      "title": "BOB RRB - Account opening issue & logs",
+      "article_hash": "sha256:8176467c15d5b7b3186c0bee0866891c41da3d1cfe03dace5784a3c854d70103",
+      "chunk_count": 2
+    },
+    "so_1174": {
+      "title": "Fino | How to download 3005 -request /response log --aadhar otp",
+      "article_hash": "sha256:fbbf02d5cddc60dfee126fa82ae91f411df45b0fed4f07c7765c4bb8d526d676",
+      "chunk_count": 2
+    },
+    "so_1177": {
+      "title": "Unity | How to modify prodcut mapping for exsisting agent id | FINTECHFARM",
+      "article_hash": "sha256:82aeac5c07f29d0e5c92d05434aadb73f2ca39861bb65117fb77e27adaa07504",
+      "chunk_count": 2
+    },
+    "so_1186": {
+      "title": "How to view DKYC failed case error logs along with branch name and branch code",
+      "article_hash": "sha256:0f51195ed005d1bda52a01180b1e12693263cb7090626c68e417dce7487fd518",
+      "chunk_count": 14
+    },
+    "so_1193": {
+      "title": "CBI | DKYC | PROD - CBS retrigger scenarios",
+      "article_hash": "sha256:352e878d24d856cf36d696f33bd4d73f5da185f0d08bdd33e309ec750d01772a",
+      "chunk_count": 6
+    },
+    "so_1201": {
+      "title": "Unity | how to update summary data to dyanamo | how to cheeck summary data privs",
+      "article_hash": "sha256:6d673f258f951e3a0cf1e94422c80314419b518c434ea0790981046ba43f122c",
+      "chunk_count": 10
+    },
+    "so_1205": {
+      "title": "How to Debug Android Web Applications Using Chrome DevTools",
+      "article_hash": "sha256:2313f061dd419ccfbe6336c9bf1acaa906f6be15f1a1bfcf57e094d6c4609c5f",
+      "chunk_count": 19
+    },
+    "so_1203": {
+      "title": "Unity CBS | global_unhandled_exception | CIF not Created",
+      "article_hash": "sha256:59bbf51ab8237cb3c63ff9421be84d732021007deb0dba82bd1aaf8f580264df",
+      "chunk_count": 18
+    },
+    "so_1310": {
+      "title": "\"Global Unhandled Exception\" in CBI DKYC due to Form Data Missing some Keys in A",
+      "article_hash": "sha256:d5b48bfbdf2de3525ee8985124fa6e668c18f8dd7fbadd327216df4cb9979777",
+      "chunk_count": 10
+    },
+    "so_1209": {
+      "title": "how to check nginx sendLink logs for 502, 504, 200 status codes?",
+      "article_hash": "sha256:73341b283849ec94ea69287695baa92848b9679dcb2595e14083df6d04c4d29d",
+      "chunk_count": 8
+    },
+    "so_1220": {
+      "title": "Compare Facematch images",
+      "article_hash": "sha256:dad7f6e73291f88482a56a34e923de2b2291fae2e24038f9278cd5269c863964",
+      "chunk_count": 6
+    },
+    "so_1222": {
+      "title": "How to decrypt the encrypted API responses from our backend",
+      "article_hash": "sha256:c5a32e0e550d2741ddad368a421c2da692d31120406b614b12c42311e613552d",
+      "chunk_count": 3
+    },
+    "so_1226": {
+      "title": "KGB | How to retirgger account opeing api in karnatakagb",
+      "article_hash": "sha256:4bdc4ce806dc15423cde3681316baf3753f7595599e06ea186d1e69849423dba",
+      "chunk_count": 4
+    },
+    "so_1458": {
+      "title": "CBI PROD | DKYC - Retrigger Failure in Doc/Aadhaar Upload (CKYCR Upload failure)",
+      "article_hash": "sha256:f1fa2c2f4a485b77f9c7c40cd6f53f532cc409a00c6bfff21fed436764f0bc1a",
+      "chunk_count": 13
+    },
+    "so_1234": {
+      "title": "How to recover Unity auditor Approved cases which are marked as kyc_result_rejec",
+      "article_hash": "sha256:90a420882ef9f730685d72bacfbd6ef9fe05c2048536dbe89a9f820836325ca9",
+      "chunk_count": 4
+    },
+    "so_1236": {
+      "title": "How to setup SUMI (ML Container) for VKYC?",
+      "article_hash": "sha256:79f8c3bba8ca5f4100d4afc43b162c13e65ab5f24fd729ec6d98d3364b87fa7f",
+      "chunk_count": 13
+    },
+    "so_1241": {
+      "title": "Fino | call diposition issue / db connection down - restart nginx service",
+      "article_hash": "sha256:590056a993ea682f2cace6dcb99d58848fcc0ce5068036e884a6f88b6e338a9b",
+      "chunk_count": 1
+    },
+    "so_1248": {
+      "title": "Bajaj | how to fix null value in pan & selfi url in dyanamodb",
+      "article_hash": "sha256:89260743ca2cfe5a04571d77cd21f71c491ba56d019c2f4ef427ad944106a7cf",
+      "chunk_count": 3
+    },
+    "so_1261": {
+      "title": "KGB | CBS push cURL and logs | Remote PC access",
+      "article_hash": "sha256:a86d64a0df8a85b1d821c4978667c89e4070f9dbb65eea21d26bd5c5eb01678b",
+      "chunk_count": 2
+    },
+    "so_1259": {
+      "title": "RBL | PROD | How to check logs for NSDL and Aadhar API's Request and Response?",
+      "article_hash": "sha256:3115b2045a314feed297a32155bbf1d22b83b9b604d5ebe96bf9fd430b75fe26",
+      "chunk_count": 7
+    },
+    "so_1264": {
+      "title": "Bajaj | how to download agent log form server",
+      "article_hash": "sha256:2a0bc787483f168cb21b2cc4e87f34580efd0942b11693fe1165d0a3bbab98c4",
+      "chunk_count": 3
+    },
+    "so_1266": {
+      "title": "Canara [Disk-Space] canara.prod.vkyc.app.base down",
+      "article_hash": "sha256:58a8c76db749e13394e33f898ad6380dfd63eecb1e184ff3c289672acc3206dd",
+      "chunk_count": 1
+    },
+    "so_1273": {
+      "title": "How to restart CHAAND (AUTH) server?",
+      "article_hash": "sha256:ad7308695fe62c03adce23e1cc3e542f0dbfa66feea4a17ac8809c1bb05cc36b",
+      "chunk_count": 1
+    },
+    "so_1283": {
+      "title": "How to create ZIP file for BOB RRB",
+      "article_hash": "sha256:914774afe51b410cc857fe16d7dfaa6671141f47565db7b79216af327d519ad2",
+      "chunk_count": 8
+    },
+    "so_1285": {
+      "title": "How to Repush CBS Cases in BOB RRB",
+      "article_hash": "sha256:66cb788d772d6ddad1ff3ff4f92a6e6132f981d48c779b2ae18512db970163ea",
+      "chunk_count": 9
+    },
+    "so_1313": {
+      "title": "Unity | how to add agent_created time-stamp to agent id when the key is missing ",
+      "article_hash": "sha256:befbcfa5750f5074395104e28a8bb9237de5e0b7b4436e5b96cce31b326aa841",
+      "chunk_count": 2
+    },
+    "so_1287": {
+      "title": "How to Repush DMS Cases for BOB RRB",
+      "article_hash": "sha256:342f35addefb65c2db073edbb9ed016c51d764e5468adbfb215e7053eda32ca4",
+      "chunk_count": 9
+    },
+    "so_1296": {
+      "title": "How to deploy CBI DKYC containers across multiple servers (APP1→APP2/APP3) using",
+      "article_hash": "sha256:e3c59dd09cf83fddb4d2b043f9f579ce26010bfc7d6c95ad820f812da18d2e9e",
+      "chunk_count": 5
+    },
+    "so_1293": {
+      "title": "Unity | How to Check and Recover Agent Video Files on an unity Server?",
+      "article_hash": "sha256:d0f11c7b2d11eee90f28565f1c35313bd2ae55923975d2c9c4c22a0453881cde",
+      "chunk_count": 4
+    },
+    "so_1299": {
+      "title": "Bajaj | How can we change the session status in Bajaj?",
+      "article_hash": "sha256:f9a73bbc29f33155d9be4dc9d0c8bf9840388f73129872c86d9c09a6ffa6b0a8",
+      "chunk_count": 4
+    },
+    "so_1460": {
+      "title": "CBI | SOP – Fixing Aadhaar OTP Failure Due to Proxy Values in APK Container",
+      "article_hash": "sha256:10b3d7fe12dc43243ebf813df4c52b0f1ec90a611a0ed50e54d064f42013cecb",
+      "chunk_count": 9
+    },
+    "so_1315": {
+      "title": "Bajaj | How to check customer_ip missing from deal id",
+      "article_hash": "sha256:89ef32caf8c15f7d8fb4336ff9a36383849135d40c2bb88bcfed32bd12b80a18",
+      "chunk_count": 1
+    },
+    "so_1320": {
+      "title": "Aadhaar PDF Recovery",
+      "article_hash": "sha256:690fcebe7b6e0fae197d5fc4bd41a63c0980e64ba5e7a7c7541922ce309b1160",
+      "chunk_count": 7
+    },
+    "so_1324": {
+      "title": "Unity | How to extract the access logs of nginx into the excel to provide the da",
+      "article_hash": "sha256:c0e4aa535bf4a1861a79eb8994adaeeb7e0863a60ffb1c97102b620e0ea39bcc",
+      "chunk_count": 6
+    },
+    "so_1330": {
+      "title": "RBL | how to fix vcip_status = wating in downstream api",
+      "article_hash": "sha256:385333ca6dc2a6c6f90eb8351805c5202f09d1755e59675540e2b339544f8888",
+      "chunk_count": 9
+    },
+    "so_1343": {
+      "title": "CBI Housekeeping for Database Server Memory OR Scylla Database Server ([PRIVATE_",
+      "article_hash": "sha256:cceea095a4ecf7ad8b55c0a4e8b275f067026593550de43ea2658439383a0362",
+      "chunk_count": 4
+    },
+    "so_1349": {
+      "title": "how to compare nginx logs sessions and the db | kwikid_vkyc_session_status | ses",
+      "article_hash": "sha256:8004ed4d63f584a61d6169c9c8b27e0e39b99154d5d4ebc5974568393bc5ae94",
+      "chunk_count": 4
+    },
+    "so_1352": {
+      "title": "New ID creation | agent | admin | both for the unity",
+      "article_hash": "sha256:6e0701f280b8c091ee75a247ae8c32c3d3119bf909d2a0af791e4addb1f16dcb",
+      "chunk_count": 18
+    },
+    "so_1355": {
+      "title": "Bajaj | how to create agent portal link from agent id",
+      "article_hash": "sha256:5f55fb53321ba355d5519d84685e1374e83fcde71263120ef8cee21d9f90048f",
+      "chunk_count": 1
+    },
+    "so_1357": {
+      "title": "unity | how to change email id for the admin protal",
+      "article_hash": "sha256:2fc82df2f620d4107cc36fe143af9b378f88692880baa9e847a49d3f78ddd891",
+      "chunk_count": 1
+    },
+    "so_1363": {
+      "title": "Spark_capital | summary data recovery",
+      "article_hash": "sha256:98f627ea1ea774759c711081213ba6feedcc563c5bca709a09eb59c8b20360d1",
+      "chunk_count": 5
+    },
+    "so_1388": {
+      "title": "Canara Life certificate summary details fetching and session uploading",
+      "article_hash": "sha256:1970f47ed9c8dba4d0ed41855782a591c1fe187b3933cb50c44735750448e80e",
+      "chunk_count": 2
+    },
+    "so_1393": {
+      "title": "RBL | how to correct ekyc time stamp",
+      "article_hash": "sha256:2b77e60505643dd16387a7e3a2e24566e38b3afc6a5644b67f9a85ae5eb99b3c",
+      "chunk_count": 3
+    },
+    "so_1395": {
+      "title": "How to remove agents_ids from incorrect session status | unity",
+      "article_hash": "sha256:bdd32905abfd27eef765f7a1856bcd60f57026e2f5ef3c47ecc13c95ed5ed92d",
+      "chunk_count": 13
+    },
+    "so_1405": {
+      "title": "How to rotate AWS credentials on RBL production servers?",
+      "article_hash": "sha256:47aa948611c33dc0c387a0bfd2c3809dd0c0d3af70483d6d61d0a48c4f8be4c5",
+      "chunk_count": 3
+    },
+    "so_1413": {
+      "title": "Unity | summary not available | summary recovery | dynamodb |",
+      "article_hash": "sha256:427fcb0e33e34b1fd9411a2b7fb1d70b9a8bce5410a26d5a1706b601ba6f4e13",
+      "chunk_count": 7
+    },
+    "so_1587": {
+      "title": "CBI's VKYC/DKYC Agent Backend intermittently goes down and is restored back on i",
+      "article_hash": "sha256:379f5c631b36f64b2007cf94570035fe6a18d3759acdde9d8c481d011e896005",
+      "chunk_count": 11
+    },
+    "so_1426": {
+      "title": "truncate containers logs | unity | docker | container",
+      "article_hash": "sha256:1ee82385b7ce76a8b1e7696c7e7fb5397e8c7713d7fe73d82f8d0d857b992801",
+      "chunk_count": 13
+    },
+    "so_1428": {
+      "title": "disk space free script | unity | disk | docker | old video delete",
+      "article_hash": "sha256:e1b101e1895ffe01acf0d943404c3f5bd7ae443ab7b5cb1a48366d0d307272d0",
+      "chunk_count": 18
+    },
+    "so_1431": {
+      "title": "How to re-trigger callbacks manually | unity",
+      "article_hash": "sha256:ed8d24c7537aac4e6f244b0a7d232889c386fa505ce00d6073680c1596ca710b",
+      "chunk_count": 9
+    },
+    "so_1438": {
+      "title": "CBI Updation for GBM Pensioner Master Data Yearly",
+      "article_hash": "sha256:d60a5c543099fbf6a859f402f9cbea09537e19c28968129225c266703fa17f5b",
+      "chunk_count": 8
+    },
+    "so_1440": {
+      "title": "CBI PROD PLC Life certificate - Save (repush/ retrigger) & get PLC data",
+      "article_hash": "sha256:bacd823a144b43a1d712a596c135a71d87640472482a9b9a53df09a8acb65b55",
+      "chunk_count": 9
+    },
+    "so_1444": {
+      "title": "RBL | how to fetech data required by RBI",
+      "article_hash": "sha256:c4c1c2fcc85c433840d2784fad10998a7ecac9fb49fe704676bbcd43bc9f61b5",
+      "chunk_count": 1
+    },
+    "so_1447": {
+      "title": "Canara | how to recovery ckyc_reference_id if missing",
+      "article_hash": "sha256:c222e76bad1a64ebef79add041f5ed07fec3d8d34b76226476e8cbf8fe080c52",
+      "chunk_count": 4
+    },
+    "so_1449": {
+      "title": "SSL | Legacy verification server | https://kwikid.kyc.priv.getkwikid.com/nginxhe",
+      "article_hash": "sha256:a12e20feac3aa369d6a6d059597f2b24109f882d5a3ac61e9934609ded10359c",
+      "chunk_count": 4
+    },
+    "so_1451": {
+      "title": "CBI PROD | PLC - How to update the GBM master/excel data every year?",
+      "article_hash": "sha256:137419690fde67f7f8f23339445fbe24b57495babf7dafdb74e9ddd06bc0d96a",
+      "chunk_count": 7
+    },
+    "so_1453": {
+      "title": "CBI PROD | PLC - GBM Pensioners (.dat) file - user data/count mismatch",
+      "article_hash": "sha256:2e2b2683717cd41c37200dce48588dbbb08d36b24550aa3f6b52cf783d1048ac",
+      "chunk_count": 2
+    },
+    "so_1464": {
+      "title": "how to remove audit lock in unity | unity | PROD",
+      "article_hash": "sha256:a2ed28f0c44a5e544091c218de9bc7ea37cffb6db15c34945a0bbec812c993c8",
+      "chunk_count": 16
+    },
+    "so_1466": {
+      "title": "RBL | Case not assign and visible in agent portal?",
+      "article_hash": "sha256:aca3f16a5a91e4561f82d6dde13899099b1cc4e5f578bdd6dff8d1358abad4fe",
+      "chunk_count": 5
+    },
+    "so_1472": {
+      "title": "How to data dump to client over mail | unity | session_data",
+      "article_hash": "sha256:1262b9b656ead8b65e26ed7a1fe8c4ed7ab8a5eb7c1c8c5685f8be1153fe9a88",
+      "chunk_count": 1
+    },
+    "so_1482": {
+      "title": "CAMS (OICL) - Token generation api failure",
+      "article_hash": "sha256:87ba8dc5ab0edaeb1c67b4482b0167380721ef1090dec743922b39b073268496",
+      "chunk_count": 4
+    },
+    "so_1484": {
+      "title": "how to deactivate agent id | unity",
+      "article_hash": "sha256:b303939b4a6b98afa40e8d879fb6dfffd742473844cb60ba1279a642159e9315",
+      "chunk_count": 8
+    },
+    "so_1488": {
+      "title": "How to check the callback_response for the agent and auditor | unity",
+      "article_hash": "sha256:839a5c7bb7d7bae5078123952b8eeb77d96ceb06e5ef66fa6311f72c3884d349",
+      "chunk_count": 31
+    },
+    "so_1493": {
+      "title": "Retriggering audited session in KeralaGB ACO for account opening?",
+      "article_hash": "sha256:8d6a7821de7eeabe430b2facebb704e0dc8f88123b5c6395402363561f38ccab",
+      "chunk_count": 4
+    },
+    "so_1519": {
+      "title": "how to download the agent table data in csv/excel format New UAT",
+      "article_hash": "sha256:0b85c5227d24516c8e3009ebeba59443c26c4aad81fefbd22ceddf56abdcf2e6",
+      "chunk_count": 11
+    },
+    "so_1523": {
+      "title": "How do I get the count of User volume for a specific day in CBI's Environment?",
+      "article_hash": "sha256:570f9519f1642e1c538b17bee2f85aa53c257a6ea27640f005792324848e0d73",
+      "chunk_count": 5
+    },
+    "so_1526": {
+      "title": "New UAT envirment not starting after restart the server",
+      "article_hash": "sha256:cc20927ca1c3e418224a1d98f13ffeabfd821b7df96511bf4c68fa84d8664d8d",
+      "chunk_count": 6
+    },
+    "so_1529": {
+      "title": "How to bypass LDAP in New UAT unity",
+      "article_hash": "sha256:f2de772de2044c8d0548e3d878d9034312a87ea4e5fc9e708cbd7fd48e0fda28",
+      "chunk_count": 6
+    },
+    "so_1534": {
+      "title": "Updated SOP for Generation of Daily Report in CBI - VKYC (SA)",
+      "article_hash": "sha256:5f4805ee2bd5d8f17e164b2b9bd9297582a7488c85a076d14eb298d3f7204502",
+      "chunk_count": 3
+    },
+    "so_1539": {
+      "title": "Allow specific user to do journey even after account creation",
+      "article_hash": "sha256:4bd26b3683b9d9cde1fa225c3157e0cb66907fb0e615144d6a13ff4d91449705",
+      "chunk_count": 10
+    },
+    "so_1541": {
+      "title": "Callback Request Logs Download for All RBL Products",
+      "article_hash": "sha256:ed42538f9c630ab7fb1fd59241b5f38afc72c625131aea9a88610246639bcf71",
+      "chunk_count": 4
+    },
+    "so_1554": {
+      "title": "Steps for creating the encrypted files for Escrow Agreement for VCIP application",
+      "article_hash": "sha256:30a8dc4d1b4be6d4250d0532db13f4bdd92df57e9bbb04a591108700b4eacc0d",
+      "chunk_count": 5
+    },
+    "so_1556": {
+      "title": "unity | remove agents_ids from incorrect session status New",
+      "article_hash": "sha256:6cd2f98d379d9de0f74ef74cd1958fd0726e0a198b8ffa8b38d1f6a4f4f99ddb",
+      "chunk_count": 1
+    },
+    "so_1682": {
+      "title": "CBI REKYC Aadhaar Download & PDF URL Update Process",
+      "article_hash": "sha256:e660ab9f3fd4d755309c90ab5e3b9f251943b1599696276b3281e5d401adc5a3",
+      "chunk_count": 9
+    },
+    "so_1570": {
+      "title": "Exposing Internal S3/Object-Storage via Nginx Proxy - AWS Signature Validation E",
+      "article_hash": "sha256:07207c3cf854a1bdc28d3cdb288d7304835ec69ceeab80474b2ed40ba0fecb98",
+      "chunk_count": 21
+    },
+    "so_1572": {
+      "title": "In CBI DKYC, **Account opened with session status `partial_update` and `aof_subm",
+      "article_hash": "sha256:3d4ec2a09a62f8e0dfb64564068cd677c6f88d14469ac83381db4c96696e4d38",
+      "chunk_count": 11
+    },
+    "so_1574": {
+      "title": "How to check how many times a callback was triggered for IRCTC based product cod",
+      "article_hash": "sha256:bb7ef42711c30eea86e69783aea33c26951859451d8b36f9450d678ec5007b09",
+      "chunk_count": 5
+    },
+    "so_1577": {
+      "title": "Fetching KYC Result from Event Logger and Generating CSV Report",
+      "article_hash": "sha256:bb0d0a19688eca45cc71aa8d57675a0491fe3d22fd727b6816f8c4b4acef4cd1",
+      "chunk_count": 6
+    },
+    "so_1579": {
+      "title": "How to check which user id have which access in unity_uat environment",
+      "article_hash": "sha256:72f247918f63294517f39435e7f2620f30f336182dde6d9be963ba573bc12948",
+      "chunk_count": 5
+    },
+    "so_1589": {
+      "title": "RBL | How to re-covery cases in RBL where audit_result is blank in detail tab",
+      "article_hash": "sha256:5cc1f42fddfedb6ca7199544a744cc51f72ecc85da8f6d1fcfb048ab4469d8ab",
+      "chunk_count": 4
+    },
+    "so_1591": {
+      "title": "shinhan | agent portal not working (error Media server connection: Failed)",
+      "article_hash": "sha256:99a4279219af84aeb5f65029129a303818a30afd49957a01cbddb4e8b868b33c",
+      "chunk_count": 1
+    },
+    "so_1597": {
+      "title": "CBI | How to retrigger CKYCR failed cases",
+      "article_hash": "sha256:2219b369e01c5cee27ae922a955afee6d4e9c9f48d89f7cc0181ff06e4314de5",
+      "chunk_count": 2
+    },
+    "so_1599": {
+      "title": "CBI - what should we do if status is CKYC image pending in VKYC",
+      "article_hash": "sha256:c0a57fcd9c351b1dde30e5ced2bd508dfe2e6898e2a2c6d1b49b703da6096992",
+      "chunk_count": 3
+    },
+    "so_1609": {
+      "title": "CBI REKYC | Check why customer vcip_required=YES / rekyc=true for a user and rea",
+      "article_hash": "sha256:1ee35ff3ec060bbd282b5c9c1f57f54a0bb4aa73296fb15e696e735dd7a92e67",
+      "chunk_count": 4
+    },
+    "so_1633": {
+      "title": "CBI | how to retrigger rekyc cases if cif amend is blank",
+      "article_hash": "sha256:e26c579b06967e7441ff72b9fef73d0a9accc8f5120e640a3a25013f5784b82a",
+      "chunk_count": 1
+    },
+    "so_1648": {
+      "title": "Unity | All scripts for the New Production Unity environment are available at th",
+      "article_hash": "sha256:284e2dbed1d164f275c208e37b5b6786fae2733c2d4249aea53c35649bbb2033",
+      "chunk_count": 2
+    },
+    "so_1659": {
+      "title": "BAJAJ agents facing unauthorized access",
+      "article_hash": "sha256:b471d97be89be72b237c225e1c605f9e77a2ebcc760fee9c76bc7fa69c82f3bf",
+      "chunk_count": 3
+    },
+    "so_1646": {
+      "title": "SOP: Reusing & Updating Old DynamoDB and S3 Scripts After UAT Decommission",
+      "article_hash": "sha256:78c46a60af27d39ecf2dfa3c570fa29da384be007c97ed03706009ca0d93019f",
+      "chunk_count": 11
+    },
+    "so_1652": {
+      "title": "RupeeRedee | PROD | How to check video file present in s3",
+      "article_hash": "sha256:0c19b5ef3f192664169e910cd6ce131891c6333d3c398837fc1ce2345457cc7d",
+      "chunk_count": 6
+    },
+    "so_1661": {
+      "title": "Fino | How to check video present in s3 bucket",
+      "article_hash": "sha256:5afa3bac0d5416eb36959e89f5f751b6ec02f9b82f36906df77a3dce9f4da547",
+      "chunk_count": 3
+    },
+    "so_1663": {
+      "title": "How do we start and stop services for vKYC and dKYC login servers?",
+      "article_hash": "sha256:9eec498927be37191b67f05b701fa2622a66ac77c7b41d818c254759f52705bb",
+      "chunk_count": 2
+    },
+    "so_1672": {
+      "title": "How to retrigger rekyc blank and failed cases",
+      "article_hash": "sha256:660e1f1532323f5fd5c65aea17198eba4802ba6a2b237dc1563b551b738c82e9",
+      "chunk_count": 2
+    },
+    "so_1679": {
+      "title": "BOB - Re-push Save Auditor Details API for Failed Cases",
+      "article_hash": "sha256:3bedffe6922461aabc66bd5acda17a29bec6c83fa7ea734ccf81a289f3af7b4b",
+      "chunk_count": 4
+    },
+    "so_424": {
+      "title": "RBL | agent/auditor | Auditor Hold Notification Mail manual export to csv",
+      "article_hash": "sha256:2dec750be15116c9e8b0002546c4d1b5b7a3d7db95039a7cd10fc70e4db0a8e2",
+      "chunk_count": 4
+    },
+    "so_1694": {
+      "title": "Issue : wrong signature image showing into the summary how to fix this issue",
+      "article_hash": "sha256:1a79411d0444a018fa73d0fb0ce10490fc34c9615beebb3daef81758ec9b9c1b",
+      "chunk_count": 9
+    },
+    "so_1696": {
+      "title": "CBI | image_download_exception while opening account",
+      "article_hash": "sha256:1b4d60535b2d8b9a928818bd88941fe84ebac801ca6aae4ab4e3e649dee9d6c1",
+      "chunk_count": 2
+    },
+    "so_1698": {
+      "title": "CBI | How to create new admin ID for VKYC and REKYC",
+      "article_hash": "sha256:e6303e2ad5380990c864cc56eeace3339779c6c731eb870d0cb52cfd9598a805",
+      "chunk_count": 3
+    },
+    "so_1702": {
+      "title": "CBI | How to removed agent details from vkyc agent portal",
+      "article_hash": "sha256:5e957d095ad696ca99d2b28000ab291bc50e3551361837d4c99a9a735950778b",
+      "chunk_count": 2
+    },
+    "so_1704": {
+      "title": "Linux disk usage high even after deleting files",
+      "article_hash": "sha256:982ffe453a1fb972c9917b65a19fc4e2b4053f4e12c52a590878837370ca32cf",
+      "chunk_count": 25
+    },
+    "so_1712": {
+      "title": "CBI | REKYC how to update session status if missing agent ID and session status",
+      "article_hash": "sha256:fb2ad9c882c5502d80481cec0e28448f69ba4a2163f6eb1a1e0fae5a74ec0425",
+      "chunk_count": 2
+    },
+    "so_1714": {
+      "title": "Complete Manual for BOB CBS API(s) : BDMS -> Save Details -> Save Auditor Detail",
+      "article_hash": "sha256:0d706a8c36ef6d51201bbfa7f74065b5c249dd09fd1495c81e35ba80c9a45e5c",
+      "chunk_count": 15
+    },
+    "so_76": {
+      "title": "How to add a new user to CHAAND?",
+      "article_hash": "sha256:5f13fec3f33ae97da37f4904f823331e0d365e900726f3b61959b9749a0193d5",
+      "chunk_count": 10
+    },
+    "so_150": {
+      "title": "BoltDB database fetching error - Getting empty list of SLOT_BOOKING even though ",
+      "article_hash": "sha256:ab3feb72515291b8540c2d7e634dc42e930b7b8a7ddceace681488ff51119bc5",
+      "chunk_count": 6
+    },
+    "so_237": {
+      "title": "How to add a new service on SaaS portal?",
+      "article_hash": "sha256:3bf225bdfbb0548ccf904522563fca82e3327623decd2fcad42a3b6ceeb5e9d7",
+      "chunk_count": 6
+    },
+    "so_306": {
+      "title": "CBI Bulk CBS Trigger Script",
+      "article_hash": "sha256:ed6925905148aab81ccdf3c888969cb329bfc88cd65568ee2c9aae3c4e05cb5b",
+      "chunk_count": 6
+    },
+    "so_364": {
+      "title": "Agent Portal Schedule Day Disable [scheduleCallDiableDays]",
+      "article_hash": "sha256:6ee910c521653630bb72d15779dc68671001892fb76efd6a028eb34cb08a5b91",
+      "chunk_count": 1
+    },
+    "so_376": {
+      "title": "BOB_prod video recovery if the session is half or have different random number a",
+      "article_hash": "sha256:d53a2e9806d23a19705a67cc6d5044fab8f3d48beeadb02e527562e3130c4c17",
+      "chunk_count": 23
+    },
+    "so_549": {
+      "title": "How to delete Slots for BOB_prod?",
+      "article_hash": "sha256:e8e5d4d96c8d1b790ab0e6e65ab33142c64de164ad40c84f32c5d1f095331bd9",
+      "chunk_count": 1
+    },
+    "so_625": {
+      "title": "CBI Linux TTYD setUp",
+      "article_hash": "sha256:ff2c5644e4a72eda3166510545fe342844b3983219c9822918a9e07eab492b4c",
+      "chunk_count": 6
+    },
+    "so_639": {
+      "title": "PAN Signature JAR file",
+      "article_hash": "sha256:ad91a59c93aca5d4f1d375f2805ee0d37aed24a9d4447ded185551ba0780242e",
+      "chunk_count": 18
+    },
+    "so_685": {
+      "title": "NRFSI || end_time addition though aws cli",
+      "article_hash": "sha256:bae66338a0230c53791b576d995efa4ce51f1b4ef47f7a7e1220f8557bb2bea1",
+      "chunk_count": 6
+    },
+    "so_699": {
+      "title": "CBI Production | How to Repush CBS Cases?",
+      "article_hash": "sha256:82feb925e83a59a7cd24f95f7ee574e5ba930cd7f49c122c491a41da84975ceb",
+      "chunk_count": 9
+    },
+    "so_711": {
+      "title": "Unity | How to update session data using given session_id and cli in Unity?",
+      "article_hash": "sha256:be968e8f27ae799f8dd7ba8a76f1b1cbfb54a75d6fe26f942ac621c709cfe4d2",
+      "chunk_count": 16
+    },
+    "so_726": {
+      "title": "Unity | URLs are not loading? How to configure Global Protect VPN?",
+      "article_hash": "sha256:2034ca60c8d85ca473c88b96f5f8bd58983d8b47f3f333d3f59e54c93120e3c0",
+      "chunk_count": 6
+    },
+    "so_745": {
+      "title": "Bajaj - Admin Portal Session Data Retrieval and 0 Sessions Display issue",
+      "article_hash": "sha256:1aa1d885fcee6bb0b2b4eac8384ec27d0303a931113ce65ab98efd5c30fb206a",
+      "chunk_count": 17
+    },
+    "so_769": {
+      "title": "Fino Login Lock",
+      "article_hash": "sha256:17cd9552725453b1980e4312a33173cec823db3213395423bd0f9d1e02c3be64",
+      "chunk_count": 3
+    },
+    "so_778": {
+      "title": "Bajaj Patching Activity/Random Reason - All Containers Down",
+      "article_hash": "sha256:5e11bdf12543b8a1aef6625fc23cfebc0d5cebbd05bee42bea9fd34066a17700",
+      "chunk_count": 7
+    },
+    "so_803": {
+      "title": "Bajaj fin || Lat /Long missing (how to fix)",
+      "article_hash": "sha256:12c2fbfbc26922faee315a05e617c99e1bc493416e3f73271d1f4ec9a0931994",
+      "chunk_count": 8
+    },
+    "so_822": {
+      "title": "Unity | How to create agent/auditor and admin id in unity -",
+      "article_hash": "sha256:cfcb7a8de41ea45806d096922f341040a2d732dc449020fa1ed7d75889568a26",
+      "chunk_count": 7
+    },
+    "so_834": {
+      "title": "RBL lat/long missing issue",
+      "article_hash": "sha256:5ffc70109925f487d0fe3699a1e10392aea8caf3ee27d62cc22dc887286fb659",
+      "chunk_count": 8
+    },
+    "so_862": {
+      "title": "Config | Agent Portal | Hide empty keys in extras if value is not present",
+      "article_hash": "sha256:f82a6f106b69892e0443f8e1315b514da23524f03b9cb81e09dd5a1ea3d93bc2",
+      "chunk_count": 4
+    },
+    "so_864": {
+      "title": "Working with Amazon ECR (Elastic Container Registry)",
+      "article_hash": "sha256:dff5a4660ee6710f46a2443de6728b10f725c64e49bc1b7e2e4a3c2635bddda7",
+      "chunk_count": 7
+    },
+    "so_876": {
+      "title": "CBI RRB | How to set up complete client onboarding configuration including agent",
+      "article_hash": "sha256:867aa987ec8aa36ff43ea0da2520224d2bfa636d600b5691e4678cacd3055a2d",
+      "chunk_count": 13
+    },
+    "so_947": {
+      "title": "Canara All servers Down",
+      "article_hash": "sha256:e256d1f87fe28b958a9dda875b275b1a8ac8de095c28a1bd95e84ffd4aea1792",
+      "chunk_count": 5
+    },
+    "so_965": {
+      "title": "Fino | stage 2 -reset |",
+      "article_hash": "sha256:c5a0b933523eda214bbab40e154aaaa3fa2ee01ce205db36183c2c27fa831e97",
+      "chunk_count": 3
+    },
+    "so_989": {
+      "title": "What's the process to debug Unity Event Task Binder callbacks using a mock callb",
+      "article_hash": "sha256:cc6eb1d01b8008cc2d72705b900206c83c6f52ee1d5eca5049eee746e0eff35a",
+      "chunk_count": 12
+    },
+    "so_999": {
+      "title": "Unity | cif not created | how to trigger | how to check",
+      "article_hash": "sha256:893274f1fee12bd1cca2cea0c9bc8c80ba12ee389fc1b7f287f5744d3cd6377c",
+      "chunk_count": 9
+    },
+    "so_1010": {
+      "title": "How can we check if the agent screen URL is missing in Canara?",
+      "article_hash": "sha256:4c2b2a3414b4b716ab6bebb19fe4bf6208d44bb4ebb0b4faae2d03204c941fd0",
+      "chunk_count": 3
+    },
+    "so_1012": {
+      "title": "Fund Transfer - CBI SA",
+      "article_hash": "sha256:dc753c61b4437d52780b0a9c8bcb307b156032b676df704cc8805e6e8036b7f6",
+      "chunk_count": 16
+    },
+    "so_1015": {
+      "title": "Sever space monitoring | auto log Clean-uP code |",
+      "article_hash": "sha256:b0bd5f7a3a88b04334b00b821b21d23d02020e4f8564732d549a57de8f52639f",
+      "chunk_count": 11
+    },
+    "so_1046": {
+      "title": "How to store redacted/masked data in DB?",
+      "article_hash": "sha256:286f4614f0f808e7aa735c1a7872a4cf8c56e67cdf4a711681f1a29e8c879915",
+      "chunk_count": 12
+    },
+    "so_1066": {
+      "title": "Bajaj | How to created agent/admin/auditors id in bajajfin",
+      "article_hash": "sha256:12805194044f57d2d47ff2047ee981b089f15827728942c885426dfbf33e6f4e",
+      "chunk_count": 14
+    },
+    "so_1091": {
+      "title": "NRFSI | how to recovery the summary.json | s3 bucket verisioning",
+      "article_hash": "sha256:26ab984bfa9d0783b7db7b9a5edc72030451bbfcb6f80d9ca6a61e6c30ac1b19",
+      "chunk_count": 10
+    },
+    "so_1150": {
+      "title": "REDIS | ISSUE | MISCONF Redis is configured to save RDB snapshots",
+      "article_hash": "sha256:13f7754633fb29982e4c2590aabf9191598f2481442a742fc92a9bbc5a5fa0b2",
+      "chunk_count": 2
+    },
+    "so_1152": {
+      "title": "Error-404 | CIF",
+      "article_hash": "sha256:b6cebec97c50681c3caf3d9dd8eef39de8b5116aac0ae62df23b7b407618e2dd",
+      "chunk_count": 3
+    },
+    "so_1163": {
+      "title": "Improve/ increase screen recording video quality",
+      "article_hash": "sha256:1a8dac25d03e5c3cd868df3c13ca3610490e4eee832500d595252bfbfb1c6832",
+      "chunk_count": 4
+    },
+    "so_1183": {
+      "title": "CBI PROD - Session not visible in auditor portal (VKYC & REKYC)",
+      "article_hash": "sha256:4db48cb1c0a6e03315d2c81063584f2835588f24d3375e8b4f38a9b5d1cc2f66",
+      "chunk_count": 7
+    },
+    "so_1195": {
+      "title": "CBI | DKYC | PROD - Check CBS accounts status/ generate report",
+      "article_hash": "sha256:427bbe90f20681382f1e2126546e993d9a83ee21c1541114cf34ea6e6e992f5d",
+      "chunk_count": 6
+    },
+    "so_1217": {
+      "title": "Aadhaar Reference Updater Script",
+      "article_hash": "sha256:08ec24836fd06aa3a58034839d4d1dd6d5c425560f79fa62efe21a05e3786b41",
+      "chunk_count": 9
+    },
+    "so_1238": {
+      "title": "CBI_DKYC | PROD / UAT - Updating branch master data across backend and frontend ",
+      "article_hash": "sha256:b685817a9dd656bd78fbdab6341480772439a9ccb9da62970a8fbe98184445d4",
+      "chunk_count": 12
+    },
+    "so_1255": {
+      "title": "BOB-up | how to extract custom data from session id and convert into csv",
+      "article_hash": "sha256:3ba5db98bc7a0ff270c5c1b6ed05fc34b04aa017edb8d5a1ed0488be11a39caf",
+      "chunk_count": 5
+    },
+    "so_1281": {
+      "title": "NRFSI | how to restart cug services when not running",
+      "article_hash": "sha256:1cd04381ab88c41c71b6964a19ab6946827fae1ed39c6216e441f479355ba94c",
+      "chunk_count": 3
+    },
+    "so_1289": {
+      "title": "Measure API Latency / Application Slowness",
+      "article_hash": "sha256:b3ecaf1a4afe626c9df6311cde2b86058be90f50ce9848b5d06220727222d4db",
+      "chunk_count": 29
+    },
+    "so_1322": {
+      "title": "How to replace incorrect PAN Card image | Unity | Agent Portal",
+      "article_hash": "sha256:724cc60861bd1329decad6c3dab7e53e506a78d7e0fae583c109897618e816c3",
+      "chunk_count": 10
+    },
+    "so_1347": {
+      "title": "how to Download kwikid_vkyc_session_status | monthly data | unity",
+      "article_hash": "sha256:2f35c0dc84c2e36dbf452314018ee2dc2860393344bea658a4837d0f6c7bdcdf",
+      "chunk_count": 11
+    },
+    "so_1585": {
+      "title": "Issue audit stauts not showing into the session status unity Fix Incorrect audit",
+      "article_hash": "sha256:4a5df0e4f58ee893939f4fa50ef473e9f6a8d0077b870b8fdd1b2d5cb83a4bf4",
+      "chunk_count": 9
+    },
+    "so_1399": {
+      "title": "Update SSL Certificate",
+      "article_hash": "sha256:c5b1ccc896c0abaac248131f26ee7d4415ae978bbdf28ea2da279aeef0432ded",
+      "chunk_count": 11
+    },
+    "so_1416": {
+      "title": "RBL | No session found for search criteria",
+      "article_hash": "sha256:7c6ca5b5bbadd3a2099fae2d08aa78952604903e758a9999745bd708a1f873cc",
+      "chunk_count": 4
+    },
+    "so_1517": {
+      "title": "NRFSI | how to recovery zip file when missing",
+      "article_hash": "sha256:cff8c0f36d4734eb80831993369c7a82fcdfe66cc01e2e012ce5536fe260fad0",
+      "chunk_count": 2
+    },
+    "so_1558": {
+      "title": "RBL | Callbacks | How to Identify Client-Side Callback API Connectivity Issues (",
+      "article_hash": "sha256:1411eede11c8bd6c1d5104442a840ce0e2083413e2bf3a0c04e52a8227c0dcbd",
+      "chunk_count": 23
+    },
+    "so_1563": {
+      "title": "How to add email ids into the daily dump report | Unity | new joiner on-boarding",
+      "article_hash": "sha256:7c3ae4f1ef18ec66d968cf5ae5423a31236b16cae229e780bc0536aa83b73adf",
+      "chunk_count": 19
+    },
+    "so_1619": {
+      "title": "VKYC FINTECHFARM pan data Extraction Script | Unity | PROD",
+      "article_hash": "sha256:19a959b7e05b3fc333876910e84c5c785a068f18f322d3afcc7c882689e9ad72",
+      "chunk_count": 5
+    },
+    "so_1674": {
+      "title": "BOB: Video Download, Edit and Re-upload Video from S3",
+      "article_hash": "sha256:c19339749a18958a4cd569ad0e210f92348aec3d7c08c22ce01b209e0ce101f2",
+      "chunk_count": 8
+    }
+  }
+}

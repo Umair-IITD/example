@@ -429,6 +429,24 @@ class KnowledgePipeline:
         if getattr(article, "manual_review_required", False):
             out["manual_review_flagged"] = 1
 
+        # Reconstruct document with inline OCR injection.
+        # Build a GUID → metadata lookup from image_metadata (populated by parser OCR).
+        # Only include images where OCR actually ran and produced text.
+        ocr_map: dict[str, dict] = {
+            meta["image_guid"]: meta
+            for meta in getattr(article, "image_metadata", [])
+            if meta.get("image_guid")
+            and meta.get("ocr_required")
+            and meta.get("ocr_text")
+        }
+        if ocr_map:
+            # Replace ![alt](SO_CDN_url) with [IMAGE: cleaned_ocr_text] at original position.
+            # Images without OCR text are removed (same as before).
+            # This preserves the reading order: text → [IMAGE: ocr] → text → code → ...
+            q_body = _inject_ocr_inline(q_body, ocr_map)
+            if a_body:
+                a_body = _inject_ocr_inline(a_body, ocr_map)
+
         # Build embed text
         embed_text   = _build_embed_text_raw(
             title          = title,
@@ -686,33 +704,128 @@ class KnowledgePipeline:
 # Free function (used by ingest_verified_reply)
 # ---------------------------------------------------------------------------
 
-# Regex to strip raw image URL markdown strings from embed text
-# (prevents image CDN URLs from polluting semantic embeddings — Q4)
+# Regex to strip raw image URL markdown strings from embed text.
+# Used as a FALLBACK for images that have no OCR text — images with OCR
+# are replaced inline by _inject_ocr_inline() before this runs.
 _IMAGE_MD_RE = re.compile(
     r"!\[[^\]]*\]\(https?://[^\)]*stackoverflowteams[^\)]*\.(png|jpg|jpeg|gif|webp)\)",
     re.IGNORECASE,
 )
-# Also strip bare CDN image URLs that appear without markdown alt-text wrappers
+# Strip bare CDN image URLs that appear without markdown alt-text wrappers.
 _IMAGE_URL_BARE_RE = re.compile(
     r"https?://stackoverflowteams\.com/c/[^/]+/images/s/"
     r"[0-9a-fA-F\-]{32,36}\.(png|jpg|jpeg|gif|webp)",
     re.IGNORECASE,
 )
+# Strip embedded base64 data URIs (e.g. data:image/jpeg;base64,<20KB blob>).
+# These appear when engineers paste images directly into SO bodyMarkdown instead
+# of uploading to the CDN. The binary blob has zero semantic content.
+_IMAGE_DATA_URI_RE = re.compile(
+    r"!\[[^\]]*\]\(data:image/[^;]+;base64,[A-Za-z0-9+/=\r\n\s]+\)",
+    re.IGNORECASE | re.DOTALL,
+)
+# Extract StackOverflow image GUID (UUID v4 with dashes) from any SO CDN URL.
+# Matches the same GUID format produced by StackOverflowParser._extract_image_references().
+_SO_IMAGE_GUID_RE = re.compile(
+    r"/images/s/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}"
+    r"-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\.",
+    re.IGNORECASE,
+)
+
+# Minimum OCR text length to inject — filters single-char extractions,
+# empty results, and pure noise from decorative image regions.
+_MIN_OCR_INJECT_CHARS = 20
+
+
+def _clean_ocr_for_injection(raw_ocr: str) -> str:
+    """
+    Filter raw OCR output to retain only knowledge-bearing lines.
+
+    The OCR engine extracts all text it finds in the image, including:
+    - Browser chrome (tab labels, URL bar, reload button)
+    - OS taskbar text (time, tray icons)
+    - Repeated decorative labels
+    - Single-character artifacts from image boundaries
+
+    Filtering rules (each applied per line):
+      - Skip lines shorter than 3 chars
+      - Skip lines that are purely numeric or date/time patterns
+        (timestamps, frame numbers, page numbers — not operational knowledge)
+
+    Returns the cleaned text, or "" if nothing useful remains.
+    """
+    kept: list[str] = []
+    for line in raw_ocr.split("\n"):
+        line = line.strip()
+        if len(line) < 3:
+            continue
+        # Pure timestamps / numeric junk: "12:34", "2024-01-15", "99", "  3  "
+        if re.fullmatch(r"[\d:.\-/\s]+", line):
+            continue
+        kept.append(line)
+    result = "\n".join(kept).strip()
+    return result if len(result) >= _MIN_OCR_INJECT_CHARS else ""
+
+
+def _inject_ocr_inline(text: str, ocr_map: dict[str, dict]) -> str:
+    """
+    Replace StackOverflow image markdown with inline OCR text, preserving position.
+
+    For each ``![alt](https://stackoverflowteams.com/.../GUID.png)`` in text:
+      - If OCR text is available for that GUID: replace with ``[IMAGE: <cleaned_ocr>]``
+      - If no OCR text (image not OCR'd, OCR failed, or text too short): remove the
+        markdown entirely (same behaviour as the previous _IMAGE_MD_RE.sub("", text)).
+
+    This preserves the READING ORDER of the original article.  OCR text appears at
+    the exact document position where the engineer placed the screenshot, not appended
+    at the end as a detached blob.
+
+    Args:
+        text:    Question or answer body after PII redaction (still contains image markdown).
+        ocr_map: {image_guid (lowercase, with dashes): image_metadata dict}
+                 Only includes images where ocr_required=True and ocr_text is not None.
+
+    Returns:
+        Text with image markdown replaced by [IMAGE: ...] markers or removed.
+    """
+    def _replace(m: re.Match) -> str:
+        # Extract StackOverflow image GUID from the matched URL string
+        guid_m = _SO_IMAGE_GUID_RE.search(m.group(0))
+        if not guid_m:
+            return ""  # Malformed URL — drop
+        guid = guid_m.group(1).lower()
+        meta = ocr_map.get(guid)
+        if not meta:
+            return ""  # No OCR for this image — drop (same as before)
+        raw_ocr = (meta.get("ocr_text") or "").strip()
+        cleaned = _clean_ocr_for_injection(raw_ocr)
+        if not cleaned:
+            return ""  # OCR ran but result is noise — drop
+        return f"\n[IMAGE: {cleaned}]\n"
+
+    # Replace image markdown with OCR or empty (preserves position for OCR'd images)
+    result = _IMAGE_MD_RE.sub(_replace, text)
+    # Strip bare CDN URLs that are not wrapped in markdown alt-text syntax
+    result = _IMAGE_URL_BARE_RE.sub("", result)
+    return result
 
 
 def _sanitize_for_embedding(text: str) -> str:
     """
     Prepare text for embedding by:
-      1. Unescaping HTML entities (Q1): &lt; → <, &amp; → &, &quot; → ", etc.
-      2. Stripping image URL markdown strings (Q4): prevents CDN URLs from
-         polluting semantic vector space with non-semantic tokens.
+      1. Unescaping HTML entities (Q1): &lt; → <, &amp; → &, etc.
+      2. Stripping any remaining SO CDN image markdown (Q4 fallback):
+         at this point, images with OCR have already been replaced inline by
+         _inject_ocr_inline(); only images with no OCR text remain as ![](url).
+      3. Stripping bare SO CDN image URLs not wrapped in markdown.
+      4. Stripping embedded base64 data URIs (binary blobs with no semantic content).
     """
-    # Q1: HTML entity unescaping (stdlib html.unescape handles all named + numeric entities)
     text = _html_module.unescape(text)
-    # Q4: Remove image markdown syntax (![alt](url)) — keep alt text, drop URL
+    # Fallback strip for images not replaced by _inject_ocr_inline (no OCR available)
     text = _IMAGE_MD_RE.sub("", text)
-    # Q4: Remove bare image CDN URLs not wrapped in markdown
     text = _IMAGE_URL_BARE_RE.sub("", text)
+    # Strip embedded base64 data URIs (e.g. so_1679's 20KB JPEG blob)
+    text = _IMAGE_DATA_URI_RE.sub("", text)
     return text
 
 
