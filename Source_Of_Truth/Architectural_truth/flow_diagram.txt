@@ -1,0 +1,413 @@
+flowchart TD
+
+%% =========================
+%% EXTERNAL SYSTEMS
+%% =========================
+subgraph External [External Interfaces]
+    USER[Bank Agent / Customer]
+    FD[Freshdesk]
+    ASANA[Asana]
+    DEV[Engineering Team]
+end
+
+%% =========================
+%% CORE INGESTION & ROUTING
+%% =========================
+subgraph Core [Ingestion & Case Management]
+    TICKET[Ticket Ingestion Service]
+    CASE[Case Service]
+    CASEDB[(Cases DB)]
+end
+
+%% =========================
+%% TENANT RESOLUTION
+%% =========================
+subgraph Tenant [Multi-Tenant Resolution]
+
+    CLIENTRESOLVE[Client Resolution Engine]
+
+    TENANTREG[(Tenant Registry)]
+
+    TENANTCTX[Tenant Context]
+
+end
+
+%% =========================
+%% AI & ORCHESTRATION
+%% =========================
+subgraph AI [AI & Reasoning Engine]
+    CLASSIFIER[Topic Classification]
+    SLOTEXTRACT[Slot Extraction]
+    CLARIFICATION[Clarification Engine]
+
+    WORKFLOWSELECT[Workflow Selection]
+    ENGINE[Workflow Engine]
+
+    INVESTIGATION[Investigation Planner]
+    EVIDENCE[Evidence Collector]
+
+    ROOTCAUSE[Root Cause Engine]
+
+    REASONING[Reasoning Engine]
+
+    GUARDRAILS[Policy & Safety Guardrails]
+
+    OBSGEN[Observation Generator]
+
+    LLM((Enterprise LLM))
+end
+
+%% =========================
+%% KNOWLEDGE LAYER
+%% =========================
+subgraph Knowledge [Knowledge Layer]
+
+    STACK[(StackOverflow Teams Export)]
+
+    INGEST[Knowledge Ingestion]
+
+    INDEX[Knowledge Indexer]
+
+    HYBRIDRAG[Hybrid RAG]
+
+    VISION[Image Understanding]
+
+    PLAYBOOKS[(Workflow Playbooks)]
+
+end
+
+%% =========================
+%% TOOL & INVESTIGATION LAYER
+%% =========================
+subgraph Tools [Tool Registry & Investigation APIs]
+
+    TOOLS[Tool Registry]
+
+    TENANTROUTER[Tenant API Router]
+
+    UNITYADMIN[Unity Bank Admin APIs]
+
+    ADMINSVC[Client Support APIs]
+
+    USERTOOL[GetUserDetails]
+
+    SESSIONTOOL[GetSessionDetails]
+
+    FAILTOOL[GetFailureReason]
+
+    CASETOOL[GetCaseHistory]
+
+    ONBOARDTOOL[GetOnboardingStatus]
+
+    LOGTOOL[Session Logs Tool]
+
+    SUMMARYTOOL[Session Summary Tool]
+
+    VIDEOTOOL[Session Video Tool]
+
+    METRICTOOL[Metrics Tool]
+
+    SERVERTOOL[Server Status Tool]
+
+end
+
+%% =========================
+%% EXECUTION LAYER
+%% =========================
+subgraph Execution [Action & Resolution Layer]
+
+    ACTIONPROPOSAL[Action Proposal]
+
+    ACTIONGW[Action Gateway]
+
+    RISKCHECK{Risk Level}
+
+    APPROVAL[Approval Workflow]
+
+    HUMANAPPROVER[Human Approver]
+
+    EXECUTE[Executor]
+
+    ACTIONDB[(Actions DB)]
+
+    VERIFY[Verification Engine]
+
+    RECOVERY[Recovery Service]
+
+    RESOLUTION[Automated Resolution]
+
+    NOTEGEN[Notes Generator]
+
+    USERRESPONSE[Generate Customer Reply]
+
+    CLOSE[Close Ticket]
+
+    ESCALATE[Escalate to Human Agent]
+
+end
+
+%% =========================
+%% GOVERNANCE
+%% =========================
+subgraph Governance [Audit & Compliance]
+
+    AUDIT[Audit Service]
+
+    AUDITDB[(Audit Events DB)]
+
+end
+
+%% =========================
+%% KNOWLEDGE INGESTION
+%% =========================
+
+STACK --> INGEST
+
+INGEST --> INDEX
+
+INDEX --> HYBRIDRAG
+
+VISION --> HYBRIDRAG
+
+%% =========================
+%% USER FLOW
+%% =========================
+
+USER -->|Email Support| FD
+
+FD --> TICKET
+
+TICKET --> CLIENTRESOLVE
+
+CLIENTRESOLVE --> TENANTREG
+
+CLIENTRESOLVE --> TENANTCTX
+
+TENANTCTX --> CASE
+
+CASE --> CASEDB
+
+%% =========================
+%% AI FLOW
+%% =========================
+
+CASE --> CLASSIFIER
+
+CLASSIFIER --> LLM
+
+CLASSIFIER --> SLOTEXTRACT
+
+SLOTEXTRACT --> LLM
+
+SLOTEXTRACT --> DECISION1{All Slots Present?}
+
+%% =========================
+%% CLARIFICATION LOOP
+%% =========================
+
+DECISION1 -->|No| CLARIFICATION
+
+CLARIFICATION --> LLM
+
+CLARIFICATION --> OUTBOUND[Reply Generator]
+
+OUTBOUND --> FD
+
+FD --> USER
+
+%% =========================
+%% WORKFLOW ORCHESTRATION
+%% =========================
+
+DECISION1 -->|Yes| WORKFLOWSELECT
+
+WORKFLOWSELECT --> ENGINE
+
+ENGINE --> PLAYBOOKS
+
+PLAYBOOKS --> INVESTIGATION
+
+ENGINE --> INVESTIGATION
+
+%% =========================
+%% INVESTIGATION FLOW
+%% =========================
+
+TENANTCTX --> TENANTROUTER
+
+TENANTROUTER --> UNITYADMIN
+
+UNITYADMIN --> ADMINSVC
+
+ADMINSVC --> USERTOOL
+
+ADMINSVC --> SESSIONTOOL
+
+ADMINSVC --> FAILTOOL
+
+ADMINSVC --> CASETOOL
+
+ADMINSVC --> ONBOARDTOOL
+
+ADMINSVC --> LOGTOOL
+
+ADMINSVC --> SUMMARYTOOL
+
+ADMINSVC --> VIDEOTOOL
+
+ADMINSVC --> METRICTOOL
+
+ADMINSVC --> SERVERTOOL
+
+INVESTIGATION --> EVIDENCE
+
+EVIDENCE --> TOOLS
+
+TOOLS -.-> USERTOOL
+TOOLS -.-> SESSIONTOOL
+TOOLS -.-> FAILTOOL
+TOOLS -.-> CASETOOL
+TOOLS -.-> ONBOARDTOOL
+TOOLS -.-> LOGTOOL
+TOOLS -.-> SUMMARYTOOL
+TOOLS -.-> VIDEOTOOL
+TOOLS -.-> METRICTOOL
+TOOLS -.-> SERVERTOOL
+
+METRICTOOL --> EVIDENCE
+
+SERVERTOOL --> EVIDENCE
+
+EVIDENCE --> ROOTCAUSE
+
+%% =========================
+%% KNOWLEDGE ASSISTED REASONING
+%% =========================
+
+ROOTCAUSE --> HYBRIDRAG
+
+HYBRIDRAG --> REASONING
+
+REASONING --> LLM
+
+%% =========================
+%% GUARDRAILS
+%% =========================
+
+REASONING --> GUARDRAILS
+
+GUARDRAILS --> ACTIONPROPOSAL
+
+GUARDRAILS --> OBSGEN
+
+ROOTCAUSE --> OBSGEN
+
+%% =========================
+%% ACTION FLOW
+%% =========================
+
+ACTIONPROPOSAL --> ACTIONGW
+
+ACTIONGW --> RISKCHECK
+
+RISKCHECK -->|SAFE| EXECUTE
+
+RISKCHECK -->|REVERSIBLE / HIGH| APPROVAL
+
+APPROVAL --> HUMANAPPROVER
+
+HUMANAPPROVER --> APPROVED{Approved?}
+
+APPROVED -->|No| ESCALATE
+
+APPROVED -->|Yes| EXECUTE
+
+%% =========================
+%% EXECUTION & RECOVERY
+%% =========================
+
+EXECUTE --> ACTIONDB
+
+EXECUTE --> VERIFY
+
+VERIFY --> DECISION3{Outcome Successful?}
+
+DECISION3 -->|No| RECOVERY
+
+RECOVERY --> RETRY[Retry]
+
+RECOVERY --> ROLLBACK[Rollback]
+
+RECOVERY --> DEADLETTER[Dead Letter Queue]
+
+DECISION3 -->|Yes| RESOLUTION
+
+%% =========================
+%% L1 OBSERVATIONS
+%% =========================
+
+OBSGEN --> FDNOTE[Freshdesk Internal Notes]
+
+RESOLUTION --> NOTEGEN
+
+NOTEGEN --> LLM
+
+NOTEGEN --> FDNOTE
+
+%% =========================
+%% L2 WORKFLOW
+%% =========================
+
+FDNOTE --> L2CHECK{Needs Engineering?}
+
+L2CHECK -->|Yes| ASANACREATE[Create Asana Ticket]
+
+ASANACREATE --> ASANA
+
+ASANA <--> DEV
+
+ASANA --> FIXED[Issue Fixed Event]
+
+FIXED --> FDUPDATE[Update Freshdesk Notes]
+
+FDUPDATE --> USERRESPONSE
+
+%% =========================
+%% CUSTOMER RESPONSE
+%% =========================
+
+L2CHECK -->|No| USERRESPONSE
+
+USERRESPONSE --> LLM
+
+USERRESPONSE --> FD
+
+USERRESPONSE --> CLOSECHECK{Resolution Confirmed?}
+
+CLOSECHECK -->|No| CLARIFICATION
+
+CLOSECHECK -->|Yes| CLOSE
+
+%% =========================
+%% AUDIT
+%% =========================
+
+CASE -.-> AUDIT
+
+ENGINE -.-> AUDIT
+
+INVESTIGATION -.-> AUDIT
+
+ROOTCAUSE -.-> AUDIT
+
+ACTIONGW -.-> AUDIT
+
+APPROVAL -.-> AUDIT
+
+EXECUTE -.-> AUDIT
+
+RECOVERY -.-> AUDIT
+
+CLOSE -.-> AUDIT
+
+AUDIT --> AUDITDB

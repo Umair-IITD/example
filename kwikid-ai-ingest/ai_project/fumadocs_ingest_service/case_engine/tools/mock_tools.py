@@ -3,12 +3,18 @@ case_engine/tools/mock_tools.py
 
 Sprint 2.17: Mock Investigation Tools.
 
-These tools return deterministic fake data for architecture validation.
-They prove the tool → workflow → resume integration path works correctly.
+⚠️ DEPRECATED FOR PRODUCTION (Sprint 2.51).
 
-IMPORTANT: These are placeholders only. Real KwikID API integrations will
-replace these implementations in a future sprint. The interface (BaseTool,
-ToolDefinition, run()) will remain stable.
+These deterministic-fake tools remain in the repository so that historical
+tests (Sprint 2.17/2.18/2.42/2.43/2.45) can continue to import them for
+mock-based scenarios. **Production runtime must call
+`case_engine.tools.adapters.register_unity_tools()` instead**, which
+registers the five real Unity Admin Portal adapters (`unity_tools.py`)
+under the same tool names.
+
+Do not import from this module in new code. Do not add new mock tools here.
+For any new mock needs, use `unittest.mock.MagicMock`/dependency injection
+in the test file itself.
 
 Tools:
   GetSessionDetailsTool    — session metadata for a VKYC session

@@ -48,6 +48,14 @@ from freshdesk.freshdesk_models import (
     FreshdeskWebhookPayload,
     FreshdeskUpdateEvent,
 )
+from freshdesk.traces import (
+    TRACE_FD_02_PAYLOAD_NORMALIZED,
+    TRACE_FD_03_TENANT_RESOLVED,
+    TRACE_FD_04_CASE_CREATED,
+    TRACE_FD_05_PIPELINE_STARTED,
+    TRACE_FD_06_PIPELINE_COMPLETED,
+    emit_trace,
+)
 from case_engine.trace import make_trace_id, trace_log
 
 LOGGER = logging.getLogger(__name__)
@@ -123,6 +131,15 @@ class FreshdeskTicketCreatedHandler:
         event_type = "ticket_created"
         event_ts = ticket.created_at or ""
         idem_key = self._idempotency.make_key(ticket_id, event_type, event_ts)
+
+        # Sprint 2.49 — TRACE_FD_02_PAYLOAD_NORMALIZED: parsed model available.
+        emit_trace(
+            TRACE_FD_02_PAYLOAD_NORMALIZED,
+            ticket_id=ticket_id,
+            client=ticket.custom_fields.cf_clients or "",
+            event_type=event_type,
+            status="NORMALIZED",
+        )
 
         # TRACE_PAYLOAD_02_MODEL — proves parsing extracted the correct fields
         # Email masked to domain only (PII protection).
@@ -247,6 +264,15 @@ class FreshdeskTicketCreatedHandler:
                 tenant_ctx = self._client_resolver.resolve(email)
                 client_id = tenant_ctx.client_id
                 client_name = tenant_ctx.client_name
+                # Sprint 2.49 — TRACE_FD_03_TENANT_RESOLVED: client resolved successfully.
+                emit_trace(
+                    TRACE_FD_03_TENANT_RESOLVED,
+                    ticket_id=ticket_id,
+                    tenant=client_id,
+                    client=client_name,
+                    event_type=event_type,
+                    status="RESOLVED",
+                )
                 LOGGER.warning(
                     "TRACE_HANDLER_BRANCH_06A ticket_id=%s resolve_ok client_id=%r",
                     ticket_id, client_id,
@@ -334,9 +360,37 @@ class FreshdeskTicketCreatedHandler:
                     len(ticket_context.description or ""),
                     ticket_context.requester_email.split("@")[-1] if "@" in (ticket_context.requester_email or "") else "(empty)",
                 )
+                # Sprint 2.49 — TRACE_FD_05_PIPELINE_STARTED: pipeline dispatch.
+                emit_trace(
+                    TRACE_FD_05_PIPELINE_STARTED,
+                    ticket_id=ticket_id,
+                    tenant=client_id,
+                    client=client_name,
+                    event_type=event_type,
+                    status="STARTED",
+                )
                 orch_result = self._orchestrator.process_ticket(ticket_context)
                 if hasattr(orch_result, "case_id"):
                     case_id = orch_result.case_id
+                # Sprint 2.49 — TRACE_FD_06_PIPELINE_COMPLETED: pipeline returned.
+                emit_trace(
+                    TRACE_FD_06_PIPELINE_COMPLETED,
+                    ticket_id=ticket_id,
+                    tenant=client_id,
+                    client=client_name,
+                    event_type=event_type,
+                    status="SUCCESS" if getattr(orch_result, "success", False) else "FAILURE",
+                )
+                # Sprint 2.49 — TRACE_FD_04_CASE_CREATED: case_id assigned by orchestrator.
+                if case_id:
+                    emit_trace(
+                        TRACE_FD_04_CASE_CREATED,
+                        ticket_id=ticket_id,
+                        tenant=client_id,
+                        client=client_name,
+                        event_type=event_type,
+                        status=case_id,
+                    )
                 LOGGER.info(
                     "ticket_created.handle: orchestrator_complete ticket_id=%s case_id=%s success=%s",
                     ticket_id, case_id, getattr(orch_result, "success", "?"),
@@ -511,6 +565,15 @@ class FreshdeskTicketUpdatedHandler:
         event_ts = event.updated_at or ""
         idem_key = self._idempotency.make_key(ticket_id, event_type, event_ts)
 
+        # Sprint 2.49 — TRACE_FD_02_PAYLOAD_NORMALIZED: parsed update event ok.
+        emit_trace(
+            TRACE_FD_02_PAYLOAD_NORMALIZED,
+            ticket_id=ticket_id,
+            client=ticket.custom_fields.cf_clients or "",
+            event_type=event_type,
+            status="NORMALIZED",
+        )
+
         # 2. Idempotency check
         if self._idempotency.check(idem_key):
             self._inc(COUNTER_FD_DUPLICATE_EVENTS_TOTAL)
@@ -559,8 +622,28 @@ class FreshdeskTicketUpdatedHandler:
                 if self._orchestrator is not None and event.latest_comment is not None:
                     _msg = event.latest_comment.body_text or event.latest_comment.body or ""
                     LOGGER.info("ENTER_HANDLER_RESUME ticket_id=%s", ticket_id)
+                    # Sprint 2.49 — TRACE_FD_05_PIPELINE_STARTED: resume dispatch.
+                    emit_trace(
+                        TRACE_FD_05_PIPELINE_STARTED,
+                        ticket_id=ticket_id,
+                        tenant=client_id,
+                        event_type="customer_reply_resume",
+                        status="STARTED",
+                    )
                     try:
                         _resume_result = self._orchestrator.resume_ticket(ticket_id, _msg)
+                        # Sprint 2.49 — TRACE_FD_06_PIPELINE_COMPLETED: resume returned.
+                        emit_trace(
+                            TRACE_FD_06_PIPELINE_COMPLETED,
+                            ticket_id=ticket_id,
+                            tenant=client_id,
+                            event_type="customer_reply_resume",
+                            status=(
+                                "SUCCESS"
+                                if getattr(_resume_result, "error_code", None) is None
+                                else "FAILURE"
+                            ),
+                        )
                         LOGGER.info(
                             "RETURN_HANDLER_RESUME ticket_id=%s error_code=%s",
                             ticket_id, _resume_result.error_code,

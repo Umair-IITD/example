@@ -25,7 +25,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
-from case_engine.investigation.collector import EvidenceCollector
+from case_engine.investigation._collector_sprint218 import EvidenceCollector
 from case_engine.investigation.models import (
     EvidenceBundle,
     InvestigationResult,
@@ -33,9 +33,9 @@ from case_engine.investigation.models import (
     RootCauseAnalysis,
     RootCauseCategory,
 )
-from case_engine.investigation.observation import ObservationGenerator
+from case_engine.investigation._observation_sprint218 import ObservationGenerator
 from case_engine.investigation.planner import InvestigationPlanner
-from case_engine.investigation.root_cause import RootCauseEngine
+from case_engine.investigation._root_cause_sprint218 import RootCauseEngine
 
 if TYPE_CHECKING:
     from case_engine.audit import AuditLogger

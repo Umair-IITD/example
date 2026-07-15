@@ -19,7 +19,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from case_engine.investigation import build_investigation_service, InvestigationService
-from case_engine.investigation.collector import EvidenceCollector
+from case_engine.investigation._collector_sprint218 import EvidenceCollector
 from case_engine.investigation.models import (
     EvidenceBundle,
     EvidenceType,
@@ -27,9 +27,9 @@ from case_engine.investigation.models import (
     RecommendedAction,
     RootCauseCategory,
 )
-from case_engine.investigation.observation import ObservationGenerator
+from case_engine.investigation._observation_sprint218 import ObservationGenerator
 from case_engine.investigation.planner import InvestigationPlanner
-from case_engine.investigation.root_cause import RootCauseEngine
+from case_engine.investigation._root_cause_sprint218 import RootCauseEngine
 from case_engine.tools.mock_tools import (
     GetFailureReasonTool,
     GetSessionDetailsTool,

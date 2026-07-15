@@ -2,19 +2,24 @@
 case_engine/tools/tool_models.py
 
 Sprint 2.17: Tool domain models.
+Sprint 2.38: Added ToolProvider and ToolCapability for architecture reconciliation
+             (Part H — Tool architecture reconciliation per flow_diagram.mermaid).
 
 Design:
 - ToolDefinition: static schema for a tool (registered once at startup).
 - ToolInput: validated inputs for a single invocation.
 - ToolResult: result of a single tool invocation (success or failure).
+- ToolProvider: which external system the tool contacts.
+- ToolCapability: what the tool does in that system.
 
-No LLM coupling. No KwikID-specific fields. Provider-agnostic.
+No LLM coupling. No KwikID-specific fields.
 """
 from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from enum import Enum
 from typing import Any
 
 
@@ -24,6 +29,37 @@ def _now_iso() -> str:
 
 def _new_id() -> str:
     return str(uuid.uuid4())
+
+
+# ── Provider and capability declarations ───────────────────────────────────────
+
+class ToolProvider(str, Enum):
+    """
+    External system a tool contacts when invoked.
+
+    Per flow_diagram.mermaid Tools subgraph: Freshdesk, Unity, Admin Portal,
+    S3, Database, Flagsmith, MinIO, Vision, MCP.
+    """
+    FRESHDESK        = "FRESHDESK"        # Freshdesk CRM / ticketing
+    UNITY            = "UNITY"            # Unity ID verification platform
+    ADMIN_PORTAL     = "ADMIN_PORTAL"     # KwikID admin portal API
+    S3               = "S3"               # AWS S3 object storage
+    DATABASE         = "DATABASE"         # Direct database access (Supabase/Postgres)
+    FLAGSMITH        = "FLAGSMITH"        # Flagsmith feature flags
+    MINIO            = "MINIO"            # MinIO object storage
+    VISION           = "VISION"           # Computer vision analysis provider
+    MCP              = "MCP"              # MCP tool server
+    METRICS_PLATFORM = "METRICS_PLATFORM" # Sprint 2.50 — Uptime Kuma monitoring dashboard
+
+
+class ToolCapability(str, Enum):
+    """What a tool does in its target provider system."""
+    READ     = "READ"     # Fetch / retrieve data
+    WRITE    = "WRITE"    # Create or update data
+    EXECUTE  = "EXECUTE"  # Trigger an action (reset, resend, etc.)
+    QUERY    = "QUERY"    # Search or filter data
+    NOTIFY   = "NOTIFY"   # Send a notification
+    ANALYZE  = "ANALYZE"  # Analyse data (vision, metrics)
 
 
 @dataclass(frozen=True)
@@ -43,9 +79,11 @@ class ToolDefinition:
     tool_name:       str
     description:     str
     required_inputs: tuple[str, ...]
-    output_schema:   dict[str, str]   # key → type description
-    version:         str = "1.0"
-    tags:            tuple[str, ...] = field(default_factory=tuple)
+    output_schema:   dict[str, str]       # key → type description
+    version:         str                  = "1.0"
+    tags:            tuple[str, ...]      = field(default_factory=tuple)
+    provider:        ToolProvider | None  = None
+    capability:      ToolCapability | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -55,6 +93,8 @@ class ToolDefinition:
             "output_schema":   self.output_schema,
             "version":         self.version,
             "tags":            list(self.tags),
+            "provider":        self.provider.value if self.provider else None,
+            "capability":      self.capability.value if self.capability else None,
         }
 
 

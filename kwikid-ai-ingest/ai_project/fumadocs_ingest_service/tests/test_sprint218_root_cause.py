@@ -26,7 +26,7 @@ from case_engine.investigation.models import (
     SummaryEvidence,
     UserEvidence,
 )
-from case_engine.investigation.root_cause import RootCauseEngine
+from case_engine.investigation._root_cause_sprint218 import RootCauseEngine
 
 
 # ── Factories ──────────────────────────────────────────────────────────────────

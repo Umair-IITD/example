@@ -27,7 +27,7 @@ from case_engine.investigation.models import (
     SessionEvidence,
     UserEvidence,
 )
-from case_engine.investigation.observation import ObservationGenerator
+from case_engine.investigation._observation_sprint218 import ObservationGenerator
 
 
 # ── Factories ──────────────────────────────────────────────────────────────────

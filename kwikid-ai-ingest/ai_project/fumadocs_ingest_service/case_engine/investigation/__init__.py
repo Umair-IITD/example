@@ -6,7 +6,7 @@ Sprint 2.18: Investigation Layer public API.
 Canonical import path for callers:
   from case_engine.investigation import InvestigationService, build_investigation_service
 """
-from case_engine.investigation.collector import EvidenceCollector
+from case_engine.investigation._collector_sprint218 import EvidenceCollector
 from case_engine.investigation.models import (
     EvidenceBundle,
     EvidenceSource,
@@ -24,9 +24,9 @@ from case_engine.investigation.models import (
     UserEvidence,
     VideoEvidence,
 )
-from case_engine.investigation.observation import ObservationGenerator
+from case_engine.investigation._observation_sprint218 import ObservationGenerator
 from case_engine.investigation.planner import InvestigationPlanner
-from case_engine.investigation.root_cause import RootCauseEngine
+from case_engine.investigation._root_cause_sprint218 import RootCauseEngine
 from case_engine.investigation.service import InvestigationService
 
 __all__ = [

@@ -179,6 +179,125 @@ class FreshdeskClient:
         updated = [t for t in current_tags if t not in remove_set]
         return await self.update_ticket(ticket_id, {"tags": updated})
 
+    # ── Sprint 2.48: additional endpoints for complete API coverage ────────────
+
+    async def list_tickets(
+        self,
+        *,
+        status: int | None = None,
+        group_id: int | None = None,
+        email: str | None = None,
+        page: int = 1,
+        per_page: int = 30,
+        order_by: str = "created_at",
+        order_type: str = "desc",
+    ) -> list[dict[str, Any]]:
+        """
+        GET /api/v2/tickets — list tickets with filters.
+
+        Source: api_reference.md Section 3.3.
+        """
+        path = "/api/v2/tickets"
+        params: dict[str, Any] = {
+            "page":       page,
+            "per_page":   min(max(per_page, 1), 100),
+            "order_by":   order_by,
+            "order_type": order_type,
+        }
+        if status is not None:
+            params["status"] = status
+        if group_id is not None:
+            params["group_id"] = group_id
+        if email:
+            params["email"] = email
+        response = await self._request_with_retry("GET", path, params=params)
+        data = response.json()
+        LOGGER.info(
+            "freshdesk.list_tickets: count=%d page=%d",
+            len(data) if isinstance(data, list) else 0, page,
+        )
+        return data if isinstance(data, list) else []
+
+    async def search_tickets(self, query: str) -> dict[str, Any]:
+        """
+        GET /api/v2/search/tickets — search using Freshdesk query DSL.
+
+        Source: api_reference.md Section 3.4.
+        Freshdesk returns {"total": int, "results": list[dict]}.
+        """
+        path = "/api/v2/search/tickets"
+        response = await self._request_with_retry(
+            "GET", path, params={"query": query}
+        )
+        data = response.json()
+        LOGGER.info(
+            "freshdesk.search_tickets: total=%s",
+            data.get("total") if isinstance(data, dict) else "?",
+        )
+        return data if isinstance(data, dict) else {"total": 0, "results": []}
+
+    async def list_agents(self) -> list[dict[str, Any]]:
+        """
+        GET /api/v2/agents — enumerate configured agents.
+
+        Source: api_reference.md Section 5.1.
+        """
+        path = "/api/v2/agents"
+        response = await self._request_with_retry("GET", path)
+        data = response.json()
+        LOGGER.info(
+            "freshdesk.list_agents: count=%d",
+            len(data) if isinstance(data, list) else 0,
+        )
+        return data if isinstance(data, list) else []
+
+    async def list_groups(self) -> list[dict[str, Any]]:
+        """
+        GET /api/v2/groups — enumerate configured groups.
+
+        Source: api_reference.md Section 5.2. Live groups (kwikid.freshdesk.com):
+          L1              84000293343
+          L2              84000293342
+          Tech Assign     84000293351
+          Business Analyst 84000294040
+          General         84000293360
+        """
+        path = "/api/v2/groups"
+        response = await self._request_with_retry("GET", path)
+        data = response.json()
+        LOGGER.info(
+            "freshdesk.list_groups: count=%d",
+            len(data) if isinstance(data, list) else 0,
+        )
+        return data if isinstance(data, list) else []
+
+    async def add_public_reply_with_cc(
+        self,
+        ticket_id: int | str,
+        body: str,
+        *,
+        cc_emails: list[str] | None = None,
+        bcc_emails: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """
+        POST /api/v2/tickets/{ticket_id}/reply — public reply with CC / BCC.
+
+        Source: notes_and_replies.md Section 5.2 + api_reference.md Section 4.2.
+        """
+        path = f"/api/v2/tickets/{ticket_id}/reply"
+        payload: dict[str, Any] = {"body": body}
+        if cc_emails:
+            payload["cc_emails"] = list(cc_emails)
+        if bcc_emails:
+            payload["bcc_emails"] = list(bcc_emails)
+        response = await self._request_with_retry("POST", path, json=payload)
+        data = response.json()
+        LOGGER.info(
+            "freshdesk.add_public_reply_with_cc: ticket_id=%s cc_count=%d",
+            ticket_id, len(cc_emails or []),
+        )
+        return data
+
     # ── HTTP core ─────────────────────────────────────────────────────────────
 
     async def _request_with_retry(
@@ -187,12 +306,15 @@ class FreshdeskClient:
         path: str,
         *,
         json: dict[str, Any] | None = None,
+        params: dict[str, Any] | None = None,
     ) -> httpx.Response:
         last_exc: Exception | None = None
         for attempt in range(1, _MAX_RETRIES + 1):
             await self._rate_limiter.acquire()
             try:
-                response = await self._client.request(method, path, json=json)
+                response = await self._client.request(
+                    method, path, json=json, params=params
+                )
                 self._check_response(response)
                 return response
             except (FreshdeskRateLimitError, FreshdeskServerError) as exc:

@@ -1,0 +1,298 @@
+{
+  "discovery": {
+    "portal_spa": "https://vkyc360.unitybank.co.in:9090",
+    "api_base_url": "https://vkyc360.unitybank.co.in",
+    "api_port": 443,
+    "client": "Unity Bank",
+    "purpose": "VKYC (Video KYC) Admin Portal",
+    "discovery_date": "2026-07-13",
+    "status": "COMPLETE — All API endpoints confirmed via live calls",
+    "data_source": "Live API responses (88 sessions via getAllUserSession + get_details) + Postman collection",
+    "constraint": "Port 9090 React SPA not accessible from CCR (proxy TLS limitation). Port 443 REST API fully accessible."
+  },
+
+  "authentication": {
+    "token_endpoint": "POST /v1/agent/generate_token",
+    "agent_credentials": {
+      "username": "unity",
+      "password": "unity",
+      "note": "Service account credentials — NOT admin portal login. Store in AWS Secrets Manager at kwikid/unity/vkyc_api_credentials"
+    },
+    "token_response_field": "Token",
+    "token_response_field_note": "Capital T — not 'token' or 'access_token'",
+    "auth_header_name": "auth",
+    "auth_header_note": "Lowercase 'auth' — NOT 'Authorization'. No 'Bearer' prefix.",
+    "auth_header_example": "auth: eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
+    "token_algorithm": "HS256",
+    "token_ttl_seconds": 43200,
+    "token_ttl_hours": 12,
+    "token_refresh_strategy": "Proactive at TTL - 120s; reactive on 401",
+    "token_types": {
+      "agent": {
+        "credentials": {"username": "unity", "password": "unity"},
+        "ttl_hours": 12,
+        "role_claim": "agent",
+        "used_for": "API integration (UNITYTOOL)"
+      },
+      "admin": {
+        "credentials": "Admin email + portal password",
+        "ttl_days": 7,
+        "extra_claim": "admin_id: <email>",
+        "used_for": "Human admin portal at port 9090"
+      }
+    }
+  },
+
+  "jwt": {
+    "live_token_obtained": "2026-07-13",
+    "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1bml0eSIsInJvbGUiOiJhZ2VudCIsImF1ZCI6InVzciIsImlhdCI6MTc4MzkzNjEyNCwiZXhwIjoxNzgzOTc5MzI0LCJpc3MiOiJpcHZfYXBpX0lvbmljQXBwIn0.NoTi3d6II-3TpGQBngN-lUppQBNSL4vin_En3R7nnI8",
+    "header": {
+      "typ": "JWT",
+      "alg": "HS256"
+    },
+    "payload_agent": {
+      "sub": "unity",
+      "role": "agent",
+      "aud": "usr",
+      "iat": 1783936124,
+      "exp": 1783979324,
+      "iss": "ipv_api_IonicApp"
+    },
+    "payload_admin_example": {
+      "sub": "unity",
+      "aud": "usr",
+      "iat": 1781505217,
+      "exp": 1782110017,
+      "iss": "ipv_api_IonicApp",
+      "admin_id": "shubham.singh@think360.ai"
+    }
+  },
+
+  "endpoints": [
+    {
+      "method": "POST",
+      "path": "/v1/agent/generate_token",
+      "auth": false,
+      "purpose": "Get JWT agent token",
+      "status": "CONFIRMED"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/getAllUserSession/unity/{phone_number}",
+      "auth": true,
+      "purpose": "Get all VKYC sessions for a customer by phone number",
+      "status": "CONFIRMED",
+      "note": "Path parameters — not query params. Domain is always 'unity'"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/session/get_details/{session_id}",
+      "auth": true,
+      "purpose": "Get full detail for one VKYC session",
+      "status": "CONFIRMED",
+      "note": "session_id is UUID v4"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/health",
+      "auth": false,
+      "purpose": "Health check — returns 'ok'",
+      "status": "CONFIRMED"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "auth": false,
+      "purpose": "Health check (alt path) — returns 'ok'",
+      "status": "CONFIRMED"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/download_content/{bucket}/{path}",
+      "auth": true,
+      "purpose": "File download (video, images, PDF, ZIP)",
+      "status": "CONFIRMED — URL patterns from session data",
+      "note": "Not pre-signed S3 — requires auth header"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/agent/sendLink/",
+      "auth": true,
+      "purpose": "Send VKYC link to customer — creates new session",
+      "status": "DOCUMENTED — DO NOT CALL",
+      "constraint": "MUTATION — READ-ONLY CONSTRAINT. NEVER CALL FROM AI PIPELINE."
+    }
+  ],
+
+  "customer_identifier": {
+    "primary": "phone_number",
+    "type": "10-digit Indian mobile number",
+    "example": "7045722923",
+    "regex": "\\b[6-9]\\d{9}\\b",
+    "urn_exists": false,
+    "urn_note": "There is NO URN (Unique Reference Number) in this system. All prior documentation referencing URN was incorrect."
+  },
+
+  "session": {
+    "id_format": "UUID v4",
+    "id_regex": "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+    "id_example": "329c5f9e-9406-4f47-b717-5c87f04054d2",
+    "link_id_format": "12-character alphanumeric",
+    "link_id_example": "n5A2RR2WdCiP",
+    "session_type": "VKYC",
+    "domain": "unity"
+  },
+
+  "session_status_enum": {
+    "values": [
+      "kyc_result_approved",
+      "kyc_result_rejected",
+      "kyc_rejected",
+      "kyc_result_partial_update",
+      "session_expired",
+      "user_abandoned",
+      "waiting"
+    ],
+    "terminal": [
+      "kyc_result_approved",
+      "kyc_result_rejected",
+      "kyc_rejected",
+      "session_expired",
+      "user_abandoned"
+    ],
+    "non_terminal": [
+      "waiting",
+      "kyc_result_partial_update"
+    ],
+    "confirmed_from": "88 live sessions via getAllUserSession — 2026-07-13",
+    "other_values": "None observed"
+  },
+
+  "feedback": {
+    "field": "feedback",
+    "encoding": "JSON-encoded string — parse with json.loads()",
+    "type_values": ["Approve", "Reject", "Reopen"],
+    "structure": {
+      "type": "Approve | Reject | Reopen",
+      "comment": "string (may be empty)",
+      "feedbackComment": "string (short note)"
+    }
+  },
+
+  "integration_targets": {
+    "primary_identifier": "phone_number (10-digit mobile)",
+    "secondary_identifier": "session_id (UUID v4)",
+    "evidence_collector_class": "UNITYTOOL",
+    "fail_open": true,
+    "token_refresh_strategy": "Proactive at TTL - 120s; reactive on 401",
+    "auth_header": "auth",
+    "no_bearer_prefix": true
+  },
+
+  "fields_that_do_not_exist": [
+    "urn",
+    "failure_reason",
+    "journey_status",
+    "otp_verified (top-level)",
+    "liveliness_result (top-level)",
+    "ocr_status (top-level)",
+    "created_at",
+    "updated_at",
+    "completed_at"
+  ],
+
+  "json_encoded_string_fields": [
+    "extras",
+    "stage_data",
+    "location",
+    "feedback",
+    "captured_images"
+  ],
+
+  "pii_fields": [
+    "phone_number",
+    "user_id",
+    "customer_IP",
+    "location",
+    "agent_id",
+    "auditor_name",
+    "docs[].details.name",
+    "docs[].details.dob",
+    "docs[].details.fathers_name",
+    "docs[].details.pa_number",
+    "aadhaar_xml",
+    "aadhaarpdf_url",
+    "agent_video_url",
+    "user_video_url",
+    "agent_screen_url",
+    "selfie_url",
+    "pan_url"
+  ],
+
+  "ai_critical_fields": [
+    "session_id",
+    "session_status",
+    "phone_number",
+    "init_time",
+    "end_time",
+    "audit_result",
+    "auditor_feedback",
+    "feedback (parsed)",
+    "overall_summary",
+    "qna",
+    "docs[].facematch_score",
+    "IS_VIDO_UPLOADED",
+    "agent_id",
+    "auditor_name"
+  ],
+
+  "network": {
+    "api_port": 443,
+    "spa_port": 9090,
+    "spa_accessible_from_ccr": false,
+    "api_accessible_from_ccr": true,
+    "server": "AWS Application Load Balancer (awselb/2.0)",
+    "region": "ap-south-1 (Mumbai)",
+    "ips": ["15.206.150.14", "35.154.11.197"],
+    "tls": "Valid on port 443 — no custom CA required",
+    "ccr_port_9090_limitation": "CCR proxy does not support TLS re-termination for non-443 HTTPS ports (documented platform limitation in /root/.ccr/README.md)",
+    "rate_limiting_observed": false
+  },
+
+  "security": {
+    "api_credentials_storage": "AWS Secrets Manager: kwikid/unity/vkyc_api_credentials",
+    "admin_credentials_storage": "AWS Secrets Manager: kwikid/unity/vkyc_admin_credentials",
+    "admin_credentials_compromised": true,
+    "admin_credentials_note": "Credentials (shubham.singh@think360.ai / New@12345) were shared in plaintext — treat as compromised. Rotate immediately.",
+    "token_signing": "HS256 — symmetric key (not exposed via API)",
+    "https": true,
+    "auth_in_cookie": false,
+    "auth_header": "auth (custom lowercase header)"
+  },
+
+  "error_responses": {
+    "200": "Success",
+    "400": {"body": "{\"e\":\"list index out of range\",\"msg\":\"Invalid session id\",\"status\":400}", "cause": "Invalid session ID"},
+    "401_no_header": {"body": "{\"message\":\"Missing authorization header\"}", "cause": "auth header absent"},
+    "401_invalid": {"body": "{\"message\":\"Token is invalid\"}", "cause": "Token expired or invalid"}
+  },
+
+  "files": {
+    "README.md": "Index, quick reference, status — COMPLETE",
+    "authentication.md": "JWT lifecycle, token generation, refresh, storage — COMPLETE",
+    "api_reference.md": "All endpoints confirmed — COMPLETE",
+    "network_analysis.md": "Port 443 confirmed, port 9090 CCR limitation documented — COMPLETE",
+    "jwt_analysis.md": "Live token decoded, claims, TTL, two token types — COMPLETE",
+    "session_discovery.md": "getAllUserSession full field list, 7 session_status values — COMPLETE",
+    "session_details.md": "get_details full field list, summary_data, audit, feedback — COMPLETE",
+    "entity_model.md": "Customer (phone_number), Session, Audit, Documents, Summary — COMPLETE",
+    "field_dictionary.md": "All fields classified by PII/AI significance — COMPLETE",
+    "search_behaviour.md": "Phone number as primary identifier, regex patterns, Python extraction — COMPLETE",
+    "ui_workflow.md": "Admin portal workflow from API data (port 9090 SPA not reachable from CCR) — COMPLETE",
+    "investigation_mapping.md": "Unity fields to Evidence Bundle to Root Cause Engine — COMPLETE",
+    "integration_notes.md": "Auth, endpoints, caching, retry, PII handling — COMPLETE",
+    "observations.md": "Findings, gaps, recommendations — COMPLETE",
+    "limitations.md": "Confirmed limitations, blind spots, missing fields — COMPLETE",
+    "summary.json": "This file — machine-readable summary — COMPLETE"
+  }
+}

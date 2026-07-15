@@ -61,6 +61,9 @@ class EvidenceSource(str, Enum):
     GET_FAILURE_REASON    = "GetFailureReasonTool"
     GET_CASE_HISTORY      = "GetCaseHistoryTool"
     GET_ONBOARDING_STATUS = "GetOnboardingStatusTool"
+    # Sprint 2.50 — Uptime Kuma monitoring dashboard
+    METRIC_TOOL           = "MetricTool"
+    SERVER_TOOL           = "ServerTool"
 
 
 class RootCauseCategory(str, Enum):

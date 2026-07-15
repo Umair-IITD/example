@@ -7,11 +7,18 @@ import logging
 import os
 import time
 import uuid
+import sentry_sdk
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import Any
 from dotenv import load_dotenv
 load_dotenv()
+
+sentry_sdk.init(
+    dsn=os.getenv("SENTRY_DSN"),
+    send_default_pii=True,
+    traces_sample_rate=1.0,
+)
 
 from fastapi import APIRouter, FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
@@ -506,6 +513,28 @@ def _build_lifespan(*, skip_config_validation: bool = False):
             )
             _app.state.investigation_service = None
 
+        # ── Sprint 2.52: Register production Unity + Metrics adapters ─────────
+        # Auto-registration into the ToolRegistry so no manual wiring is
+        # required. `validate_startup` also emits the STARTUP_READY summary.
+        try:
+            from app.startup_validator import validate_startup  # noqa: PLC0415
+            _startup_report = validate_startup(
+                tool_registry=_app.state.tool_registry,
+                investigation_service=_app.state.investigation_service,
+                strict=False,
+                register_production_tools=True,
+            )
+            _app.state.startup_report = _startup_report
+            _LOGGER_PRE.info(
+                "sprint252_startup_validated ready=%s registered=%d",
+                _startup_report.ready, len(_startup_report.registered_tools),
+            )
+        except Exception as _startup_exc:  # noqa: BLE001
+            _LOGGER_PRE.warning(
+                "sprint252_startup_validation_error error=%s", _startup_exc
+            )
+            _app.state.startup_report = None
+
         # ── Action gateway state setup ────────────────────────────────────────
         # Gateway routes use request.app.state.stack / .audit_logger / .authenticator.
         # If values were injected via create_app() (tests), use them as-is.
@@ -566,6 +595,8 @@ def _build_lifespan(*, skip_config_validation: bool = False):
                     "engineering_escalation_service",
                     "support_agent_runtime",
                     "ticket_orchestrator",
+                    # Sprint 2.53 Wave 4A: Enterprise Intelligence Layer
+                    "intelligence_orchestrator",
                     # Sprint 2.27.9: Multi-tenant resolution stack
                     # Required by FreshdeskTicketCreatedHandler for UNKNOWN_CLIENT detection
                     "tenant_registry",
@@ -1176,7 +1207,7 @@ def create_app(
         docs_url="/docs" if _docs_enabled else None,
         redoc_url="/redoc" if _docs_enabled else None,
         openapi_url="/openapi.json" if _docs_enabled else None,
-    )
+    ) 
 
     # Stash injected values so the lifespan can use them (or build from env if None)
     local_app.state.stack            = stack
@@ -1192,6 +1223,7 @@ def create_app(
     local_app.state.tool_executor        = None  # set during lifespan startup
     local_app.state.reasoning_engine     = None  # set during lifespan startup
     local_app.state.investigation_service = None  # set during lifespan startup
+    local_app.state.startup_report        = None  # Sprint 2.52 — set by validate_startup()
 
     # ── Middleware ────────────────────────────────────────────────────────────
     cors_origins = [

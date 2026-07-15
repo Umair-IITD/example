@@ -20,7 +20,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from case_engine.investigation.collector import EvidenceCollector, _resolve_slot
+from case_engine.investigation._collector_sprint218 import EvidenceCollector, _resolve_slot
 from case_engine.investigation.models import (
     EvidenceBundle,
     EvidenceSource,

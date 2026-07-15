@@ -56,6 +56,10 @@ from freshdesk.metrics import (
     COUNTER_FD_WEBHOOKS_RECEIVED_TOTAL,
     COUNTER_FD_WEBHOOKS_REJECTED_TOTAL,
 )
+from freshdesk.traces import (
+    TRACE_FD_01_WEBHOOK_RECEIVED,
+    emit_trace,
+)
 
 LOGGER = logging.getLogger(__name__)
 
@@ -224,6 +228,14 @@ async def freshdesk_ticket_created(
     idem_key = WebhookIdempotencyStore.make_key(ticket_id, "ticket_created", event_ts_str)
     _pre_persist(request, idem_key, ticket_id, "ticket_created", event_ts_str)
 
+    # Sprint 2.49 — TRACE_FD_01_WEBHOOK_RECEIVED: inbound webhook accepted.
+    emit_trace(
+        TRACE_FD_01_WEBHOOK_RECEIVED,
+        ticket_id=ticket_id,
+        event_type="ticket_created",
+        status="ACCEPTED",
+    )
+
     # 5. Enqueue async background task — return 200 immediately
     _inc(request, COUNTER_FD_WEBHOOKS_RECEIVED_TOTAL)
     background_tasks.add_task(_process_ticket_created, request, payload)
@@ -327,6 +339,14 @@ async def freshdesk_ticket_updated(
     ticket_id = str(_raw_tid) if _raw_tid else ""
     idem_key = WebhookIdempotencyStore.make_key(ticket_id, "ticket_updated", event_ts_str)
     _pre_persist(request, idem_key, ticket_id, "ticket_updated", event_ts_str)
+
+    # Sprint 2.49 — TRACE_FD_01_WEBHOOK_RECEIVED: inbound webhook accepted.
+    emit_trace(
+        TRACE_FD_01_WEBHOOK_RECEIVED,
+        ticket_id=ticket_id,
+        event_type="ticket_updated",
+        status="ACCEPTED",
+    )
 
     _inc(request, COUNTER_FD_WEBHOOKS_RECEIVED_TOTAL)
     background_tasks.add_task(_process_ticket_updated, request, payload)

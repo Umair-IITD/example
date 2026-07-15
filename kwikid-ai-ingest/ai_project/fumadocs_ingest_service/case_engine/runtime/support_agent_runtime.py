@@ -48,8 +48,26 @@ if TYPE_CHECKING:
     from case_engine.models import Case
     from case_engine.response_generation.service import ResponseGenerationService
     from case_engine.service import CaseService
+    from intelligence import IntelligenceOrchestrator
 
 LOGGER = logging.getLogger(__name__)
+
+
+# ── Sprint 2.53 Wave 4A: intelligence-layer runtime-boundary traces ─────────
+# ENTER_INTELLIGENCE / EXIT_INTELLIGENCE are emitted at the SupportAgentRuntime
+# wiring point. Inner tags (ENTER_PROMPT / ENTER_LLM / ENTER_REASONING / etc.)
+# fire inside intelligence/orchestrator.py per pipeline stage.
+_ENTER_INTELLIGENCE = "ENTER_INTELLIGENCE"
+_EXIT_INTELLIGENCE  = "EXIT_INTELLIGENCE"
+
+
+def _intel_boundary_trace(tag: str, **fields: object) -> None:
+    """Emit an intelligence runtime-boundary tag at WARNING level. Never raises."""
+    try:
+        parts = " ".join(f"{k}={v}" for k, v in fields.items() if v is not None)
+        LOGGER.warning("%s %s", tag, parts)
+    except Exception:
+        pass
 
 
 def _now_iso() -> str:
@@ -160,6 +178,93 @@ def _extract_root_cause(investigation: dict[str, Any] | None) -> dict[str, Any] 
     return investigation.get("root_cause") or investigation.get("root_cause_analysis") or {}
 
 
+# ── Sprint 2.53 Wave 4A: Intelligence-layer bridge helpers ────────────────────
+
+def _to_retrieved_chunk(entry: Any, RetrievedChunkCls: Any) -> Any | None:
+    """
+    Normalize a knowledge entry (from HYBRIDRAG or InvestigationOrchestrator)
+    into an `intelligence.RetrievedChunk`. Returns None if the shape can't be
+    normalized. Never raises.
+    """
+    if entry is None:
+        return None
+    try:
+        # Case 1: already a RetrievedChunk instance.
+        if isinstance(entry, RetrievedChunkCls):
+            return entry
+        # Case 2: dict-like from KnowledgeOrchestrator.
+        get = entry.get if isinstance(entry, dict) else lambda k, d=None: getattr(entry, k, d)
+        content = get("content") or get("body") or get("text") or ""
+        if not content:
+            return None
+        return RetrievedChunkCls(
+            chunk_id=str(get("chunk_id") or get("id") or ""),
+            source=  str(get("source") or get("provider") or "unknown"),
+            title=   str(get("title") or get("name") or ""),
+            content= str(content),
+            score=   float(get("score") or get("relevance_score") or get("similarity") or 0.0),
+            url=     str(get("url") or ""),
+            metadata=dict(get("metadata") or {}),
+        )
+    except Exception:
+        return None
+
+
+def _extract_tenant_id(case: "Case") -> str:
+    """Best-effort tenant_id extraction (never raises)."""
+    for attr in ("tenant_id", "client_id"):
+        val = getattr(case, attr, None)
+        if val:
+            return str(val)
+    ctx = getattr(case, "tenant_context", None)
+    if isinstance(ctx, dict):
+        for key in ("tenant_id", "client_id", "tenant", "id"):
+            if ctx.get(key):
+                return str(ctx[key])
+    meta = getattr(case, "metadata", None)
+    if isinstance(meta, dict):
+        val = meta.get("tenant_id") or meta.get("client_id")
+        if val:
+            return str(val)
+    return "unknown"
+
+
+def _extract_slot(case: "Case", keys: tuple[str, ...]) -> str:
+    """Look up any of `keys` in case.slot_state. Returns first non-empty match."""
+    slot_state = getattr(case, "slot_state", None) or {}
+    if not isinstance(slot_state, dict):
+        return ""
+    for k in keys:
+        v = slot_state.get(k)
+        if v:
+            return str(v)
+    return ""
+
+
+def _extract_trace_id(case: "Case") -> str:
+    """Return a stable trace_id derived from ticket_id / case_id."""
+    return str(getattr(case, "ticket_id", None) or getattr(case, "case_id", "") or "")
+
+
+def _first_str(*candidates: Any) -> str:
+    """Return the first non-empty string among candidates."""
+    for c in candidates:
+        if c is None:
+            continue
+        s = str(c).strip()
+        if s:
+            return s
+    return ""
+
+
+def _first_str_from_dict(d: Any, key: str) -> str:
+    if isinstance(d, dict):
+        v = d.get(key)
+        if v is not None:
+            return str(v)
+    return ""
+
+
 # ── SupportAgentRuntime ───────────────────────────────────────────────────────
 
 class SupportAgentRuntime:
@@ -185,12 +290,18 @@ class SupportAgentRuntime:
         engineering_escalation_service: "EngineeringEscalationService | None" = None,
         audit_logger:                "AuditLogger | None" = None,
         mode:                        SupportAgentMode = SupportAgentMode.DRY_RUN,
+        intelligence_orchestrator:   "IntelligenceOrchestrator | None" = None,
     ) -> None:
         self._case_svc      = case_service
         self._response_svc  = response_generation_service
         self._engineering   = engineering_escalation_service
         self._audit         = audit_logger
         self._mode          = mode
+        # Sprint 2.53 Wave 4A: Intelligence Layer (Reasoning + Observation +
+        # Customer Reply + Action Proposal via LLM). When None, the runtime
+        # falls through to the legacy ResponseGenerationService path — no
+        # LLM calls, deterministic templates only.
+        self._intelligence  = intelligence_orchestrator
 
     # ── Primary API ───────────────────────────────────────────────────────────
 
@@ -455,9 +566,35 @@ class SupportAgentRuntime:
         if self._mode == SupportAgentMode.DRY_RUN and workflow_result is not None:
             self._emit_dry_run_execution(case, workflow_result)
 
+        # ── Step 4.5: INTELLIGENCE (Wave 4A) ─────────────────────────────────
+        # Runs the LLM-based reasoning + observation + reply + action-proposal
+        # pipeline. Blueprint path: EVIDENCE → ROOTCAUSE → HYBRIDRAG →
+        # REASONING → LLM → GUARDRAILS → (OBSGEN + ACTIONPROPOSAL) →
+        # USERRESPONSE. Never raises — falls back to legacy templating on any
+        # error so no ticket is ever blocked by an LLM outage.
+        intelligence_result: dict[str, Any] | None = None
+        if self._intelligence is not None:
+            intelligence_result = self._run_intelligence(
+                case=case,
+                message_text=message_text,
+                workflow_result=workflow_result,
+            )
+            if intelligence_result is not None:
+                steps_completed.append("INTELLIGENCE")
+
         # ── Step 5: NOTEGEN + L2CHECK ────────────────────────────────────────
         steps_completed.append("NOTEGEN")
         needs_l2   = _needs_engineering_escalation(case.topic, workflow_result)
+        # Sprint 2.53 Wave 4A: intelligence reasoning outcome ESCALATE also
+        # triggers L2 (Reasoning Engine — Blueprint §13 outputs
+        # Recommended Escalation).
+        if not needs_l2 and intelligence_result:
+            try:
+                intel_outcome = (intelligence_result.get("reasoning") or {}).get("outcome", "")
+                if intel_outcome == "ESCALATE":
+                    needs_l2 = True
+            except Exception:
+                pass
         steps_completed.append("L2CHECK")
 
         # ── Step 6: ASANACREATE (if L2 needed) ───────────────────────────────
@@ -518,17 +655,23 @@ class SupportAgentRuntime:
             case.case_id, self._response_svc is not None, response_type, needs_l2,
         )
 
-        response_draft = self._generate_response(
-            case=case,
-            topic=case.topic or "Support Request",
+        response_draft = self._response_from_intelligence(
+            intelligence_result=intelligence_result,
             response_type=response_type,
-            workflow_result=workflow_result,
-            clarification_question=clarification_question,
         )
+        if response_draft is None:
+            response_draft = self._generate_response(
+                case=case,
+                topic=case.topic or "Support Request",
+                response_type=response_type,
+                workflow_result=workflow_result,
+                clarification_question=clarification_question,
+            )
 
         LOGGER.warning(
-            "EXIT_RESPONSE_GENERATION case_id=%s draft_is_none=%s draft_keys=%s",
+            "EXIT_RESPONSE_GENERATION case_id=%s draft_is_none=%s draft_source=%s draft_keys=%s",
             case.case_id, response_draft is None,
+            "intelligence" if intelligence_result and intelligence_result.get("customer_reply") else "legacy",
             list(response_draft.keys()) if isinstance(response_draft, dict) else None,
         )
 
@@ -560,6 +703,7 @@ class SupportAgentRuntime:
             started_at=started_at,
             started_ms=started_ms,
             clarification_question=clarification_question,
+            intelligence_result=intelligence_result,
         )
         self._emit_agent_completed(result, case)
         return result
@@ -639,8 +783,12 @@ class SupportAgentRuntime:
         started_at:             str,
         started_ms:             int,
         clarification_question: str,
+        intelligence_result:    dict[str, Any] | None = None,
     ) -> AgentExecutionResult:
         from case_engine.runtime.agent_models import _new_id
+        metadata: dict[str, Any] = {}
+        if intelligence_result is not None:
+            metadata["intelligence_result"] = intelligence_result
         return AgentExecutionResult(
             run_id=_new_id(),
             case_id=case.case_id,
@@ -655,7 +803,169 @@ class SupportAgentRuntime:
             started_at=started_at,
             completed_at=_now_iso(),
             duration_ms=_ms_elapsed(started_ms),
+            metadata=metadata,
         )
+
+    # ── Sprint 2.53 Wave 4A: Intelligence Layer runtime bridge ────────────────
+
+    def _run_intelligence(
+        self,
+        case:            "Case",
+        message_text:    str,
+        workflow_result: dict[str, Any] | None,
+    ) -> dict[str, Any] | None:
+        """
+        Run the Intelligence Layer (LLM Reasoning + Observation + Reply +
+        Action Proposal) for the current case. Returns IntelligenceResult
+        as dict, or None on any failure. Never raises.
+
+        Blueprint path (from flow_diagram.mermaid):
+            EVIDENCE → ROOTCAUSE → HYBRIDRAG → REASONING → LLM →
+            GUARDRAILS → (OBSGEN + ACTIONPROPOSAL) → USERRESPONSE
+        """
+        if self._intelligence is None:
+            return None
+
+        started = time.monotonic()
+        _intel_boundary_trace(
+            _ENTER_INTELLIGENCE,
+            case_id=case.case_id, ticket_id=case.ticket_id,
+            topic=case.topic, workflow_id=(case.workflow_id or ""),
+        )
+
+        try:
+            from intelligence import build_llm_context, RetrievedChunk  # noqa: PLC0415
+
+            investigation   = _extract_investigation(workflow_result)
+            evidence_bundle = None
+            if investigation is not None:
+                evidence_bundle = (
+                    investigation.get("evidence_bundle")
+                    or investigation.get("evidence")
+                    or investigation.get("evidence_items")
+                )
+
+            # Sprint 2.53 Wave 4A — Task 2: Knowledge Integration.
+            # Combine chunks from two sources per blueprint:
+            #   1. HYBRIDRAG output via WorkflowEngine.KnowledgeOrchestrator
+            #      (workflow_context.knowledge_result.chunks)
+            #   2. InvestigationOrchestrator.knowledge_entries
+            knowledge_chunks: list = []
+            wf_knowledge = _extract_workflow_knowledge(workflow_result)
+            for entry in (wf_knowledge.get("chunks") or []):
+                chunk = _to_retrieved_chunk(entry, RetrievedChunk)
+                if chunk is not None:
+                    knowledge_chunks.append(chunk)
+            if investigation is not None:
+                for entry in (investigation.get("knowledge_entries") or []):
+                    chunk = _to_retrieved_chunk(entry, RetrievedChunk)
+                    if chunk is not None:
+                        knowledge_chunks.append(chunk)
+
+            # Tenant + customer-identifier extraction (all PII-safe from here;
+            # context_builder does the actual masking).
+            tenant_id = _extract_tenant_id(case)
+            phone     = _extract_slot(case, ("phone_number", "phone", "urn"))
+            email     = _extract_slot(case, ("email", "customer_email"))
+
+            llm_ctx = build_llm_context(
+                case_id=            case.case_id or "",
+                ticket_id=          case.ticket_id or "",
+                tenant_id=          tenant_id,
+                topic=              case.topic or "",
+                workflow_id=        case.workflow_id or "",
+                classification=     (case.topic or ""),
+                ticket_subject=     _first_str(getattr(case, "subject", None),
+                                               _first_str_from_dict(
+                                                   getattr(case, "metadata", None), "subject")),
+                ticket_description= message_text or "",
+                customer_phone=     phone,
+                customer_email=     email,
+                evidence_bundle=    evidence_bundle,
+                retrieved_chunks=   knowledge_chunks,
+                conversation=       [],
+                tool_results=       investigation if isinstance(investigation, dict) else {},
+                trace_id=           _extract_trace_id(case),
+            )
+
+            # Async→sync bridge. Reset the orchestrator's httpx client so the
+            # client is bound to THIS event loop (httpx.AsyncClient is loop-
+            # bound; sharing across loops causes RuntimeError). See
+            # IntelligenceOrchestrator._ensure_client / close().
+            try:
+                self._intelligence._client      = None      # noqa: SLF001
+                self._intelligence._owns_client = True      # noqa: SLF001
+            except Exception:
+                pass
+
+            import asyncio  # noqa: PLC0415
+
+            async def _do():
+                try:
+                    return await self._intelligence.orchestrate(llm_ctx)
+                finally:
+                    try:
+                        await self._intelligence.close()
+                    except Exception:
+                        pass
+
+            intel_result = asyncio.run(_do())
+            duration_ms  = int((time.monotonic() - started) * 1000)
+
+            _intel_boundary_trace(
+                _EXIT_INTELLIGENCE,
+                case_id=case.case_id, ticket_id=case.ticket_id,
+                outcome=intel_result.reasoning.outcome.value,
+                confidence=f"{intel_result.reasoning.confidence:.2f}",
+                has_reply=intel_result.customer_reply is not None,
+                proposals=len(intel_result.action_proposals),
+                duration_ms=duration_ms,
+                chunks=len(knowledge_chunks),
+                evidence_hints=len(llm_ctx.evidence_hints),
+            )
+            return intel_result.to_dict()
+        except Exception as exc:
+            duration_ms = int((time.monotonic() - started) * 1000)
+            _intel_boundary_trace(
+                _EXIT_INTELLIGENCE,
+                case_id=case.case_id, ticket_id=case.ticket_id,
+                status=f"ERROR:{type(exc).__name__}",
+                duration_ms=duration_ms,
+            )
+            LOGGER.warning(
+                "support_agent_runtime.intelligence failed case_id=%s error=%s",
+                case.case_id, exc,
+            )
+            return None
+
+    def _response_from_intelligence(
+        self,
+        intelligence_result: dict[str, Any] | None,
+        response_type:       ResponseType,
+    ) -> dict[str, Any] | None:
+        """
+        Convert IntelligenceResult.customer_reply into a legacy ResponseDraft
+        dict shape, so the downstream Freshdesk write-path
+        (FreshdeskResponseService + ReplySafetyGate) can consume it unchanged.
+        Returns None if the intelligence layer didn't produce a reply.
+        """
+        if not intelligence_result:
+            return None
+        reply = intelligence_result.get("customer_reply")
+        if not isinstance(reply, dict):
+            return None
+        body_html = reply.get("body_html") or ""
+        if not body_html:
+            return None
+        return {
+            "body_html":      body_html,
+            "reply_kind":     reply.get("reply_kind", ""),
+            "confidence":     reply.get("confidence", 0.0),
+            "confidence_level": reply.get("confidence_level", "LOW"),
+            "response_type":  response_type.value if hasattr(response_type, "value") else str(response_type),
+            "citations":      list(reply.get("citations", [])),
+            "source":         "intelligence_layer",
+        }
 
     # ── Audit ─────────────────────────────────────────────────────────────────
 
@@ -730,6 +1040,7 @@ def build_support_agent_runtime(
     engineering_escalation_service: Any = None,
     audit_logger:                Any = None,
     mode:                        Any = None,
+    intelligence_orchestrator:   Any = None,
 ) -> SupportAgentRuntime:
     """
     Factory: build a SupportAgentRuntime.
@@ -740,6 +1051,8 @@ def build_support_agent_runtime(
         engineering_escalation_service: EngineeringEscalationService (optional; skips ASANACREATE if None).
         audit_logger:                  Optional AuditLogger.
         mode:                          SupportAgentMode (defaults to env var SUPPORT_AGENT_MODE, else DRY_RUN).
+        intelligence_orchestrator:     Optional Sprint 2.53 IntelligenceOrchestrator.
+                                       When None, runtime falls back to deterministic templating.
 
     Returns:
         SupportAgentRuntime ready to process cases.
@@ -766,11 +1079,15 @@ def build_support_agent_runtime(
         except Exception as exc:
             LOGGER.warning("build_support_agent_runtime: engineering_svc failed error=%s", exc)
 
-    LOGGER.info("build_support_agent_runtime mode=%s", mode.value)
+    LOGGER.info(
+        "build_support_agent_runtime mode=%s intelligence_wired=%s",
+        mode.value, intelligence_orchestrator is not None,
+    )
     return SupportAgentRuntime(
         case_service=case_service,
         response_generation_service=response_generation_service,
         engineering_escalation_service=engineering_escalation_service,
         audit_logger=audit_logger,
         mode=mode,
+        intelligence_orchestrator=intelligence_orchestrator,
     )

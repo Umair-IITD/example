@@ -111,6 +111,8 @@ class ProductionRuntime:
     engineering_escalation_service:  Any = None   # case_engine.engineering.EngineeringEscalationService
     support_agent_runtime:           Any = None   # case_engine.runtime.SupportAgentRuntime
     ticket_orchestrator:             Any = None   # case_engine.ticket_orchestration.TicketOrchestrator
+    # ── Enterprise Intelligence Layer (Sprint 2.53 Wave 4A) ──────────────────
+    intelligence_orchestrator:       Any = None   # intelligence.IntelligenceOrchestrator
     # ── Multi-Tenant Resolution (Sprint 2.27.9) ──────────────────────────────
     tenant_registry:                 Any = None   # case_engine.tenant.TenantRegistry
     client_resolver:                 Any = None   # case_engine.tenant.ClientResolver
@@ -354,6 +356,8 @@ def _build_workflow_services(
         "engineering_escalation_service": None,
         "support_agent_runtime":         None,
         "ticket_orchestrator":           None,
+        # Sprint 2.53 Wave 4A — Enterprise Intelligence Layer
+        "intelligence_orchestrator":     None,
         # Sprint 2.27.9: Multi-Tenant Resolution
         "tenant_registry":               None,
         "client_resolver":               None,
@@ -545,6 +549,26 @@ def _build_workflow_services(
     except Exception as exc:
         _LOG.warning("assembly: engineering_escalation_service failed to build error=%s", exc)
 
+    # 14.5. IntelligenceOrchestrator (Sprint 2.53 Wave 4A) — LLM Reasoning Layer.
+    # Built BEFORE SupportAgentRuntime so it can be injected. Graceful
+    # degradation: when INTELLIGENCE_ENABLED=false OR the config raises,
+    # the runtime falls back to deterministic templating.
+    try:
+        from intelligence import IntelligenceConfig, IntelligenceOrchestrator  # noqa: PLC0415
+        _intel_cfg = IntelligenceConfig.from_env()
+        if _intel_cfg.enabled:
+            result["intelligence_orchestrator"] = IntelligenceOrchestrator(config=_intel_cfg)
+            _LOG.info(
+                "assembly: intelligence_orchestrator wired provider=%s model=%s has_api_key=%s",
+                _intel_cfg.llm_provider, _intel_cfg.llm_model, _intel_cfg.has_api_key,
+            )
+        else:
+            _LOG.info(
+                "assembly: intelligence_orchestrator DISABLED via INTELLIGENCE_ENABLED=false"
+            )
+    except Exception as exc:
+        _LOG.warning("assembly: intelligence_orchestrator failed to build error=%s", exc)
+
     # 15. SupportAgentRuntime — THE AGENT (single run_case() entrypoint)
     try:
         from case_engine.runtime import build_support_agent_runtime  # noqa: PLC0415
@@ -553,8 +577,12 @@ def _build_workflow_services(
             response_generation_service=result["response_generation_service"],
             engineering_escalation_service=result["engineering_escalation_service"],
             audit_logger=audit_logger,
+            intelligence_orchestrator=result["intelligence_orchestrator"],
         )
-        _LOG.info("assembly: support_agent_runtime wired")
+        _LOG.info(
+            "assembly: support_agent_runtime wired intelligence_wired=%s",
+            result["intelligence_orchestrator"] is not None,
+        )
     except Exception as exc:
         _LOG.warning("assembly: support_agent_runtime failed to build error=%s", exc)
 

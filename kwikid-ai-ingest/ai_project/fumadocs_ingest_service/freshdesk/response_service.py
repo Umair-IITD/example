@@ -34,6 +34,13 @@ from freshdesk.metrics import (
     COUNTER_FD_API_ERRORS_TOTAL,
     LATENCY_FD_API_CALL_MS,
 )
+from freshdesk.traces import (
+    TRACE_FD_07_NOTE_PREPARED,
+    TRACE_FD_08_NOTE_SENT,
+    TRACE_FD_09_REPLY_PREPARED,
+    TRACE_FD_10_REPLY_SENT,
+    emit_trace,
+)
 
 LOGGER = logging.getLogger(__name__)
 
@@ -73,6 +80,14 @@ class FreshdeskResponseService:
         This is the ONLY approved path for posting private notes.
         Never raises — returns empty dict on failure.
         """
+        # Sprint 2.49 — TRACE_FD_07_NOTE_PREPARED: outbound note dispatched.
+        emit_trace(
+            TRACE_FD_07_NOTE_PREPARED,
+            ticket_id=str(ticket_id),
+            client=client_id,
+            event_type="private_note",
+            status="PREPARED",
+        )
         start = time.monotonic()
         try:
             result = await self._client.add_private_note(ticket_id, body)
@@ -84,6 +99,14 @@ class FreshdeskResponseService:
                 ticket_id, result.get("id"), latency_ms,
             )
             self._audit_private_note(ticket_id, result.get("id"), case_id, client_id)
+            # Sprint 2.49 — TRACE_FD_08_NOTE_SENT: private note POST succeeded.
+            emit_trace(
+                TRACE_FD_08_NOTE_SENT,
+                ticket_id=str(ticket_id),
+                client=client_id,
+                event_type="private_note",
+                status="SUCCESS",
+            )
             return result
         except Exception as exc:
             latency_ms = int((time.monotonic() - start) * 1000)
@@ -91,6 +114,14 @@ class FreshdeskResponseService:
             LOGGER.error(
                 "freshdesk.response_service.internal_note: FAILED ticket_id=%s error=%s",
                 ticket_id, exc,
+            )
+            # Sprint 2.49 — TRACE_FD_08_NOTE_SENT: with FAILURE status.
+            emit_trace(
+                TRACE_FD_08_NOTE_SENT,
+                ticket_id=str(ticket_id),
+                client=client_id,
+                event_type="private_note",
+                status="FAILURE",
             )
             return {}
 
@@ -108,6 +139,14 @@ class FreshdeskResponseService:
         This is the ONLY approved path for sending public replies.
         Never raises — returns empty dict on failure.
         """
+        # Sprint 2.49 — TRACE_FD_09_REPLY_PREPARED: outbound reply dispatched.
+        emit_trace(
+            TRACE_FD_09_REPLY_PREPARED,
+            ticket_id=str(ticket_id),
+            client=client_id,
+            event_type="public_reply",
+            status="PREPARED",
+        )
         start = time.monotonic()
         try:
             result = await self._client.add_public_reply(ticket_id, body)
@@ -119,6 +158,14 @@ class FreshdeskResponseService:
                 ticket_id, result.get("id"), latency_ms,
             )
             self._audit_public_reply(ticket_id, result.get("id"), case_id, client_id)
+            # Sprint 2.49 — TRACE_FD_10_REPLY_SENT: public reply POST succeeded.
+            emit_trace(
+                TRACE_FD_10_REPLY_SENT,
+                ticket_id=str(ticket_id),
+                client=client_id,
+                event_type="public_reply",
+                status="SUCCESS",
+            )
             return result
         except Exception as exc:
             latency_ms = int((time.monotonic() - start) * 1000)
@@ -126,6 +173,14 @@ class FreshdeskResponseService:
             LOGGER.error(
                 "freshdesk.response_service.customer_reply: FAILED ticket_id=%s error=%s",
                 ticket_id, exc,
+            )
+            # Sprint 2.49 — TRACE_FD_10_REPLY_SENT: with FAILURE status.
+            emit_trace(
+                TRACE_FD_10_REPLY_SENT,
+                ticket_id=str(ticket_id),
+                client=client_id,
+                event_type="public_reply",
+                status="FAILURE",
             )
             return {}
 
