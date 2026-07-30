@@ -214,7 +214,7 @@ class TestGetPlaybook:
         assert data["topic"] == "VKYC_Session_Failure"
 
     def test_response_includes_steps(self, full_client):
-        resp = full_client.get("/admin/workflows/playbooks/otp_delivery_failure_v1")
+        resp = full_client.get("/admin/workflows/playbooks/otp_delivery_failure_v2")
         assert resp.status_code == 200
         assert len(resp.json()["steps"]) >= 5
 
@@ -235,7 +235,7 @@ class TestGetPlaybook:
     def test_all_5_playbooks_accessible_by_id(self, full_client):
         workflow_ids = [
             "vkyc_session_failure_v1",
-            "otp_delivery_failure_v1",
+            "otp_delivery_failure_v2",
             "api_callback_failure_v1",
             "document_ocr_failure_v1",
             "agent_portal_issue_v1",

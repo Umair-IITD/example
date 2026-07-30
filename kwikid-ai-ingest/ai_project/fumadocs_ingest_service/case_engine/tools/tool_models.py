@@ -50,6 +50,7 @@ class ToolProvider(str, Enum):
     VISION           = "VISION"           # Computer vision analysis provider
     MCP              = "MCP"              # MCP tool server
     METRICS_PLATFORM = "METRICS_PLATFORM" # Sprint 2.50 — Uptime Kuma monitoring dashboard
+    LOG_PLATFORM     = "LOG_PLATFORM"     # Sprint 2.60 — Multi-tenant Grafana Loki log platform
 
 
 class ToolCapability(str, Enum):

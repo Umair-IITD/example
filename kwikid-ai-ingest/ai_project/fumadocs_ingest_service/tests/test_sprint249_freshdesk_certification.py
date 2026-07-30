@@ -576,8 +576,11 @@ class TestG_UpdateResumeTraces:
             ticket_orchestrator=_MockOrchestrator(),
         )
         handler.handle(_customer_reply_update_payload())
-        # No resume path → no pipeline traces from update handler.
-        assert not _tag_lines(caplog_traces.records, TRACE_FD_05_PIPELINE_STARTED)
+        # Sprint 2.54: clarification-resume path must NOT fire when awaiting_customer=False.
+        # The "continue" path (customer_reply_continue) may fire for OPEN conversations.
+        fd05_lines = [r.getMessage() for r in _tag_lines(caplog_traces.records, TRACE_FD_05_PIPELINE_STARTED)]
+        assert not any("event_type=customer_reply_resume" in line for line in fd05_lines), \
+            "clarification-resume must not fire when awaiting_customer=False"
 
 
 # ══════════════════════════════════════════════════════════════════════════════

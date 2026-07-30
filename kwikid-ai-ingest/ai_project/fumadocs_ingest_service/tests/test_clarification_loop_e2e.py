@@ -274,16 +274,22 @@ class TestBlocker2UpdatedHandlerRoutesResume:
         assert call_args[0][0] == "200010"  # positional ticket_id
         assert "OTP failed for me" in call_args[0][1]  # positional message
 
-    def test_resume_ticket_not_called_when_not_awaiting(self):
+    def test_resume_ticket_not_called_when_resolved(self):
         """
-        When conv_state.awaiting_customer is False, resume_ticket() must NOT be called.
+        When lifecycle is RESOLVED and awaiting_customer is False, resume_ticket() must NOT
+        be called. Sprint 2.54: OPEN/PENDING non-awaiting conversations DO call resume_ticket
+        via the 'customer_reply_continue' path; only RESOLVED/CLOSED skip it.
         """
         orch = _make_orchestrator_awaiting()
         idem = WebhookIdempotencyStore()
         conv = ConversationStateStore()
 
         conv.get_or_create("200011", "unity_bank")
-        # awaiting_customer is False by default
+        conv.update(
+            "200011",
+            awaiting_customer=False,
+            lifecycle_state=ConversationLifecycle.RESOLVED,
+        )
 
         handler = FreshdeskTicketUpdatedHandler(
             idempotency_store=idem,
@@ -368,14 +374,22 @@ class TestBlocker3ResponseDraftReturnedFromResume:
         )
         assert "OTP resend" in result.response_draft or "initiated" in result.response_draft
 
-    def test_response_draft_none_when_not_awaiting(self):
-        """When not awaiting clarification, response_draft must be None."""
+    def test_response_draft_none_when_resolved(self):
+        """
+        When lifecycle is RESOLVED and not awaiting clarification, response_draft must be None.
+        Sprint 2.54: OPEN/PENDING non-awaiting conversations do call resume_ticket (continue
+        path) and may produce a response_draft. Only RESOLVED/CLOSED skips the resume path.
+        """
         orch = _make_orchestrator_awaiting()
         idem = WebhookIdempotencyStore()
         conv = ConversationStateStore()
 
         conv.get_or_create("200021", "unity_bank")
-        # awaiting_customer stays False
+        conv.update(
+            "200021",
+            awaiting_customer=False,
+            lifecycle_state=ConversationLifecycle.RESOLVED,
+        )
 
         handler = FreshdeskTicketUpdatedHandler(
             idempotency_store=idem,

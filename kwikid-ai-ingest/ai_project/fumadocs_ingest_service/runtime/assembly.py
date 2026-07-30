@@ -336,6 +336,16 @@ def _build_workflow_services(
     import logging
     _LOG = logging.getLogger(__name__)
 
+    # Workflow/case-engine services require case_engine.audit.AuditLogger (has
+    # log_investigation_started, log_workflow_*, etc.).  The outer `audit_logger`
+    # is audit.logger.AuditLogger (action-gateway layer — different class).
+    try:
+        from case_engine.audit import AuditLogger as _CeAuditLogger  # noqa: PLC0415
+        _ce_audit: Any = _CeAuditLogger()  # supabase_client=None → log-only mode
+    except Exception as _ce_exc:
+        _LOG.warning("assembly: case_engine.audit.AuditLogger failed error=%s — using outer logger", _ce_exc)
+        _ce_audit = audit_logger  # fallback: outer logger (some methods may be missing)
+
     result: dict[str, Any] = {
         "clarification_service":         None,
         "investigation_service":         None,
@@ -367,21 +377,65 @@ def _build_workflow_services(
     # 1. ClarificationService
     try:
         from case_engine.clarification.service import ClarificationService  # noqa: PLC0415
-        result["clarification_service"] = ClarificationService(audit_logger=audit_logger)
+        result["clarification_service"] = ClarificationService(audit_logger=_ce_audit)
         _LOG.info("assembly: clarification_service wired")
     except Exception as exc:
         _LOG.warning("assembly: clarification_service failed to build error=%s", exc)
 
-    # 2. InvestigationService (via build factory which handles ToolRegistry + Executor)
+    # 2. InvestigationService — production tool registry (Unity + Metrics)
     try:
         from case_engine.investigation import build_investigation_service  # noqa: PLC0415
         from case_engine.tools.tool_registry import ToolRegistry          # noqa: PLC0415
         from case_engine.tools.tool_executor import ToolExecutor          # noqa: PLC0415
-        _tool_registry = ToolRegistry.build_default()
+        _tool_registry = ToolRegistry()  # start empty; register production tools below
+
+        # Register production Unity tools (replace Sprint 2.17 mocks).
+        # Gracefully falls back to mock tools if Unity credentials are unavailable.
+        try:
+            from case_engine.tools.adapters.unity_tools import register_unity_tools  # noqa: PLC0415
+            _unity_outcomes = register_unity_tools(_tool_registry, config=None)
+            _LOG.info("assembly: unity_tools registered outcomes=%s", _unity_outcomes)
+        except Exception as _unity_exc:
+            _LOG.warning(
+                "assembly: unity_tools failed to register error=%s — using mock tools",
+                _unity_exc,
+            )
+            from case_engine.tools.mock_tools import (  # noqa: PLC0415
+                GetCaseHistoryTool, GetFailureReasonTool, GetOnboardingStatusTool,
+                GetSessionDetailsTool, GetUserDetailsTool,
+            )
+            for _mt in (
+                GetSessionDetailsTool(), GetUserDetailsTool(), GetFailureReasonTool(),
+                GetCaseHistoryTool(), GetOnboardingStatusTool(),
+            ):
+                _tool_registry.register(_mt)
+
+        # Register production Metrics tools (MetricTool + ServerTool).
+        try:
+            from case_engine.tools.adapters.metrics_tool import register_metrics_tools  # noqa: PLC0415
+            _metrics_outcomes = register_metrics_tools(_tool_registry, config=None)
+            _LOG.info("assembly: metrics_tools registered outcomes=%s", _metrics_outcomes)
+        except Exception as _metrics_exc:
+            _LOG.warning(
+                "assembly: metrics_tools failed to register error=%s",
+                _metrics_exc,
+            )
+
+        # Register production Loki tools (Grafana Loki backend log retrieval).
+        try:
+            from case_engine.tools.adapters.log_tools import register_loki_tools  # noqa: PLC0415
+            _loki_outcomes = register_loki_tools(_tool_registry, config=None)
+            _LOG.info("assembly: loki_tools registered outcomes=%s", _loki_outcomes)
+        except Exception as _loki_exc:
+            _LOG.warning(
+                "assembly: loki_tools failed to register error=%s",
+                _loki_exc,
+            )
+
         _tool_executor = ToolExecutor(_tool_registry)
         result["investigation_service"] = build_investigation_service(
             tool_executor=_tool_executor,
-            audit_logger=audit_logger,
+            audit_logger=_ce_audit,
         )
         _LOG.info("assembly: investigation_service wired tools=%d", len(_tool_registry))
     except Exception as exc:
@@ -398,7 +452,7 @@ def _build_workflow_services(
         _seed_entries = _build_seed_knowledge_entries()
         result["knowledge_service"] = build_knowledge_service(
             seed_entries=_seed_entries,
-            audit_logger=audit_logger,
+            audit_logger=_ce_audit,
         )
         _LOG.info(
             "assembly: knowledge_service wired seed_entries=%d",
@@ -410,7 +464,7 @@ def _build_workflow_services(
     # 4. ReasoningService
     try:
         from case_engine.reasoning.service import build_reasoning_service  # noqa: PLC0415
-        result["reasoning_service"] = build_reasoning_service(audit_logger=audit_logger)
+        result["reasoning_service"] = build_reasoning_service(audit_logger=_ce_audit)
         _LOG.info("assembly: reasoning_service wired")
     except Exception as exc:
         _LOG.warning("assembly: reasoning_service failed to build error=%s", exc)
@@ -419,7 +473,7 @@ def _build_workflow_services(
     try:
         from case_engine.actions import build_action_proposal_service  # noqa: PLC0415
         result["action_proposal_service"] = build_action_proposal_service(
-            audit_logger=audit_logger
+            audit_logger=_ce_audit
         )
         _LOG.info("assembly: action_proposal_service wired")
     except Exception as exc:
@@ -429,7 +483,7 @@ def _build_workflow_services(
     try:
         from case_engine.action_gateway.service import build_action_gateway_service  # noqa: PLC0415
         result["action_gateway_service"] = build_action_gateway_service(
-            audit_logger=audit_logger
+            audit_logger=_ce_audit
         )
         _LOG.info("assembly: action_gateway_service wired")
     except Exception as exc:
@@ -539,13 +593,22 @@ def _build_workflow_services(
     except Exception as exc:
         _LOG.warning("assembly: response_generation_service failed to build error=%s", exc)
 
-    # 14. EngineeringEscalationService — ASANACREATE node (mock in 2.27.5)
+    # 14. EngineeringEscalationService — ASANACREATE node
+    # Sprint 2.5.8: inject live AsanaClient when credentials are configured.
+    # Falls back to mock/in-memory mode (asana_client=None) when credentials
+    # are absent, matching DRY_RUN behaviour.
     try:
         from case_engine.engineering import build_engineering_escalation_service  # noqa: PLC0415
+        from asana.client import build_asana_client                              # noqa: PLC0415
+        _asana_client = build_asana_client()
         result["engineering_escalation_service"] = build_engineering_escalation_service(
             audit_logger=audit_logger,
+            asana_client=_asana_client,
         )
-        _LOG.info("assembly: engineering_escalation_service wired")
+        _LOG.info(
+            "assembly: engineering_escalation_service wired asana_live=%s",
+            _asana_client is not None,
+        )
     except Exception as exc:
         _LOG.warning("assembly: engineering_escalation_service failed to build error=%s", exc)
 

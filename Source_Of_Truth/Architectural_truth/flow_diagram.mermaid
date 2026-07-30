@@ -1,6 +1,20 @@
 flowchart TD
 
 %% =========================
+%% v1.1 CORRECTION NOTE
+%% Prior versions wired the Session Logs Tool as a capability of the Admin
+%% Portal (ADMINSVC --> LOGTOOL). This was wrong: confirmed by live testing
+%% against the real Admin Portal API that it returns session metadata
+%% (status, timeline, auditor decision, docs/QnA) only — NO backend
+%% application/infrastructure logs. Backend logs live on the platform's own
+%% server infrastructure and are exposed to this system exclusively through
+%% a separate Multi-Tenant Log Platform (see LogPlatform subgraph below).
+%% See SUPPORT_OPERATIONS_BLUEPRINT.md §9/§34/§35 for the full corrected
+%% process and the mandatory PII-redaction + relevance-extraction stage
+%% this correction also introduces (LOGEXTRACT below).
+%% =========================
+
+%% =========================
 %% EXTERNAL SYSTEMS
 %% =========================
 subgraph External [External Interfaces]
@@ -23,391 +37,274 @@ end
 %% TENANT RESOLUTION
 %% =========================
 subgraph Tenant [Multi-Tenant Resolution]
-
     CLIENTRESOLVE[Client Resolution Engine]
-
     TENANTREG[(Tenant Registry)]
-
     TENANTCTX[Tenant Context]
-
 end
 
 %% =========================
 %% AI & ORCHESTRATION
 %% =========================
 subgraph AI [AI & Reasoning Engine]
+    NLP[LLM Semantic Router NLP Layer]
     CLASSIFIER[Topic Classification]
     SLOTEXTRACT[Slot Extraction]
     CLARIFICATION[Clarification Engine]
-
     WORKFLOWSELECT[Workflow Selection]
     ENGINE[Workflow Engine]
-
     INVESTIGATION[Investigation Planner]
     EVIDENCE[Evidence Collector]
-
     ROOTCAUSE[Root Cause Engine]
-
     REASONING[Reasoning Engine]
-
     GUARDRAILS[Policy & Safety Guardrails]
-
     OBSGEN[Observation Generator]
-
-    LLM((Enterprise LLM))
+    LLM((OpenAI LLM API))
 end
 
 %% =========================
 %% KNOWLEDGE LAYER
 %% =========================
 subgraph Knowledge [Knowledge Layer]
-
     STACK[(StackOverflow Teams Export)]
-
     INGEST[Knowledge Ingestion]
-
     INDEX[Knowledge Indexer]
-
     HYBRIDRAG[Hybrid RAG]
-
     VISION[Image Understanding]
-
     PLAYBOOKS[(Workflow Playbooks)]
+    ONTOLOGY[(Intent & Slot Ontology)]
+end
 
+%% =========================
+%% ADMIN PORTAL LAYER (session metadata ONLY — no backend logs)
+%% Renamed from "Unity Bank Admin APIs" — this is a multi-tenant capability,
+%% Unity is the first (and so far only fully live) tenant, not the ceiling.
+%% =========================
+subgraph AdminPortal [Multi-Tenant Admin Portal APIs - session metadata only, NO backend logs]
+    ADMINPORTAL[Admin Portal APIs per tenant]
+    ADMINSVC[Client Support APIs]
+    USERTOOL[GetUserDetails]
+    SESSIONTOOL[GetSessionDetails]
+    FAILTOOL[GetFailureReason]
+    CASETOOL[GetCaseHistory]
+    ONBOARDTOOL[GetOnboardingStatus]
+    SUMMARYTOOL[Session Summary Tool]
+end
+
+%% =========================
+%% MULTI-TENANT LOG PLATFORM (Grafana Loki) — backend logs live here, NOT
+%% on the Admin Portal. Independent credentials, independent base URL,
+%% independent datasource per tenant. Queried using the time window that
+%% GetSessionDetails (Admin Portal) already returned - see LOGTOOL edges
+%% below. See SUPPORT_OPERATIONS_BLUEPRINT.md §34 for the full model.
+%% =========================
+subgraph LogPlatform [Multi-Tenant Log Platform - Grafana Loki - backend/infra logs]
+    LOKIREG[(Per-Tenant Log Datasource Registry: base_url + datasource id + credentials)]
+    LOKIAPI[Direct Log Platform API - cross-service sweep per session window]
 end
 
 %% =========================
 %% TOOL & INVESTIGATION LAYER
 %% =========================
 subgraph Tools [Tool Registry & Investigation APIs]
-
     TOOLS[Tool Registry]
-
     TENANTROUTER[Tenant API Router]
-
-    UNITYADMIN[Unity Bank Admin APIs]
-
-    ADMINSVC[Client Support APIs]
-
-    USERTOOL[GetUserDetails]
-
-    SESSIONTOOL[GetSessionDetails]
-
-    FAILTOOL[GetFailureReason]
-
-    CASETOOL[GetCaseHistory]
-
-    ONBOARDTOOL[GetOnboardingStatus]
-
-    LOGTOOL[Session Logs Tool]
-
-    SUMMARYTOOL[Session Summary Tool]
-
+    LOGTOOL[Session Logs Tool - GetSessionLogsTool]
+    LOGEXTRACT[Log Relevance Extractor - PII Redaction + BM25 Ranking + Dedup]
     VIDEOTOOL[Session Video Tool]
-
     METRICTOOL[Metrics Tool]
-
     SERVERTOOL[Server Status Tool]
-
 end
 
 %% =========================
-%% EXECUTION LAYER
+%% EXECUTION LAYER (Reserved for Future Use — not connected to L1 pipeline)
+%% No L1 playbook routes here. Action Gateway is in codebase but inactive.
 %% =========================
-subgraph Execution [Action & Resolution Layer]
-
+subgraph Execution [Action & Resolution Layer - Reserved for Future Use]
     ACTIONPROPOSAL[Action Proposal]
-
     ACTIONGW[Action Gateway]
-
     RISKCHECK{Risk Level}
-
     APPROVAL[Approval Workflow]
-
     HUMANAPPROVER[Human Approver]
-
     EXECUTE[Executor]
-
     ACTIONDB[(Actions DB)]
-
     VERIFY[Verification Engine]
-
     RECOVERY[Recovery Service]
-
     RESOLUTION[Automated Resolution]
-
     NOTEGEN[Notes Generator]
-
     USERRESPONSE[Generate Customer Reply]
-
     CLOSE[Close Ticket]
-
     ESCALATE[Escalate to Human Agent]
-
+    FDUPDATE_ESC[Update cf_asana_ticket_link]
 end
 
 %% =========================
 %% GOVERNANCE
 %% =========================
 subgraph Governance [Audit & Compliance]
-
     AUDIT[Audit Service]
-
     AUDITDB[(Audit Events DB)]
-
 end
 
 %% =========================
 %% KNOWLEDGE INGESTION
 %% =========================
-
 STACK --> INGEST
-
 INGEST --> INDEX
-
 INDEX --> HYBRIDRAG
-
 VISION --> HYBRIDRAG
 
 %% =========================
 %% USER FLOW
 %% =========================
-
 USER -->|Email Support| FD
-
 FD --> TICKET
-
 TICKET --> CLIENTRESOLVE
-
 CLIENTRESOLVE --> TENANTREG
-
 CLIENTRESOLVE --> TENANTCTX
-
 TENANTCTX --> CASE
-
 CASE --> CASEDB
 
 %% =========================
-%% AI FLOW
+%% AI FLOW (NLP FIRST)
 %% =========================
-
-CASE --> CLASSIFIER
-
-CLASSIFIER --> LLM
+CASE --> NLP
+NLP --> LLM
+NLP --> ONTOLOGY
+NLP --> CLASSIFIER
+NLP --> SLOTEXTRACT
 
 CLASSIFIER --> SLOTEXTRACT
-
-SLOTEXTRACT --> LLM
-
-SLOTEXTRACT --> DECISION1{All Slots Present?}
+SLOTEXTRACT --> DECISION1{All Investigation Slots Present?}
 
 %% =========================
-%% CLARIFICATION LOOP
+%% CLARIFICATION LOOP (ASK FOR URN/SESSION ID)
 %% =========================
-
 DECISION1 -->|No| CLARIFICATION
-
 CLARIFICATION --> LLM
-
 CLARIFICATION --> OUTBOUND[Reply Generator]
-
 OUTBOUND --> FD
-
 FD --> USER
 
 %% =========================
 %% WORKFLOW ORCHESTRATION
 %% =========================
-
 DECISION1 -->|Yes| WORKFLOWSELECT
-
 WORKFLOWSELECT --> ENGINE
-
 ENGINE --> PLAYBOOKS
-
 PLAYBOOKS --> INVESTIGATION
-
 ENGINE --> INVESTIGATION
 
 %% =========================
-%% INVESTIGATION FLOW
+%% INVESTIGATION FLOW - PHASE A: ADMIN PORTAL (session metadata, NO logs)
 %% =========================
-
 TENANTCTX --> TENANTROUTER
-
-TENANTROUTER --> UNITYADMIN
-
-UNITYADMIN --> ADMINSVC
-
+TENANTROUTER --> ADMINPORTAL
+ADMINPORTAL --> ADMINSVC
 ADMINSVC --> USERTOOL
-
 ADMINSVC --> SESSIONTOOL
-
 ADMINSVC --> FAILTOOL
-
 ADMINSVC --> CASETOOL
-
 ADMINSVC --> ONBOARDTOOL
-
-ADMINSVC --> LOGTOOL
-
 ADMINSVC --> SUMMARYTOOL
 
-ADMINSVC --> VIDEOTOOL
-
-ADMINSVC --> METRICTOOL
-
-ADMINSVC --> SERVERTOOL
+%% =========================
+%% INVESTIGATION FLOW - PHASE B: MULTI-TENANT LOG PLATFORM (backend logs)
+%% SESSIONTOOL supplies the session time window this phase queries against
+%% - this is the corrected dependency (was wrongly ADMINSVC --> LOGTOOL).
+%% =========================
+TENANTROUTER --> LOKIREG
+LOKIREG --> LOKIAPI
+SESSIONTOOL -.->|session time window| LOKIAPI
+LOKIAPI --> LOGTOOL
+LOGTOOL --> LOGEXTRACT
 
 INVESTIGATION --> EVIDENCE
-
 EVIDENCE --> TOOLS
-
 TOOLS -.-> USERTOOL
 TOOLS -.-> SESSIONTOOL
 TOOLS -.-> FAILTOOL
 TOOLS -.-> CASETOOL
 TOOLS -.-> ONBOARDTOOL
-TOOLS -.-> LOGTOOL
 TOOLS -.-> SUMMARYTOOL
+TOOLS -.-> LOGTOOL
 TOOLS -.-> VIDEOTOOL
 TOOLS -.-> METRICTOOL
 TOOLS -.-> SERVERTOOL
 
+LOGEXTRACT --> EVIDENCE
 METRICTOOL --> EVIDENCE
-
 SERVERTOOL --> EVIDENCE
-
 EVIDENCE --> ROOTCAUSE
 
 %% =========================
 %% KNOWLEDGE ASSISTED REASONING
 %% =========================
-
 ROOTCAUSE --> HYBRIDRAG
-
 HYBRIDRAG --> REASONING
-
 REASONING --> LLM
 
 %% =========================
-%% GUARDRAILS
+%% GUARDRAILS & OBSERVATION GENERATION (NLG Phase)
+%% GUARDRAILS enforces (among other things) that only LOGEXTRACT's redacted
+%% output - never LOGTOOL's raw pull - may reach REASONING/OBSGEN. See
+%% SUPPORT_OPERATIONS_BLUEPRINT.md §27/§35.
 %% =========================
-
 REASONING --> GUARDRAILS
-
-GUARDRAILS --> ACTIONPROPOSAL
-
 GUARDRAILS --> OBSGEN
-
 ROOTCAUSE --> OBSGEN
 
 %% =========================
-%% ACTION FLOW
+%% L1 OBSERVATION → FRESHDESK INTERNAL NOTE
+%% L1 pipeline ends here. The note is the L1 deliverable.
 %% =========================
-
-ACTIONPROPOSAL --> ACTIONGW
-
-ACTIONGW --> RISKCHECK
-
-RISKCHECK -->|SAFE| EXECUTE
-
-RISKCHECK -->|REVERSIBLE / HIGH| APPROVAL
-
-APPROVAL --> HUMANAPPROVER
-
-HUMANAPPROVER --> APPROVED{Approved?}
-
-APPROVED -->|No| ESCALATE
-
-APPROVED -->|Yes| EXECUTE
-
-%% =========================
-%% EXECUTION & RECOVERY
-%% =========================
-
-EXECUTE --> ACTIONDB
-
-EXECUTE --> VERIFY
-
-VERIFY --> DECISION3{Outcome Successful?}
-
-DECISION3 -->|No| RECOVERY
-
-RECOVERY --> RETRY[Retry]
-
-RECOVERY --> ROLLBACK[Rollback]
-
-RECOVERY --> DEADLETTER[Dead Letter Queue]
-
-DECISION3 -->|Yes| RESOLUTION
-
-%% =========================
-%% L1 OBSERVATIONS
-%% =========================
-
 OBSGEN --> FDNOTE[Freshdesk Internal Notes]
 
-RESOLUTION --> NOTEGEN
-
-NOTEGEN --> LLM
-
-NOTEGEN --> FDNOTE
-
 %% =========================
-%% L2 WORKFLOW
+%% L2 CHECK (does this require Engineering Escalation?)
 %% =========================
-
 FDNOTE --> L2CHECK{Needs Engineering?}
 
-L2CHECK -->|Yes| ASANACREATE[Create Asana Ticket]
-
+%% =========================
+%% L2 PATH: ASANA ESCALATION (Wave 8 — Active)
+%% =========================
+L2CHECK -->|Yes| ASANACREATE[Create Asana Task via AsanaClient]
 ASANACREATE --> ASANA
-
 ASANA <--> DEV
-
-ASANA --> FIXED[Issue Fixed Event]
-
-FIXED --> FDUPDATE[Update Freshdesk Notes]
-
-FDUPDATE --> USERRESPONSE
-
-%% =========================
-%% CUSTOMER RESPONSE
-%% =========================
-
-L2CHECK -->|No| USERRESPONSE
-
-USERRESPONSE --> LLM
-
+ASANACREATE --> FDUPDATE_ESC
+FDUPDATE_ESC --> USERRESPONSE[Generate Escalation Reply NLG]
 USERRESPONSE --> FD
 
+%% =========================
+%% DIRECT REPLY PATH (no L2 needed)
+%% =========================
+L2CHECK -->|No| USERRESPONSE
 USERRESPONSE --> CLOSECHECK{Resolution Confirmed?}
-
 CLOSECHECK -->|No| CLARIFICATION
-
 CLOSECHECK -->|Yes| CLOSE
+
+%% =========================
+%% ASYNC ENGINEERING RESOLUTION — Blueprint §20B (Sprint 2.6x, uncertified)
+%% FIXED is now a REAL event: an Asana webhook (task.completed), not polling
+%% — see asana/webhook.py + api/routes/webhooks/asana.py. FDUPDATE currently
+%% means an INTERNAL verification note only (FreshdeskResponseService.
+%% add_internal_note) — the FDUPDATE --> CLOSE edge below is not yet wired in
+%% code; auto-reply + auto-close await confirmation of the cf_sop_status /
+%% cf_resolution_classification values (Blueprint §20B has the proposed
+%% mapping). Until that lands, a human closes the ticket after reading the
+%% verification note.
+%% =========================
+ASANA --> FIXED[Issue Fixed Event - Asana Webhook]
+FIXED --> FDUPDATE[Post Internal Verification Note]
+FDUPDATE --> CLOSE
 
 %% =========================
 %% AUDIT
 %% =========================
-
 CASE -.-> AUDIT
-
 ENGINE -.-> AUDIT
-
 INVESTIGATION -.-> AUDIT
-
 ROOTCAUSE -.-> AUDIT
-
-ACTIONGW -.-> AUDIT
-
-APPROVAL -.-> AUDIT
-
-EXECUTE -.-> AUDIT
-
-RECOVERY -.-> AUDIT
-
+ASANACREATE -.-> AUDIT
+USERRESPONSE -.-> AUDIT
 CLOSE -.-> AUDIT
-
 AUDIT --> AUDITDB

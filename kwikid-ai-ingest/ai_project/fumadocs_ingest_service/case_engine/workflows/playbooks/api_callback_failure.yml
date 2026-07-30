@@ -15,19 +15,37 @@ required_slots:
 
 # Sprint 2.17: Investigation metadata (advisory)
 investigation_steps:
-  - tool: GetFailureReasonTool
-    purpose: Identify why the callback failed (timeout, auth, network)
-    required_input: operation_id
   - tool: GetOnboardingStatusTool
     purpose: Check if the application is in a valid state for callback retry
     required_input: application_id
+  - tool: GetSessionDetailsTool
+    purpose: >
+      Retrieve VKYC session metadata and timeline to establish the callback
+      failure window. Provides start_epoch / end_epoch for Loki log retrieval.
+    required_input: session_id
+    note: session_id may be derived from GetOnboardingStatusTool or provided by the bank agent
+  - tool: GetSessionLogsTool
+    purpose: >
+      Retrieve and curate backend log evidence for the API callback failure
+      from the Multi-Tenant Log Platform. Uses the timeline from GetSessionDetailsTool.
+      Log excerpt is PII-redacted and BM25-ranked before delivery.
+    required_input: session_id
+    optional_inputs:
+      - start_epoch
+      - end_epoch
+      - ticket_query
+  - tool: GetFailureReasonTool
+    purpose: Identify why the callback failed (timeout, auth, network)
+    required_input: operation_id
   - tool: GetCaseHistoryTool
     purpose: Check for repeat callback failures to assess escalation risk
     required_input: application_id
 
 tool_candidates:
-  - GetFailureReasonTool
   - GetOnboardingStatusTool
+  - GetSessionDetailsTool
+  - GetSessionLogsTool
+  - GetFailureReasonTool
   - GetCaseHistoryTool
 
 resolution_paths:

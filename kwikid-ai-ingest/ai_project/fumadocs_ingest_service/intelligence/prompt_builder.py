@@ -126,7 +126,10 @@ def _render_ticket_block(context: LLMContext) -> str:
 
 class ReasoningPromptTemplate(_PromptTemplate):
     NAME:    Final[str] = "reasoning"
-    VERSION: Final[str] = "1.0.0"
+    # v1.1.0 — Added VKYC telemetry field guidance based on real RBL Bank portal
+    # data analysis (Sprint 2.5.8). Instructs LLM to locate specific evidence
+    # keys in the EvidenceBundle before forming a root-cause hypothesis.
+    VERSION: Final[str] = "1.1.0"
     SYSTEM:  Final[str] = """
 You are the KwikID support-automation Reasoning Engine.
 
@@ -155,6 +158,47 @@ Rules:
 - If evidence points to a platform issue you cannot fix → `outcome=ESCALATE`.
 - Do NOT include markdown, comments, or explanatory prose OUTSIDE the JSON.
 - Do NOT wrap the JSON in code fences.
+
+VKYC SESSION FAILURE EVIDENCE — look for these fields in the EvidenceBundle:
+- `nsdlPanResponse`: NSDL GRID PAN validation result. Check codes in the
+  reasons array:
+    YYN = name match Y, DOB match Y, Aadhaar seeding N
+    YNN = name match Y, DOB N, Aadhaar seeding N
+    RYN = restricted PAN, name Y, DOB N (customer name mismatch)
+    RNY = restricted PAN, name N, DOB Y
+  If a YNN or RYN code is present, root cause is PAN/NSDL validation failure.
+- `ekyc_status_calc`: EKYC journey outcome (e.g. "KYC_PENDING", "FAILED").
+  If non-success, the EKYC path itself failed.
+- `ekyc_success`: Boolean. `false` means EKYC did not complete successfully.
+- `ckycData`: CKYC data object. If null or missing, CKYC fetch failed.
+  Present means the CKYC journey was used; absent means EKYC path was taken.
+- `faceMatchThreshold` / `fmPath` / `fmTitle`: Face match result.
+  Default threshold is 80. If session rejected, check if face match score
+  was below threshold. `fmPath` identifies which document was matched
+  (AadhaarXML, CKYC photo, PAN). `fmTitle` is human-readable document name.
+- `concurrentReject.reasons[]`: Array of reason strings the bank agent
+  selected when rejecting the session. Examples:
+    "Video quality very bad"
+    "PAN Card photo not clear"
+    "As per NSDL GRID -YYN (grid shows N in DOB)"
+    "As per NSDL GRID -RYN (shows N in DOB and n in customer name)"
+  If reasons are present, the agent manually rejected. Use this as primary
+  evidence of the rejection reason.
+- `step_list`: List of VKYC steps completed. Identify the failure step:
+    ID1 or ID-SELFIE = Selfie / liveness step
+    ID2 or ID-PAN = PAN card capture
+    ID3 or ID-QNA = Question & Answer set
+    ID4 or ID-QNA-CKYC = CKYC Question & Answer set
+- `dynamicStepSequence`: Modified step order. If it contains "CKYC" steps
+  (e.g. ID-SELFIE-CKYC, ID-QNA-CKYC), the customer was in the CKYC journey
+  rather than the standard EKYC journey. Report this in reasoning_notes.
+
+DOCUMENT OCR FAILURE EVIDENCE — look for these fields:
+- `PAN_VALIDATION` log entry: failure means OCR could not extract PAN data.
+- `AADHAAR_VALIDATION` log entry: failure means Aadhaar OCR failed.
+- `DMS_OPERATION_LOG`: Check if document image was received and stored.
+- OCR confidence score in session summary: if below threshold, document was
+  poor quality (glare, blur, damage). Note the score in reasoning_notes.
 """
 
     @classmethod
@@ -219,7 +263,10 @@ Rules:
 
 class ObservationPromptTemplate(_PromptTemplate):
     NAME:    Final[str] = "observation"
-    VERSION: Final[str] = "1.0.0"
+    # v1.1.0 — Added VKYC telemetry field guidance based on real RBL Bank portal
+    # data analysis (Sprint 2.5.8). Instructs LLM to surface NSDL GRID codes,
+    # agent rejection reasons, and CKYC/EKYC journey path in observation body.
+    VERSION: Final[str] = "1.1.0"
     SYSTEM:  Final[str] = """
 You are drafting an L1 internal observation note for a Freshdesk support
 ticket. This note is visible to human agents only — never to the customer.
@@ -241,6 +288,22 @@ Rules:
 - Include ticket_id and tenant in the note header.
 - NEVER include full PAN, Aadhaar, phone, or DOB.
 - Return raw JSON. No markdown outside the JSON. No code fences.
+
+VKYC OBSERVATION GUIDANCE — when evidence contains VKYC telemetry fields,
+include the following in the `evidence` bullet list if present:
+- NSDL GRID code from `nsdlPanResponse` (e.g. "NSDL GRID code: YYN —
+  name match OK, DOB mismatch, Aadhaar seeding N"). Never include full PAN.
+- Agent rejection reason from `concurrentReject.reasons[]` if present
+  (e.g. "Agent selected rejection reason: PAN Card photo not clear").
+- EKYC/CKYC journey path from `dynamicStepSequence` (e.g. "Session used
+  CKYC journey: ID-SELFIE-CKYC → ID2 → ID-QNA-CKYC").
+- Face match result: if `fmPath` and score available, note document matched
+  and whether it passed or failed threshold.
+- Step where failure occurred (from `step_list` or session logs).
+
+For NSDL GRID codes, always spell out what the code means in plain English
+so the L2 engineering team immediately understands the rejection reason
+without needing to decode the code themselves.
 """
 
     @classmethod

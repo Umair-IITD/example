@@ -34,7 +34,7 @@ _UNITY_BANK_TOOLS: tuple[str, ...] = (
     "GetFailureReason",
     "GetCaseHistory",
     "GetOnboardingStatus",
-    "SessionLogsTool",
+    "GetSessionLogsTool",
     "SessionSummaryTool",
     "SessionVideoTool",
     "MetricsTool",
@@ -54,6 +54,7 @@ _DEFAULT_TENANTS: dict[str, TenantConfig] = {
         auth_config=TenantAuthConfig(credentials_ref="unity_bank_api_credentials"),
         workflow_overrides={},
         portal_base_url="",
+        log_datasource_ref="saas",
         enabled=True,
     ),
     # Future tenants — add here, zero code changes anywhere else:

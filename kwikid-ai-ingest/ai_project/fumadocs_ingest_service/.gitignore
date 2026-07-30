@@ -46,6 +46,9 @@ data/reports/*.md
 data/fumadocs_repo/
 data/raw/
 
+# Asana webhook handshake secret — sensitive, never commit.
+data/asana_webhook_secrets.json
+
 # ── Development / debug scripts (one-off, not for production) ─
 check_db.py
 count_tokens_check.py

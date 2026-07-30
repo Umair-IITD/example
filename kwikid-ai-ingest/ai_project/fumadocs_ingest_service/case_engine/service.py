@@ -119,7 +119,15 @@ class CaseService:
     ) -> None:
         self._repo      = repository
         self._audit     = audit_logger
-        self._clf       = classifier or TopicClassifier()
+        # Sprint 2.5.6: build classifier with LLM router if no classifier is provided
+        if classifier is None:
+            try:
+                from case_engine.classifier import build_topic_classifier  # noqa: PLC0415
+                classifier = build_topic_classifier()
+            except Exception as _exc:
+                LOGGER.warning("case_service: failed to build LLM classifier error=%s — using TopicClassifier()", _exc)
+                classifier = TopicClassifier()
+        self._clf       = classifier
         self._esc_eng   = escalation_engine or EscalationEngine()
         self._clarify   = clarification_engine or ClarificationEngine()
         self._wf_engine = workflow_engine or WorkflowEngine()
@@ -179,9 +187,20 @@ class CaseService:
         )
         result = self._clf.classify(query_text)
         LOGGER.warning(
-            "EXIT_CLASSIFIER topic=%s confidence=%s meets_threshold=%s tier=%s",
+            "EXIT_CLASSIFIER topic=%s confidence=%s meets_threshold=%s tier=%s nlp_signal_present=%s",
             result.topic.value, result.confidence, result.meets_threshold, result.tier_used,
+            result.nlp_signal is not None,
         )
+
+        # Sprint 2.5.6: propagate NLPSignal to case for downstream slot extraction.
+        # The NLPSignal carries pre-extracted entities (urn, session_id, etc.) and the
+        # needs_clarification flag. SupportAgentRuntime reads case.nlp_signal to
+        # pre-fill slots from LLM-extracted entities instead of regex.
+        if result.nlp_signal is not None:
+            try:
+                case.nlp_signal = result.nlp_signal  # type: ignore[attr-defined]
+            except Exception:
+                pass
 
         # TRACE_AUDIT_IDENTITY — proves which AuditLogger class is injected at runtime
         LOGGER.warning(

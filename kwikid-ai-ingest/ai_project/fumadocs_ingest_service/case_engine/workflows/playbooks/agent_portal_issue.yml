@@ -18,6 +18,23 @@ investigation_steps:
   - tool: GetUserDetailsTool
     purpose: Verify agent account is active and not suspended
     required_input: phone_number
+  - tool: GetSessionDetailsTool
+    purpose: >
+      Retrieve session metadata and timeline for the VKYC session the agent
+      was conducting when the portal issue occurred. Provides start_epoch /
+      end_epoch for Loki log retrieval.
+    required_input: session_id
+    note: session_id should be requested from the bank agent if not provided
+  - tool: GetSessionLogsTool
+    purpose: >
+      Retrieve and curate backend log evidence for the agent portal session
+      from the Multi-Tenant Log Platform. Uses the timeline from GetSessionDetailsTool.
+      Log excerpt is PII-redacted and BM25-ranked before delivery.
+    required_input: session_id
+    optional_inputs:
+      - start_epoch
+      - end_epoch
+      - ticket_query
   - tool: GetFailureReasonTool
     purpose: Check portal error logs for auth / infra failure pattern
     required_input: operation_id
@@ -27,6 +44,8 @@ investigation_steps:
 
 tool_candidates:
   - GetUserDetailsTool
+  - GetSessionDetailsTool
+  - GetSessionLogsTool
   - GetFailureReasonTool
   - GetCaseHistoryTool
 

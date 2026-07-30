@@ -159,6 +159,7 @@ class ClientResolver:
             credentials_ref=config.auth_config.credentials_ref,
             workflow_overrides=dict(config.workflow_overrides),
             portal_base_url=config.portal_base_url,
+            log_datasource_reference=config.log_datasource_ref,
         )
 
 

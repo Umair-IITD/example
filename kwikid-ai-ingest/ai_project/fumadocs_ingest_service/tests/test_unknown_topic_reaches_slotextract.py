@@ -206,24 +206,54 @@ class TestKnownTopicRegressionAfterFix:
 
     def test_known_topic_still_escalates_on_low_confidence(self):
         """
-        A known topic that is below threshold (if any) should still escalate.
-        This tests the BELOW_THRESHOLD branch is not accidentally removed.
-        Note: Our classifier always returns 0.85+ for known topics in Tier 1,
-        so we test that known topics still reach TRIAGE_COMPLETE.
+        Sprint 2.5.6: Known OTP topics classified via NLPRouter mock (Tier 1 regex removed).
+        Known topics must reach TRIAGE_COMPLETE (not ESCALATED).
         """
-        svc  = _service()
-        case = svc.open_case("TKT-K01", "unity_bank")
-        svc.classify_case(case, "OTP not received on my mobile.")
+        from unittest.mock import patch
+
+        from case_engine.nlp_router import NLPSignal
+
+        mock_signal = NLPSignal(
+            intent="OTP_DELIVERY_FAILURE",
+            nested_case=None,
+            entities={"urn": None, "session_id": None},
+            negation_detected=False,
+            confidence=0.92,
+            needs_clarification=True,
+            clarification_question="Please provide URN and Session ID",
+            raw_text="",
+        )
+
+        with patch("case_engine.nlp_router.NLPRouter.route", return_value=mock_signal):
+            svc  = _service()
+            case = svc.open_case("TKT-K01", "unity_bank")
+            svc.classify_case(case, "OTP not received on my mobile.")
+
         assert case.current_state == CaseState.TRIAGE_COMPLETE
         assert case.topic == TopicKey.OTP_DELIVERY_FAILURE.value
 
     def test_known_topic_runtime_proceeds_normally(self):
         """Known-topic cases must still flow through the full pipeline."""
-        svc  = _service()
-        case = svc.open_case("TKT-K02", "unity_bank")
-        runtime = _runtime(case_svc=svc)
+        from unittest.mock import patch
 
-        result = runtime.run_case(case, "OTP not received on my mobile.")
+        from case_engine.nlp_router import NLPSignal
+
+        mock_signal = NLPSignal(
+            intent="OTP_DELIVERY_FAILURE",
+            nested_case=None,
+            entities={"urn": None, "session_id": None},
+            negation_detected=False,
+            confidence=0.92,
+            needs_clarification=True,
+            clarification_question="Please provide URN and Session ID",
+            raw_text="",
+        )
+
+        with patch("case_engine.nlp_router.NLPRouter.route", return_value=mock_signal):
+            svc  = _service()
+            case = svc.open_case("TKT-K02", "unity_bank")
+            runtime = _runtime(case_svc=svc)
+            result = runtime.run_case(case, "OTP not received on my mobile.")
 
         # CLASSIFY and SLOT_EXTRACT must both be in steps
         assert "CLASSIFY" in result.steps_completed

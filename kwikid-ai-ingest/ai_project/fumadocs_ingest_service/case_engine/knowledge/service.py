@@ -143,10 +143,20 @@ class KnowledgeService:
                 pass
 
         # SOPMatcher: query → retrieve → match
+        case_id = getattr(case, "case_id", "?") if case is not None else "?"
+        LOGGER.warning(
+            "ENTER_RETRIEVAL case_id=%s topic=%s root_cause_category=%s",
+            case_id, topic, root_cause_category,
+        )
         sop_match, search_result = self._matcher.match(
             topic=topic,
             root_cause_category=root_cause_category,
             recommended_action=recommended_action,
+        )
+        LOGGER.warning(
+            "EXIT_RETRIEVAL case_id=%s topic=%s sop_match=%s matches=%d",
+            case_id, topic, sop_match is not None,
+            len(search_result.matches) if search_result else 0,
         )
 
         # ResolutionRecommendation: synthesise from evidence

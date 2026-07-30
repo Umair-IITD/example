@@ -57,6 +57,9 @@ TOPICS = [
     "API_Callback_Failure",
 ]
 
+# OTP_Delivery_Failure was rewritten to v3.0 (Sprint 2.5.6) — no PROPOSE_ACTION/ACTION_GATEWAY/EXECUTE
+V2_TOPICS = [t for t in TOPICS if t != "OTP_Delivery_Failure"]
+
 
 # ── All playbooks load ────────────────────────────────────────────────────────
 
@@ -71,10 +74,14 @@ class TestPlaybooksLoad:
         defn = _get_defn(registry, topic)
         assert defn.workflow_id
 
-    @pytest.mark.parametrize("topic", TOPICS)
+    @pytest.mark.parametrize("topic", V2_TOPICS)
     def test_playbook_version_is_2(self, registry, topic):
         defn = _get_defn(registry, topic)
         assert defn.version == "2.0"
+
+    def test_otp_playbook_version_is_3(self, registry):
+        defn = _get_defn(registry, "OTP_Delivery_Failure")
+        assert defn.version == "3.0", f"OTP v3.0 rewrite expected; got {defn.version}"
 
 
 # ── All playbooks have full pipeline steps ────────────────────────────────────
@@ -104,23 +111,38 @@ class TestPlaybooksFullPipeline:
         types = _step_types(defn)
         assert "REASON" in types, f"{topic}: missing REASON step"
 
-    @pytest.mark.parametrize("topic", TOPICS)
+    @pytest.mark.parametrize("topic", V2_TOPICS)
     def test_has_propose_action_step(self, registry, topic):
         defn = _get_defn(registry, topic)
         types = _step_types(defn)
         assert "PROPOSE_ACTION" in types, f"{topic}: missing PROPOSE_ACTION step"
 
-    @pytest.mark.parametrize("topic", TOPICS)
+    def test_otp_has_no_propose_action(self, registry):
+        defn = _get_defn(registry, "OTP_Delivery_Failure")
+        types = _step_types(defn)
+        assert "PROPOSE_ACTION" not in types, "OTP v3.0 must NOT have PROPOSE_ACTION (L1 stops at RESOLVE_CASE)"
+
+    @pytest.mark.parametrize("topic", V2_TOPICS)
     def test_has_action_gateway_step(self, registry, topic):
         defn = _get_defn(registry, topic)
         types = _step_types(defn)
         assert "ACTION_GATEWAY" in types, f"{topic}: missing ACTION_GATEWAY step"
 
-    @pytest.mark.parametrize("topic", TOPICS)
+    def test_otp_has_no_action_gateway(self, registry):
+        defn = _get_defn(registry, "OTP_Delivery_Failure")
+        types = _step_types(defn)
+        assert "ACTION_GATEWAY" not in types, "OTP v3.0 must NOT have ACTION_GATEWAY"
+
+    @pytest.mark.parametrize("topic", V2_TOPICS)
     def test_has_execute_step(self, registry, topic):
         defn = _get_defn(registry, topic)
         types = _step_types(defn)
         assert "EXECUTE" in types, f"{topic}: missing EXECUTE step"
+
+    def test_otp_has_no_execute(self, registry):
+        defn = _get_defn(registry, "OTP_Delivery_Failure")
+        types = _step_types(defn)
+        assert "EXECUTE" not in types, "OTP v3.0 must NOT have EXECUTE step"
 
     @pytest.mark.parametrize("topic", TOPICS)
     def test_has_resolve_case_step(self, registry, topic):
@@ -161,8 +183,8 @@ class TestPlaybooksRequiredSlots:
 
     def test_otp_required_slots(self, registry):
         defn = _get_defn(registry, "OTP_Delivery_Failure")
-        assert "phone_number" in defn.required_slots
-        assert "channel" in defn.required_slots
+        assert "urn" in defn.required_slots
+        assert "session_id" in defn.required_slots
 
     def test_ocr_required_slots(self, registry):
         defn = _get_defn(registry, "Document_OCR_Failure")
@@ -209,8 +231,11 @@ class TestPlaybooksExecuteActionType:
         assert step.action_type == "vkyc_session_reset"
 
     def test_otp_execute_action_type(self, registry):
-        step = self._execute_step(registry, "OTP_Delivery_Failure")
-        assert step.action_type == "otp_resend"
+        # OTP v3.0: no EXECUTE step — L1 stops at RESOLVE_CASE (observation written to Freshdesk)
+        defn = _get_defn(registry, "OTP_Delivery_Failure")
+        types = _step_types(defn)
+        assert "EXECUTE" not in types, "OTP v3.0 must not have EXECUTE — otp_resend is deferred to L2"
+        assert "RESOLVE_CASE" in types, "OTP v3.0 must have RESOLVE_CASE (L1 observation output)"
 
     def test_ocr_execute_action_type(self, registry):
         step = self._execute_step(registry, "Document_OCR_Failure")
@@ -240,8 +265,10 @@ class TestPlaybooksRiskLevels:
         assert step.risk_level == "REVERSIBLE"
 
     def test_otp_is_safe(self, registry):
-        step = self._propose_step(registry, "OTP_Delivery_Failure")
-        assert step.risk_level == "SAFE"
+        # OTP v3.0: no PROPOSE_ACTION step — risk level N/A; verify absence
+        defn = _get_defn(registry, "OTP_Delivery_Failure")
+        types = _step_types(defn)
+        assert "PROPOSE_ACTION" not in types, "OTP v3.0 must not have PROPOSE_ACTION"
 
     def test_ocr_is_safe(self, registry):
         step = self._propose_step(registry, "Document_OCR_Failure")

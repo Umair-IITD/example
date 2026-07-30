@@ -75,20 +75,21 @@ LOGGER = logging.getLogger(__name__)
 
 def _run_async(coro):
     """
-    Bridge sync `BaseTool.run()` to async work.
-    Handles nested-loop case (pytest-asyncio).
+    Bridge sync BaseTool.run() to async work.
+    Works from both sync contexts and async contexts (FastAPI async background tasks).
+    When a running event loop is detected, the coroutine is executed in a separate
+    OS thread via ThreadPoolExecutor so asyncio.run() can create its own loop.
     """
     try:
+        asyncio.get_running_loop()
+        # Already inside a running event loop — run in a separate thread to avoid
+        # "asyncio.run() cannot be called from a running event loop".
+        import concurrent.futures  # noqa: PLC0415
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            return pool.submit(asyncio.run, coro).result()
+    except RuntimeError:
+        # No running loop present — asyncio.run() is safe.
         return asyncio.run(coro)
-    except RuntimeError as exc:
-        msg = str(exc).lower()
-        if "already running" in msg or "cannot be called from a running event loop" in msg:
-            new_loop = asyncio.new_event_loop()
-            try:
-                return new_loop.run_until_complete(coro)
-            finally:
-                new_loop.close()
-        raise
 
 
 async def _fetch_session_list(config: UnityConfig, phone_number: str,

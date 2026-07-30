@@ -39,19 +39,19 @@ class TestNextQuestion:
     def test_returns_first_required_slot_when_all_empty(self, engine):
         q = engine.next_question(TopicKey.VKYC_SESSION_FAILURE, {})
         assert isinstance(q, ClarificationQuestion)
-        assert q.slot_name == "session_id"
+        assert q.slot_name == "urn"
         assert q.is_required is True
 
     def test_skips_filled_slots(self, engine):
-        slots = {"session_id": _filled("session_id", "KID-AB12")}
+        slots = {"urn": _filled("urn", "URN123")}
         q = engine.next_question(TopicKey.VKYC_SESSION_FAILURE, slots)
         assert q is not None
-        assert q.slot_name == "phone_number"
+        assert q.slot_name == "session_id"
 
     def test_returns_none_when_all_required_filled(self, engine):
         slots = {
-            "session_id":   _filled("session_id", "KID-AB12"),
-            "phone_number": _filled("phone_number", "1234"),
+            "urn":        _filled("urn", "URN123"),
+            "session_id": _filled("session_id", "KID-AB12"),
         }
         q = engine.next_question(TopicKey.VKYC_SESSION_FAILURE, slots)
         assert q is None
@@ -61,16 +61,21 @@ class TestNextQuestion:
         assert q is None
 
     def test_includes_valid_values_for_enum_slot(self, engine):
-        q = engine.next_question(TopicKey.OTP_DELIVERY_FAILURE, {
-            "phone_number": _filled("phone_number", "1234"),
+        # API_CALLBACK_FAILURE: required=[application_id, callback_type]; callback_type has valid_values
+        q = engine.next_question(TopicKey.API_CALLBACK_FAILURE, {
+            "application_id": _filled("application_id", "APP-001"),
         })
         assert q is not None
-        assert q.slot_name == "channel"
+        assert q.slot_name == "callback_type"
         assert q.valid_values is not None
-        assert "SMS" in q.valid_values
+        assert "CBS" in q.valid_values
 
     def test_invalid_slot_still_asked(self, engine):
-        slots = {"session_id": _invalid("session_id")}
+        # urn is filled; session_id is invalid → engine must re-ask the invalid slot
+        slots = {
+            "urn":        _filled("urn", "URN123"),
+            "session_id": _invalid("session_id"),
+        }
         q = engine.next_question(TopicKey.VKYC_SESSION_FAILURE, slots)
         assert q is not None
         assert q.slot_name == "session_id"
@@ -160,8 +165,8 @@ class TestAllRequiredFilled:
 
     def test_true_when_all_filled(self, engine):
         slots = {
-            "session_id":   _filled("session_id", "KID-X"),
-            "phone_number": _filled("phone_number", "1234"),
+            "urn":        _filled("urn", "URN123"),
+            "session_id": _filled("session_id", "KID-X"),
         }
         assert engine.all_required_filled(TopicKey.VKYC_SESSION_FAILURE, slots) is True
 
@@ -171,16 +176,16 @@ class TestAllRequiredFilled:
 
     def test_false_when_invalid_present(self, engine):
         slots = {
-            "session_id":   _filled("session_id", "KID-X"),
-            "phone_number": _invalid("phone_number"),
+            "urn":        _filled("urn", "URN123"),
+            "session_id": _invalid("session_id"),
         }
         assert engine.all_required_filled(TopicKey.VKYC_SESSION_FAILURE, slots) is False
 
     def test_true_when_optional_missing(self, engine):
         slots = {
-            "session_id":   _filled("session_id", "KID-X"),
-            "phone_number": _filled("phone_number", "1234"),
-            # failure_code (optional) not present — should not block
+            "urn":        _filled("urn", "URN123"),
+            "session_id": _filled("session_id", "KID-X"),
+            # phone_number and failure_code (optional) not present — should not block
         }
         assert engine.all_required_filled(TopicKey.VKYC_SESSION_FAILURE, slots) is True
 

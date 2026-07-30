@@ -131,15 +131,15 @@ class TestReceiveMessageExtraction:
 
         assert result.slot_values.get("channel", {}).get("status") == "FILLED"
         assert result.next_question is not None
-        assert result.next_question["slot_name"] == "phone_number"
+        assert result.next_question["slot_name"] == "urn"
 
     def test_first_question_returned_when_nothing_extracted(self):
         svc, _ = _make_service()
         case = _make_case(topic=TopicKey.VKYC_SESSION_FAILURE.value)
         result = svc.receive_message(case, "VKYC not working")
-        # No enum slots in VKYC — extraction won't fill session_id
+        # No enum slots in VKYC — extraction won't fill urn
         assert result.next_question is not None
-        assert result.next_question["slot_name"] == "session_id"
+        assert result.next_question["slot_name"] == "urn"
 
 
 # ── receive_message: explicit slot filling ────────────────────────────────────
@@ -149,11 +149,11 @@ class TestReceiveMessageExplicit:
         svc, _ = _make_service()
         case = _make_case(topic=TopicKey.VKYC_SESSION_FAILURE.value)
         result = svc.receive_message(
-            case, "", slot_name="session_id", slot_value_str="KID-AB12CD34"
+            case, "", slot_name="urn", slot_value_str="URN123456"
         )
-        assert result.slot_values["session_id"]["status"] == "FILLED"
+        assert result.slot_values["urn"]["status"] == "FILLED"
         assert result.next_question is not None
-        assert result.next_question["slot_name"] == "phone_number"
+        assert result.next_question["slot_name"] == "session_id"
 
     def test_invalid_slot_value_marks_invalid(self):
         svc, _ = _make_service()
@@ -163,16 +163,16 @@ class TestReceiveMessageExplicit:
         )
         assert result.slot_values["channel"]["status"] == "INVALID"
         assert result.next_question is not None
-        assert result.next_question["slot_name"] == "phone_number"  # first required is phone_number
+        assert result.next_question["slot_name"] == "urn"  # first required is urn
 
     def test_all_slots_filled_sets_flag(self):
         svc, _ = _make_service()
         case = _make_case(topic=TopicKey.VKYC_SESSION_FAILURE.value)
         case.slot_state = {
-            "session_id": {"status": "FILLED", "value": "KID-X", "attempt_count": 0}
+            "urn": {"status": "FILLED", "value": "URN123", "attempt_count": 0}
         }
         result = svc.receive_message(
-            case, "", slot_name="phone_number", slot_value_str="5678"
+            case, "", slot_name="session_id", slot_value_str="KID-AB12CD34"
         )
         assert result.all_slots_filled is True
         assert result.next_question is None
@@ -182,9 +182,9 @@ class TestReceiveMessageExplicit:
         svc, repo = _make_service()
         case = _make_case(topic=TopicKey.VKYC_SESSION_FAILURE.value)
         case.slot_state = {
-            "session_id": {"status": "FILLED", "value": "KID-X", "attempt_count": 0}
+            "urn": {"status": "FILLED", "value": "URN123", "attempt_count": 0}
         }
-        svc.receive_message(case, "", slot_name="phone_number", slot_value_str="5678")
+        svc.receive_message(case, "", slot_name="session_id", slot_value_str="KID-AB12CD34")
         assert CaseState.WORKFLOW_ACTIVE.value in repo._updated
 
 
@@ -194,11 +194,11 @@ class TestReceiveMessageEscalation:
     def test_max_attempts_exceeded_escalates(self):
         svc, repo = _make_service()
         case = _make_case(topic=TopicKey.OTP_DELIVERY_FAILURE.value)
-        # Simulate 2 failed attempts on phone_number (max_attempts=2)
+        # Simulate 2 failed attempts on urn (required, max_attempts=2)
         case.slot_state = {
-            "phone_number": {"status": "INVALID", "value": None, "attempt_count": 2}
+            "urn": {"status": "INVALID", "value": None, "attempt_count": 2}
         }
-        result = svc.receive_message(case, "", slot_name="phone_number", slot_value_str="bad")
+        result = svc.receive_message(case, "", slot_name="urn", slot_value_str="!!")
         assert result.escalated is True
         assert CaseState.ESCALATED.value in repo._updated
 

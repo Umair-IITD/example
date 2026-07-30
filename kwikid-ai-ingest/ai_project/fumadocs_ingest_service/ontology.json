@@ -1,0 +1,374 @@
+{
+  "version": "1.0",
+  "domain": "VKYC_SUPPORT",
+  "description": "Intent ontology for KwikID VKYC Support Automation. Consumed by the LLM Semantic Router (Layer 2.5). Each intent maps to a canonical TopicKey and defines the slots required for L1 investigation (NOT resolution).",
+  "intents": [
+    {
+      "intent_name": "OTP_DELIVERY_FAILURE",
+      "topic_key": "OTP_Delivery_Failure",
+      "description": "Customer is not receiving the One-Time Password (OTP) needed to complete the VKYC session. Includes OTP not delivered via SMS, EMAIL, or VOICE; OTP expired before entry; OTP attempt limit exceeded; number blocked or DND-registered. The agent's message often uses negation: 'not receiving', 'didn't get', 'haven't received', 'unable to get', 'OTP nahi aa raha'.",
+      "required_slots_for_investigation": [
+        "urn",
+        "session_id"
+      ],
+      "optional_slots": [
+        "phone_number",
+        "channel",
+        "attempt_count"
+      ],
+      "clarification_question": "To investigate this OTP delivery issue, please provide the URN (Unique Reference Number) and the VKYC Session ID (format: KID-XXXXXXXX). This is needed to examine the OTP delivery logs in the admin portal.",
+      "nested_cases": [
+        {
+          "case_name": "OTP_NOT_RECEIVED",
+          "description": "OTP was generated and dispatch was attempted but the customer never received it"
+        },
+        {
+          "case_name": "OTP_LIMIT_EXCEEDED",
+          "description": "Maximum OTP resend or attempt limit has been reached"
+        },
+        {
+          "case_name": "OTP_CHANNEL_BLOCKED",
+          "description": "Delivery channel blocked — DND registration, wrong mobile number, or email bounce"
+        },
+        {
+          "case_name": "OTP_EXPIRED",
+          "description": "OTP was generated but the customer attempted entry after the TTL window"
+        },
+        {
+          "case_name": "OTP_SMS_GATEWAY_FAILURE",
+          "description": "SMS gateway timeout or provider-side delivery failure"
+        }
+      ],
+      "example_phrases": [
+        "not receiving OTP",
+        "OTP not coming",
+        "didn't get OTP",
+        "OTP not received",
+        "haven't gotten OTP",
+        "unable to receive OTP",
+        "OTP nahi aa raha",
+        "customer is not getting the OTP",
+        "OTP delivery failed",
+        "OTP issue on SMS"
+      ]
+    },
+    {
+      "intent_name": "VKYC_SESSION_FAILURE",
+      "topic_key": "VKYC_Session_Failure",
+      "description": "A Video KYC session failed, expired, disconnected, or could not be completed. Covers session link expiry, mid-session disconnections, camera or microphone failures, bandwidth issues, liveness/face detection failures, and VKYC session timeout.",
+      "required_slots_for_investigation": [
+        "urn",
+        "session_id"
+      ],
+      "optional_slots": [
+        "failure_code",
+        "phone_number"
+      ],
+      "clarification_question": "To investigate the VKYC session failure, please provide the URN and the Session ID (format: KID-XXXXXXXX). This is needed to retrieve the session logs, summary, and video evidence.",
+      "nested_cases": [
+        {
+          "case_name": "SESSION_LINK_EXPIRED",
+          "description": "The VKYC session link has expired and the customer cannot join"
+        },
+        {
+          "case_name": "SESSION_DROPPED",
+          "description": "Session connected but dropped midway through the VKYC process"
+        },
+        {
+          "case_name": "LIVENESS_FAILURE",
+          "description": "Liveness detection or face match check failed"
+        },
+        {
+          "case_name": "CAMERA_MIC_ISSUE",
+          "description": "Camera or microphone hardware or permission issue preventing VKYC"
+        },
+        {
+          "case_name": "BANDWIDTH_ISSUE",
+          "description": "Poor network quality caused the session to fail or be rejected"
+        },
+        {
+          "case_name": "VKYC_PENDING_REVIEW",
+          "description": "Session completed but is stuck in pending/review state"
+        }
+      ],
+      "example_phrases": [
+        "video kyc failed",
+        "vkyc session expired",
+        "session link not working",
+        "liveness check failed",
+        "liveliness failed",
+        "camera not working in vkyc",
+        "vkyc dropped",
+        "session disconnected",
+        "video quality poor"
+      ]
+    },
+    {
+      "intent_name": "DOCUMENT_OCR_FAILURE",
+      "topic_key": "Document_OCR_Failure",
+      "description": "Document scan, OCR extraction, or identity validation failed during VKYC. Covers PAN card, Aadhaar, Passport, Voter ID scan failures; face match failures between document photo and live camera; Aadhaar XML download failures; signature mismatches.",
+      "required_slots_for_investigation": [
+        "urn",
+        "session_id"
+      ],
+      "optional_slots": [
+        "document_type",
+        "application_id",
+        "error_code"
+      ],
+      "clarification_question": "To investigate the document OCR failure, please provide the URN and VKYC Session ID. This is needed to examine the OCR attempt logs and document scan results.",
+      "nested_cases": [
+        {
+          "case_name": "OCR_EXTRACTION_FAILED",
+          "description": "Document text or data could not be extracted by the OCR engine"
+        },
+        {
+          "case_name": "FACE_MATCH_FAILED",
+          "description": "Live face did not match the photo on the submitted document"
+        },
+        {
+          "case_name": "SIGNATURE_MATCH_FAILED",
+          "description": "Signature on document did not pass validation"
+        },
+        {
+          "case_name": "AADHAAR_XML_FAILED",
+          "description": "Aadhaar XML download from UIDAI or XML validation failed"
+        },
+        {
+          "case_name": "DOCUMENT_QUALITY_LOW",
+          "description": "Document image quality too low for OCR (blurry, dark, glare)"
+        }
+      ],
+      "example_phrases": [
+        "pan card not scanning",
+        "aadhaar scan failed",
+        "face match failed",
+        "document ocr error",
+        "signature mismatch",
+        "aadhaar xml error",
+        "document upload failed",
+        "pan mismatch"
+      ]
+    },
+    {
+      "intent_name": "AGENT_PORTAL_ISSUE",
+      "topic_key": "Agent_Portal_Issue",
+      "description": "A bank agent, auditor, or supervisor is experiencing an issue with the VKYC admin portal. Covers login failures, account locks, access permission problems, slow portal performance, queue not loading, and video playback issues in the portal.",
+      "required_slots_for_investigation": [
+        "agent_id"
+      ],
+      "optional_slots": [
+        "portal_type",
+        "error_message",
+        "session_id"
+      ],
+      "clarification_question": "To investigate the portal issue, please provide the agent's ID (AGT-XXXXXXXX format or login username). This is needed to look up the agent's account and access permissions.",
+      "nested_cases": [
+        {
+          "case_name": "PORTAL_LOGIN_FAILURE",
+          "description": "Agent cannot log in to the VKYC admin portal"
+        },
+        {
+          "case_name": "PORTAL_ACCOUNT_LOCKED",
+          "description": "Agent account has been locked after failed login attempts"
+        },
+        {
+          "case_name": "PORTAL_ACCESS_DENIED",
+          "description": "Agent lacks the required permissions for a specific portal feature"
+        },
+        {
+          "case_name": "PORTAL_PERFORMANCE",
+          "description": "Portal is slow, unresponsive, or experiencing errors"
+        },
+        {
+          "case_name": "PORTAL_VIDEO_PLAYBACK",
+          "description": "Recorded VKYC video is not playing back in the portal"
+        }
+      ],
+      "example_phrases": [
+        "can't login to portal",
+        "agent portal not working",
+        "queue not loading",
+        "auditor access denied",
+        "supervisor portal slow",
+        "portal is down",
+        "agent locked out",
+        "video not playing in portal"
+      ]
+    },
+    {
+      "intent_name": "API_CALLBACK_FAILURE",
+      "topic_key": "API_Callback_Failure",
+      "description": "Post-VKYC API callbacks to downstream systems (CBS, DMS, SFDC, webhooks) are failing or not triggering. Covers callback not fired after VKYC completion, HTTP errors from callback endpoints, missing or malformed callback payload data, and integration timeouts.",
+      "required_slots_for_investigation": [
+        "application_id",
+        "callback_type"
+      ],
+      "optional_slots": [
+        "error_code",
+        "session_id"
+      ],
+      "clarification_question": "To investigate the API callback failure, please provide the Application ID and the callback type (CBS, DMS, SFDC, or WEBHOOK). This is needed to trace the callback chain and identify the failure point.",
+      "nested_cases": [
+        {
+          "case_name": "CBS_CALLBACK_FAILURE",
+          "description": "Core Banking System callback failed or was not triggered"
+        },
+        {
+          "case_name": "DMS_CALLBACK_FAILURE",
+          "description": "Document Management System callback failed"
+        },
+        {
+          "case_name": "SFDC_CALLBACK_FAILURE",
+          "description": "Salesforce CRM callback failed"
+        },
+        {
+          "case_name": "WEBHOOK_TIMEOUT",
+          "description": "Partner webhook endpoint did not respond within the timeout window"
+        },
+        {
+          "case_name": "CALLBACK_PAYLOAD_INVALID",
+          "description": "Callback was sent but the payload was rejected by the downstream system"
+        }
+      ],
+      "example_phrases": [
+        "cbs callback not triggered",
+        "webhook failed",
+        "sfdc integration error",
+        "dms callback error",
+        "api callback failure",
+        "post kyc callback missing",
+        "integration not working"
+      ]
+    },
+    {
+      "intent_name": "DOCUMENT_GENERATION_FAILURE",
+      "topic_key": "Document_Generation_Failure",
+      "description": "Post-VKYC PDF or digital document generation failed. Covers missing PDF or report after VKYC completion, PDF download error, PDF password decryption failure, partial document content, incorrect data in the final PDF, or generation failure status from the backend service.",
+      "required_slots_for_investigation": [
+        "session_id",
+        "urn"
+      ],
+      "optional_slots": [
+        "document_type",
+        "error_code"
+      ],
+      "clarification_question": "To investigate the document generation failure, please provide the Session ID and URN. This is needed to check the PDF generation logs and identify any errors in the output.",
+      "nested_cases": [
+        {
+          "case_name": "PDF_GENERATION_TIMEOUT",
+          "description": "PDF generation process timed out or failed to complete within expected time"
+        },
+        {
+          "case_name": "PDF_CONTENT_INCOMPLETE",
+          "description": "Generated PDF contains incomplete or missing information"
+        },
+        {
+          "case_name": "PDF_PASSWORD_ERROR",
+          "description": "PDF password decryption failed or password was not generated/transmitted"
+        },
+        {
+          "case_name": "FILE_NOT_FOUND",
+          "description": "Generated PDF file cannot be located or accessed"
+        }
+      ],
+      "example_phrases": [
+        "pdf not generating after vkyc",
+        "vkyc report pdf not coming",
+        "application form missing",
+        "pdf download error",
+        "pdf content incomplete"
+      ]
+    },
+    {
+      "intent_name": "APPLICATION_DATA_ISSUE",
+      "topic_key": "Application_Data_Issue",
+      "description": "Application data issue covers incorrect or missing data fields in the VKYC application. This includes wrong mobile numbers, incorrect PAN/Aadhaar details, mismatched gender or date of birth, incorrect applicant address, or any other data that was entered incorrectly during the VKYC process.",
+      "required_slots_for_investigation": [
+        "application_id",
+        "session_id"
+      ],
+      "optional_slots": [
+        "error_code",
+        "error_message"
+      ],
+      "clarification_question": "To investigate the application data issue, please provide the Application ID and Session ID. This is needed to check the application data and identify any errors in the data.",
+      "nested_cases": [
+        {
+          "case_name": "INCORRECT_MOBILE_NUMBER",
+          "description": "Mobile number captured during VKYC is incorrect"
+        },
+        {
+          "case_name": "INCORRECT_PAN_AADHAAR",
+          "description": "PAN or Aadhaar details captured during VKYC are incorrect"
+        },
+        {
+          "case_name": "INCORRECT_GENDER_DOB",
+          "description": "Gender or date of birth captured during VKYC is incorrect"
+        },
+        {
+          "case_name": "INCORRECT_ADDRESS",
+          "description": "Applicant address captured during VKYC is incorrect"
+        },
+        {
+          "case_name": "INCORRECT_NAME",
+          "description": "Applicant name captured during VKYC is incorrect"
+        }
+      ],
+      "example_phrases": [
+        "application form has wrong data",
+        "mobile number is incorrect",
+        "pan is wrong",
+        "gender is wrong",
+        "dob is wrong",
+        "address is wrong",
+        "application data is incorrect"
+      ]
+    },
+    {
+      "intent_name": "SIGNATORY_AUTHORITY_ISSUE",
+      "topic_key": "Signatory_Authority_Issue",
+      "description": "Signatory authority issue covers incorrect or missing signatory authority information in the VKYC application. This includes wrong signatory authority name, incorrect signatory authority PAN/Aadhaar details, mismatched signatory authority gender or date of birth, incorrect signatory authority address, or any other data that was entered incorrectly during the VKYC process.",
+      "required_slots_for_investigation": [
+        "application_id"
+      ],
+      "optional_slots": [
+        "error_code",
+        "error_message",
+        "session_id"
+      ],
+      "clarification_question": "To investigate the signatory authority issue, please provide the Application ID. This is needed to check the signatory authority data and identify any errors in the data.",
+      "nested_cases": [
+        {
+          "case_name": "INCORRECT_SIGNATORY_AUTHORITY_NAME",
+          "description": "Signatory authority name captured during VKYC is incorrect"
+        },
+        {
+          "case_name": "INCORRECT_SIGNATORY_AUTHORITY_PAN_AADHAAR",
+          "description": "Signatory authority PAN or Aadhaar details captured during VKYC are incorrect"
+        },
+        {
+          "case_name": "INCORRECT_SIGNATORY_AUTHORITY_GENDER_DOB",
+          "description": "Signatory authority gender or date of birth captured during VKYC is incorrect"
+        },
+        {
+          "case_name": "INCORRECT_SIGNATORY_AUTHORITY_ADDRESS",
+          "description": "Signatory authority address captured during VKYC is incorrect"
+        },
+        {
+          "case_name": "INCORRECT_SIGNATORY_AUTHORITY_NAME",
+          "description": "Signatory authority name captured during VKYC is incorrect"
+        }
+      ],
+      "example_phrases": [
+        "application form has wrong signatory authority data",
+        "signatory authority mobile number is incorrect",
+        "signatory authority pan is wrong",
+        "signatory authority gender is wrong",
+        "signatory authority dob is wrong",
+        "signatory authority address is wrong",
+        "signatory authority data is incorrect"
+      ]
+    }
+  ]
+}

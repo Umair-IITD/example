@@ -47,8 +47,8 @@ class TestSlotRegistry:
 
     def test_required_names(self, vkyc):
         names = vkyc.required_names()
+        assert "urn" in names
         assert "session_id" in names
-        assert "phone_number" in names
 
     def test_optional_names(self, vkyc):
         names = vkyc.optional_names()
@@ -90,7 +90,7 @@ class TestVKYCSlots:
 
     def test_phone_number_required(self, reg):
         sd = reg.definition_for("phone_number")
-        assert sd.required is True
+        assert sd.required is False
 
     def test_failure_code_optional(self, reg):
         sd = reg.definition_for("failure_code")
@@ -143,7 +143,7 @@ class TestDocumentOCRSlots:
 
     def test_document_type_required(self, reg):
         sd = reg.definition_for("document_type")
-        assert sd.required is True
+        assert sd.required is False
         assert sd.is_valid_value("AADHAAR") is True
         assert sd.is_valid_value("PAN") is True
         assert sd.is_valid_value("aadhaar") is True
@@ -151,7 +151,7 @@ class TestDocumentOCRSlots:
 
     def test_application_id_required(self, reg):
         sd = reg.definition_for("application_id")
-        assert sd.required is True
+        assert sd.required is False
         assert sd.is_valid_value("APP-00129871") is True
 
 
@@ -164,7 +164,7 @@ class TestAgentPortalSlots:
 
     def test_portal_type_required(self, reg):
         sd = reg.definition_for("portal_type")
-        assert sd.required is True
+        assert sd.required is False
         assert sd.is_valid_value("WEB") is True
         assert sd.is_valid_value("MOBILE") is True
         assert sd.is_valid_value("DESKTOP") is True

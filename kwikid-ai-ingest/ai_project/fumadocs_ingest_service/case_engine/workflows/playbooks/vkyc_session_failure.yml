@@ -18,6 +18,16 @@ investigation_steps:
   - tool: GetSessionDetailsTool
     purpose: Verify session status and determine if auto-reset is possible
     required_input: session_id
+  - tool: GetSessionLogsTool
+    purpose: >
+      Retrieve and curate backend log evidence for this session from the
+      Multi-Tenant Log Platform. Uses the timeline from GetSessionDetailsTool.
+      Log excerpt is PII-redacted and BM25-ranked before delivery.
+    required_input: session_id
+    optional_inputs:
+      - start_epoch
+      - end_epoch
+      - ticket_query
   - tool: GetUserDetailsTool
     purpose: Confirm user identity and KYC tier before resetting
     required_input: phone_number
@@ -27,6 +37,7 @@ investigation_steps:
 
 tool_candidates:
   - GetSessionDetailsTool
+  - GetSessionLogsTool
   - GetUserDetailsTool
   - GetCaseHistoryTool
 

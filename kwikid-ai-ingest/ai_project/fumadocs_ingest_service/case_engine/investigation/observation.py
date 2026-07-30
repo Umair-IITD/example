@@ -233,6 +233,12 @@ def _relevant_fields(source: EvidenceSource, payload: dict[str, Any]) -> dict[st
         keys = ["case_count", "repeat_pattern", "escalation_rate", "last_resolution"]
     elif source == EvidenceSource.GET_ONBOARDING_STATUS:
         keys = ["stage", "completion_percentage", "blocking_step", "is_blocked"]
+    elif source == EvidenceSource.METRIC_TOOL:
+        keys = ["service_name", "status", "uptime_pct", "response_time_ms", "last_checked"]
+    elif source == EvidenceSource.SERVER_TOOL:
+        keys = ["server_name", "status", "incident_count", "is_degraded", "maintenance_window"]
+    elif source == EvidenceSource.GET_SESSION_LOGS:
+        keys = ["log_availability", "log_line_count", "log_char_count", "redacted_excerpt"]
     else:
         # Unknown source — show up to 10 fields
         items = list(payload.items())[:10]

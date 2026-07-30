@@ -396,6 +396,21 @@ class EngineeringEscalationService:
         except Exception:
             return []
 
+    def get_ticket_by_external_id(self, external_id: str) -> EngineeringTicket | None:
+        """
+        Look up a ticket by its Asana task GID (external_id).
+
+        Used by the Asana webhook receiver to map an incoming
+        "task completed" event back to the internal ticket. Never raises.
+        """
+        try:
+            for ticket in self._store.values():
+                if ticket.external_id == external_id:
+                    return ticket
+            return None
+        except Exception:
+            return None
+
     # ── Private helpers ───────────────────────────────────────────────────────
 
     def _create_ticket_internal(

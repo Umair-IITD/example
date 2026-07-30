@@ -140,13 +140,14 @@ class TestUpgradedPlaybooks:
                 )
 
     def test_investigation_steps_tool_names_are_known(self, default_registry):
-        """Tool names in investigation_steps should be one of the 5 known mock tools."""
+        """Tool names in investigation_steps should be known tools (OTP v3.0 adds LogTool)."""
         known_tools = {
             "GetSessionDetailsTool",
             "GetUserDetailsTool",
             "GetFailureReasonTool",
             "GetCaseHistoryTool",
             "GetOnboardingStatusTool",
+            "LogTool",
         }
         for defn in default_registry.list_all():
             for step in defn.investigation_steps:
@@ -156,13 +157,14 @@ class TestUpgradedPlaybooks:
                 )
 
     def test_tool_candidates_are_known_tools(self, default_registry):
-        """tool_candidates should be one of the 5 known mock tools."""
+        """tool_candidates should be known tools (OTP v3.0 adds LogTool)."""
         known_tools = {
             "GetSessionDetailsTool",
             "GetUserDetailsTool",
             "GetFailureReasonTool",
             "GetCaseHistoryTool",
             "GetOnboardingStatusTool",
+            "LogTool",
         }
         for defn in default_registry.list_all():
             for tool_name in defn.tool_candidates:
@@ -209,5 +211,5 @@ class TestUpgradedPlaybooks:
 
     def test_otp_required_slots_preserved(self, default_registry):
         defn = default_registry.get("OTP_Delivery_Failure")
-        assert "phone_number" in defn.required_slots
-        assert "channel" in defn.required_slots
+        assert "urn" in defn.required_slots
+        assert "session_id" in defn.required_slots

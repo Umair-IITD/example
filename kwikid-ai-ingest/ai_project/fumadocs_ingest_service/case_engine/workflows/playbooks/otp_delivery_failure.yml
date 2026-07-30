@@ -1,66 +1,101 @@
-workflow_id: otp_delivery_failure_v1
+workflow_id: otp_delivery_failure_v2
 topic: OTP_Delivery_Failure
-version: "2.0"
-name: OTP Delivery Failure Resolution
+version: "3.0"
+name: OTP Delivery Failure — L1 Investigation
 description: >
-  Resolves OTP delivery failures by clarifying required information,
-  investigating the delivery state, looking up SOPs, reasoning about the
-  best action, proposing an OTP resend through the action gateway,
-  executing the resend, and resolving the case. Escalates at any failure
-  point that cannot be automatically recovered.
+  Sprint 2.5.6 rewrite per Blueprint §2 (L1 Responsibilities) and §6 (Clarification Engine).
 
+  L1 does NOT resolve the issue immediately. L1 investigates:
+  1. Requests URN and Session ID from the bank agent (NOT phone number)
+  2. Looks up session in the Unity admin portal (GetSessionDetails)
+  3. Retrieves OTP delivery logs (LogTool, GetFailureReasonTool)
+  4. Determines root cause (SMS gateway failure, DND block, limit exceeded, etc.)
+  5. Generates L1 Observation and writes it to Freshdesk internal note
+  6. Escalates to L2 if investigation is inconclusive
+
+  OTP resend (resolution) is a SUBSEQUENT action — gated on L1 observation review.
+
+# Sprint 2.5.6: required_slots are INVESTIGATION identifiers, not resolution parameters.
+# URN + Session ID → look up customer session → find OTP delivery logs → root cause.
+# Phone number is NOT required for investigation (it is needed only for OTP resend,
+# which happens in a later L2/resolution step after L1 observation is reviewed).
 required_slots:
-  - phone_number
-  - channel
+  - urn
+  - session_id
 
 # Sprint 2.17: Investigation metadata (advisory)
 investigation_steps:
-  - tool: GetUserDetailsTool
-    purpose: Verify phone number is registered and active before resending OTP
-    required_input: phone_number
+  - tool: GetSessionDetailsTool
+    purpose: Retrieve VKYC session metadata and status for the given session_id
+    required_input: session_id
+  - tool: GetSessionLogsTool
+    purpose: >
+      Retrieve and curate backend log evidence for this session from the
+      Multi-Tenant Log Platform. Uses the timeline from GetSessionDetailsTool.
+      Log excerpt is PII-redacted and BM25-ranked before delivery.
+    required_input: session_id
+    optional_inputs:
+      - start_epoch
+      - end_epoch
+      - ticket_query
+  - tool: LogTool
+    purpose: Retrieve OTP delivery logs for this session (GENERATE_OTP, VALIDATE_OTP, SEND_SMS events)
+    required_input: session_id
   - tool: GetFailureReasonTool
-    purpose: Identify root cause of delivery failure (NETWORK / QUOTA / TIMEOUT)
-    required_input: operation_id
+    purpose: Identify specific failure reason (NETWORK / QUOTA / TIMEOUT / DND / INVALID_NUMBER)
+    required_input: session_id
   - tool: GetCaseHistoryTool
-    purpose: Check for repeat OTP failures to assess escalation risk
-    required_input: phone_number
+    purpose: Check for prior OTP failures on this URN to assess escalation risk
+    required_input: urn
 
 tool_candidates:
-  - GetUserDetailsTool
+  - GetSessionDetailsTool
+  - GetSessionLogsTool
+  - LogTool
   - GetFailureReasonTool
   - GetCaseHistoryTool
+  - GetUserDetailsTool
 
 resolution_paths:
-  automatic: otp_resend
+  l1_observation: write_l1_observation
   escalation_missing_slots: escalate_missing_slots
-  escalation_resend_failed: escalate_execute_failed
-  escalation_rejected: escalate_gateway_blocked
+  escalation_investigation_failed: escalate_investigation_failed
+  escalation_inconclusive: escalate_inconclusive
 
 entry_conditions:
-  - field: phone_number
+  - field: urn
     operator: exists
-    description: Phone number must be present before workflow can start
+    description: URN must be present before investigation can begin
+  - field: session_id
+    operator: exists
+    description: Session ID must be present to retrieve OTP delivery logs
 
 steps:
   # ── Phase 0: Clarification ─────────────────────────────────────────────────
-  - step_id: clarify_slots
+  # Ask for URN and Session ID. DO NOT ask for phone number or channel.
+  - step_id: clarify_investigation_slots
     type: CLARIFY
-    name: Clarify Missing Required Information
+    name: Request URN and Session ID for Investigation
     description: >
-      Verify phone_number and channel are available.
-      If missing, ask the customer to provide them.
-      If max attempts exceeded, escalate to human agent.
-    on_success: investigate_delivery
+      Verify that urn and session_id are available for investigation.
+      If missing, send the bank agent a clarification request asking for these
+      investigation identifiers — not phone number or channel.
+      Blueprint §6: "If URN or Session ID is missing, the system MUST ask for them."
+    on_success: investigate_otp_delivery
     on_failure: escalate_missing_slots
 
   # ── Phase 1: Investigation ─────────────────────────────────────────────────
-  - step_id: investigate_delivery
+  - step_id: investigate_otp_delivery
     type: INVESTIGATE
-    name: Investigate OTP Delivery State
+    name: Investigate OTP Delivery Failure via Session Logs
     description: >
-      Collect evidence about the OTP delivery failure using available tools.
-      Determines root cause category (NETWORK / QUOTA / TIMEOUT / INVALID_NUMBER)
-      and confidence level.
+      Call Unity Admin Portal tools to collect evidence:
+        1. GetSessionDetails: retrieve session state, customer details, timestamps
+        2. LogTool: retrieve GENERATE_OTP, VALIDATE_OTP, SEND_SMS events
+        3. GetFailureReasonTool: identify root cause category
+        4. GetCaseHistoryTool: check for repeat failures
+      Root cause categories: NETWORK / SMS_GATEWAY_TIMEOUT / QUOTA_EXCEEDED /
+        DND_BLOCKED / INVALID_NUMBER / OTP_EXPIRED / PROVIDER_ERROR
     on_success: knowledge_lookup
     on_failure: escalate_investigation_failed
 
@@ -69,134 +104,91 @@ steps:
     type: KNOWLEDGE_LOOKUP
     name: Look Up OTP Delivery SOPs
     description: >
-      Search the knowledge base for standard operating procedures
-      related to the identified root cause category.
-    on_success: reason_action
+      Search the knowledge base for SOPs relevant to the identified root cause.
+      Used by the Reasoning Engine to formulate the recommended action.
+    on_success: reason_and_observe
     on_failure: escalate_knowledge_failed
 
-  # ── Phase 3: Reasoning ─────────────────────────────────────────────────────
-  - step_id: reason_action
+  # ── Phase 3: Reasoning + L1 Observation ───────────────────────────────────
+  - step_id: reason_and_observe
     type: REASON
-    name: Reason About Recommended Action
+    name: Reason About Root Cause and Generate L1 Observation
     description: >
-      Apply the 6-rule priority chain to determine the optimal action
-      given the root cause category, confidence, and SOP findings.
-      Blueprint Principle 3 — Reasoning before execution.
-    on_success: propose_otp_resend
+      Apply investigation evidence + SOP knowledge to determine:
+        - Root cause category and confidence
+        - Whether OTP resend is appropriate (requires high-confidence root cause)
+        - Whether escalation to L2 is required (inconclusive evidence)
+      Generate L1 Observation note (written to Freshdesk internal note by handler).
+      Blueprint §14: OBSGEN → FDNOTE mandatory before any customer reply.
+    on_success: write_l1_observation
     on_failure: escalate_reasoning_failed
 
-  # ── Phase 4: Action Proposal ───────────────────────────────────────────────
-  - step_id: propose_otp_resend
-    type: PROPOSE_ACTION
-    name: Propose OTP Resend
-    description: >
-      Submit an action request to resend OTP for the given phone_number
-      via the confirmed channel. SAFE — resending an OTP is idempotent
-      and self-expiring via OTP TTL.
-    action_type: otp_resend
-    action_namespace: kwikid.otp
-    risk_level: SAFE
-    action_params:
-      phone_number: "{phone_number}"
-      channel: "{channel}"
-      failure_code: "{failure_code}"
-    on_success: action_gateway
-    on_failure: escalate_resend_failed
-
-  # ── Phase 5: Action Gateway ────────────────────────────────────────────────
-  - step_id: action_gateway
-    type: ACTION_GATEWAY
-    name: Action Gateway - Risk Check and Approval
-    description: >
-      Route the OTP resend proposal through risk assessment and approval.
-      SAFE actions are auto-approved and do not require human sign-off.
-    on_success: execute_resend
-    on_failure: escalate_gateway_blocked
-
-  # ── Phase 6: Execution ─────────────────────────────────────────────────────
-  - step_id: execute_resend
-    type: EXECUTE
-    name: Execute OTP Resend
-    description: >
-      Execute the approved OTP resend action via the KwikID backend.
-      Includes verification and recovery on failure.
-    action_type: otp_resend
-    action_namespace: kwikid.otp
-    risk_level: SAFE
-    action_params:
-      phone_number: "{phone_number}"
-      channel: "{channel}"
-    on_success: resolve_otp_resend
-    on_failure: escalate_execute_failed
-
-  # ── Terminal: Resolution ───────────────────────────────────────────────────
-  - step_id: resolve_otp_resend
+  # ── Phase 4: L1 Observation Output ────────────────────────────────────────
+  # L1 STOPS HERE. OTP resend (PROPOSE_ACTION) requires L1 observation to be
+  # reviewed. Action proposal is deferred to the next interaction cycle.
+  - step_id: write_l1_observation
     type: RESOLVE_CASE
-    name: Mark case resolved — OTP resend succeeded
+    name: L1 Investigation Complete — Observation Written
     description: >
-      The OTP has been successfully resent. The customer should receive
-      it within 2 minutes on the confirmed channel.
+      L1 investigation is complete. The observation note has been written to
+      Freshdesk internal notes. The case is set to AWAITING_INPUT pending
+      L2 review or bank agent response.
+      The system does NOT proceed to OTP resend in this step — that is a
+      subsequent L2 action gated on observation review.
     on_success: RESOLVE
-    on_failure: ESCALATE
+    on_failure: escalate_observation_failed
 
   # ── Terminal: Escalations ──────────────────────────────────────────────────
   - step_id: escalate_missing_slots
     type: ESCALATE_CASE
-    name: Escalate — required information missing
-    description: Cannot process OTP failure without phone_number and channel.
+    name: Escalate — URN or Session ID missing
+    description: >
+      Cannot investigate OTP delivery failure without URN and Session ID.
+      Clarification has been requested from the bank agent.
     on_success: ESCALATE
     on_failure: ESCALATE
 
   - step_id: escalate_investigation_failed
     type: ESCALATE_CASE
-    name: Escalate — investigation failed
+    name: Escalate — session/log lookup failed
     description: >
-      Evidence collection for the OTP delivery failure failed or escalation
-      flag is set. Escalate to human agent for manual investigation.
+      GetSessionDetails or LogTool returned an error or empty result.
+      Escalate to L2 for manual investigation.
     on_success: ESCALATE
     on_failure: ESCALATE
 
   - step_id: escalate_knowledge_failed
     type: ESCALATE_CASE
-    name: Escalate — knowledge lookup failed
+    name: Escalate — SOP lookup failed
     description: >
-      SOP lookup failed or returned no usable guidance. Escalate for
-      manual SOP lookup and resolution.
+      Knowledge base search returned no usable guidance.
+      Escalate for manual SOP lookup.
     on_success: ESCALATE
     on_failure: ESCALATE
 
   - step_id: escalate_reasoning_failed
     type: ESCALATE_CASE
-    name: Escalate — reasoning engine escalated
+    name: Escalate — reasoning inconclusive
     description: >
-      The reasoning engine determined that escalation is required
-      (INVALID_NUMBER, quota exhausted, or unknown root cause).
+      Root cause could not be determined with sufficient confidence.
+      Escalate to L2 for manual root cause analysis.
     on_success: ESCALATE
     on_failure: ESCALATE
 
-  - step_id: escalate_resend_failed
+  - step_id: escalate_observation_failed
     type: ESCALATE_CASE
-    name: Escalate — OTP resend proposal failed
+    name: Escalate — observation generation failed
     description: >
-      The OTP resend proposal could not be generated.
-      Escalate to human agent for manual delivery investigation.
+      L1 observation could not be generated or written to Freshdesk.
+      Escalate to L2 for manual observation.
     on_success: ESCALATE
     on_failure: ESCALATE
 
-  - step_id: escalate_gateway_blocked
+  - step_id: escalate_inconclusive
     type: ESCALATE_CASE
-    name: Escalate — action gateway blocked or approval pending
+    name: Escalate — investigation inconclusive
     description: >
-      The action gateway blocked the resend or approval is pending.
-      Escalate to senior support for manual resolution.
-    on_success: ESCALATE
-    on_failure: ESCALATE
-
-  - step_id: escalate_execute_failed
-    type: ESCALATE_CASE
-    name: Escalate — OTP resend execution failed
-    description: >
-      The OTP resend could not be executed or failed verification.
-      Escalate to human agent for manual delivery investigation.
+      Investigation completed but root cause remains inconclusive.
+      Escalate to L2 engineering for deeper analysis.
     on_success: ESCALATE
     on_failure: ESCALATE

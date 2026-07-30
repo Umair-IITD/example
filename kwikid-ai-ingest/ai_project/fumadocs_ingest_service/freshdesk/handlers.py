@@ -72,6 +72,7 @@ class HandlerResult:
     skipped: bool = False
     skip_reason: str = ""
     response_draft: str | None = None
+    observation_note: str | None = None
 
 
 class FreshdeskTicketCreatedHandler:
@@ -334,7 +335,9 @@ class FreshdeskTicketCreatedHandler:
         #    TicketContext object, NOT flat keyword arguments (interface correction).
         case_id: str | None = None
         _response_draft: str | None = None
-        _agent_status: str = ""  # populated from orchestrator result if available
+        _obs_note: str | None = None
+        _agent_result: dict | None = None  # populated when orchestrator is wired
+        _agent_status: str = ""            # populated from orchestrator result if available
         if self._orchestrator is not None:
             try:
                 from case_engine.ticket_orchestration.models import TicketContext  # noqa: PLC0415
@@ -401,9 +404,37 @@ class FreshdeskTicketCreatedHandler:
                     _rd = _agent_result.get("response_draft") or {}
                     if isinstance(_rd, dict):
                         _response_draft = _rd.get("body_html") or _rd.get("body_text") or None
+                    # Blueprint §14: extract observation note for OBSGEN → FDNOTE path.
+                    # Source 1: intelligence layer (Wave 4A — LLM-generated, richest)
+                    _intel = (_agent_result.get("metadata") or {}).get("intelligence_result") or {}
+                    _intel_obs = (_intel.get("observation") or {}).get("note") or ""
+                    if _intel_obs:
+                        _obs_note = _intel_obs
+                    # Source 2: workflow investigation step (structural fallback)
+                    if not _obs_note:
+                        _wf = _agent_result.get("workflow_result") or {}
+                        for _step_val in (_wf.get("step_results") or {}).values():
+                            _step_obs = ((_step_val or {}).get("result") or {}).get("observation_note") or ""
+                            if _step_obs:
+                                _obs_note = _step_obs
+                                break
+                    # Sprint 2.5.8: Blueprint §20A — extract engineering_result for
+                    # async Asana URL update + escalation reply in background task.
+                    # When a live Asana task was created (external_id populated),
+                    # suppress response_draft so the background task can send
+                    # a custom escalation reply that includes the Asana URL.
+                    _eng_result = _agent_result.get("engineering_result")
+                    if (
+                        _eng_result
+                        and _eng_result.get("success")
+                        and (_eng_result.get("ticket") or {}).get("external_id")
+                    ):
+                        # Real Asana task created — suppress generic draft, let
+                        # background task send the proper escalation reply with URL.
+                        _response_draft = None
                 LOGGER.warning(
-                    "RETURN_HANDLER_DRAFT ticket_id=%s has_draft=%s agent_status=%s",
-                    ticket_id, _response_draft is not None, _agent_status,
+                    "RETURN_HANDLER_DRAFT ticket_id=%s has_draft=%s agent_status=%s has_obs=%s",
+                    ticket_id, _response_draft is not None, _agent_status, _obs_note is not None,
                 )
             except Exception as exc:
                 LOGGER.warning(
@@ -457,12 +488,22 @@ class FreshdeskTicketCreatedHandler:
                   ticket_id=ticket_id,
                   case_id=case_id or "",
                   latency_ms=latency_ms)
+        # Sprint 2.5.8: propagate engineering_result so the async background
+        # task can update cf_asana_ticket_link + send the escalation reply.
+        _detail: dict[str, Any] = {}
+        if _agent_result and isinstance(_agent_result, dict):
+            _er = _agent_result.get("engineering_result")
+            if _er:
+                _detail["engineering_result"] = _er
+
         return HandlerResult(
             success=True,
             ticket_id=ticket_id,
             case_id=case_id,
             action="ticket_ingested",
             response_draft=_response_draft,
+            observation_note=_obs_note,
+            detail=_detail or None,
         )
 
     # ── Helpers ────────────────────────────────────────────────────────────────
@@ -538,12 +579,16 @@ class FreshdeskTicketUpdatedHandler:
         ticket_orchestrator: Any = None,
         audit_logger: Any = None,
         metrics_collector: Any = None,
+        nlp_router: Any = None,
+        case_service: Any = None,
     ) -> None:
         self._idempotency = idempotency_store
         self._conversations = conversation_store
         self._orchestrator = ticket_orchestrator
         self._audit = audit_logger
         self._metrics = metrics_collector
+        self._nlp_router = nlp_router
+        self._case_service = case_service
 
     def handle(self, raw_payload: dict[str, Any]) -> HandlerResult:
         start = time.monotonic()
@@ -619,7 +664,44 @@ class FreshdeskTicketUpdatedHandler:
                     detail={"previous_state": "CLARIFICATION"},
                 )
                 result_detail["clarification_resolved"] = True
-                if self._orchestrator is not None and event.latest_comment is not None:
+
+                # Wave 7 Prep — Blueprint Layer 6: explicit NLU slot extraction.
+                # Run customer reply through NLPRouter to extract URN/session_id,
+                # then call CaseService.receive_message() to fill slots.
+                # If more slots still needed: _resume_response_draft = next_question.
+                # If all slots filled: fall through to orchestrator for investigation.
+                _nlp_slot_question: str | None = None
+                if (
+                    self._nlp_router is not None
+                    and self._case_service is not None
+                    and event.latest_comment is not None
+                ):
+                    _nlp_msg = event.latest_comment.body_text or event.latest_comment.body or ""
+                    if _nlp_msg.strip():
+                        _nlp_slot_question = self._nlp_slot_resume(
+                            ticket_id=ticket_id,
+                            comment_text=_nlp_msg,
+                            case_id=conv_state.case_id if conv_state else None,
+                        )
+                        if _nlp_slot_question is not None:
+                            _resume_response_draft = _nlp_slot_question
+                            LOGGER.info(
+                                "NLP_SLOT_RESUME: still_needs_clarification ticket_id=%s",
+                                ticket_id,
+                            )
+                            # Re-arm clarification state so the next customer reply routes
+                            # through the awaiting_customer path again (Bug 3 fix).
+                            self._conversations.update(
+                                ticket_id,
+                                awaiting_customer=True,
+                                clarification_pending=True,
+                                lifecycle_state=ConversationLifecycle.CLARIFICATION,
+                            )
+
+                # Only run investigation when all slots are filled (_nlp_slot_question is None).
+                # If _nlp_slot_question is not None, the customer still needs to provide
+                # information (or the case was just escalated); skip the orchestrator in both cases.
+                if _nlp_slot_question is None and self._orchestrator is not None and event.latest_comment is not None:
                     _msg = event.latest_comment.body_text or event.latest_comment.body or ""
                     LOGGER.info("ENTER_HANDLER_RESUME ticket_id=%s", ticket_id)
                     # Sprint 2.49 — TRACE_FD_05_PIPELINE_STARTED: resume dispatch.
@@ -675,6 +757,62 @@ class FreshdeskTicketUpdatedHandler:
                     client_id=client_id,
                     case_id=conv_state.case_id if conv_state else None,
                 )
+                # Resume the pipeline for customer replies on open/pending conversations
+                # that are NOT in clarification mode (multi-turn workflow continuation).
+                _active_lifecycle = (
+                    ConversationLifecycle.OPEN,
+                    ConversationLifecycle.PENDING,
+                )
+                if (
+                    self._orchestrator is not None
+                    and conv_state is not None
+                    and conv_state.lifecycle_state in _active_lifecycle
+                    and event.latest_comment is not None
+                ):
+                    _msg = event.latest_comment.body_text or event.latest_comment.body or ""
+                    if _msg.strip():
+                        LOGGER.info("ENTER_HANDLER_CONTINUE ticket_id=%s", ticket_id)
+                        emit_trace(
+                            TRACE_FD_05_PIPELINE_STARTED,
+                            ticket_id=ticket_id,
+                            tenant=client_id,
+                            event_type="customer_reply_continue",
+                            status="STARTED",
+                        )
+                        try:
+                            _cont_result = self._orchestrator.resume_ticket(
+                                ticket_id, _msg,
+                                case_id=conv_state.case_id if conv_state else None,
+                            )
+                            emit_trace(
+                                TRACE_FD_06_PIPELINE_COMPLETED,
+                                ticket_id=ticket_id,
+                                tenant=client_id,
+                                event_type="customer_reply_continue",
+                                status=(
+                                    "SUCCESS"
+                                    if getattr(_cont_result, "error_code", None) is None
+                                    else "FAILURE"
+                                ),
+                            )
+                            LOGGER.info(
+                                "RETURN_HANDLER_CONTINUE ticket_id=%s error_code=%s",
+                                ticket_id, _cont_result.error_code,
+                            )
+                            _cont_agent = getattr(_cont_result, "agent_result", None) or {}
+                            if isinstance(_cont_agent, dict):
+                                _cont_rd = _cont_agent.get("response_draft") or {}
+                                if isinstance(_cont_rd, dict):
+                                    _resume_response_draft = (
+                                        _cont_rd.get("body_html")
+                                        or _cont_rd.get("body_text")
+                                        or None
+                                    )
+                        except Exception as _cont_exc:
+                            LOGGER.warning(
+                                "ticket_updated.handle: continue_ticket failed ticket_id=%s error=%s",
+                                ticket_id, _cont_exc,
+                            )
 
         elif action == "agent_reply":
             self._audit_event(
@@ -792,6 +930,110 @@ class FreshdeskTicketUpdatedHandler:
             return "tag_update"
 
         return "other"
+
+    def _nlp_slot_resume(
+        self,
+        ticket_id: str,
+        comment_text: str,
+        case_id: str | None,
+    ) -> str | None:
+        """
+        Wave 7 Prep — Blueprint Layer 6 clarification resume.
+
+        Runs the customer reply through NLPRouter to extract URN/session_id, then
+        calls CaseService.receive_message() to fill the extracted slots.
+
+        Returns:
+            str  — next clarification question (more slots still needed)
+            None — all required slots filled; investigation can proceed via orchestrator
+                   (also None on any error — fail-safe, falls through to orchestrator)
+
+        Never raises. PII discipline: comment_text is never logged.
+        """
+        if not case_id:
+            LOGGER.info("NLP_SLOT_RESUME: no case_id ticket_id=%s — skipping", ticket_id)
+            return None
+
+        try:
+            nlp_signal = self._nlp_router.route(comment_text)
+        except Exception as exc:
+            LOGGER.error(
+                "NLP_SLOT_RESUME: nlp_router.route failed ticket_id=%s error=%s",
+                ticket_id, exc,
+            )
+            return None
+
+        LOGGER.info(
+            "NLP_SLOT_RESUME: intent=%s needs_clarification=%s missing_slots=%s ticket_id=%s",
+            nlp_signal.intent,
+            nlp_signal.needs_clarification,
+            [k for k, v in nlp_signal.entities.items() if not v],
+            ticket_id,
+        )
+
+        try:
+            case = self._case_service.get_case(case_id)
+        except Exception as exc:
+            LOGGER.error(
+                "NLP_SLOT_RESUME: get_case failed case_id=%s error=%s", case_id, exc
+            )
+            return None
+
+        if case is None:
+            LOGGER.info("NLP_SLOT_RESUME: case not found case_id=%s — skipping", case_id)
+            return None
+
+        # Fill each extracted entity slot via CaseService.receive_message().
+        # Slots filled in entity order; last call reveals whether more are needed.
+        last_result = None
+        try:
+            for slot_name, slot_value in nlp_signal.entities.items():
+                if slot_value:
+                    last_result = self._case_service.receive_message(
+                        case,
+                        comment_text,
+                        slot_name=slot_name,
+                        slot_value_str=slot_value,
+                    )
+            # If no entities extracted, attempt implicit extraction from message text.
+            if last_result is None:
+                last_result = self._case_service.receive_message(case, comment_text)
+        except Exception as exc:
+            LOGGER.error(
+                "NLP_SLOT_RESUME: receive_message failed case_id=%s error=%s",
+                case_id, exc,
+            )
+            return None
+
+        if last_result is None:
+            return None
+
+        # Max-attempts exceeded: case is ESCALATED — return a human-transfer message so the
+        # handler sends it as a customer reply and skips the investigation orchestrator.
+        if getattr(last_result, "escalated", False):
+            LOGGER.info(
+                "NLP_SLOT_RESUME: max_attempts_exceeded escalating_to_human case_id=%s ticket_id=%s",
+                case_id, ticket_id,
+            )
+            return (
+                "We were unable to collect the required information after multiple attempts. "
+                "A human agent will review your request and assist you shortly."
+            )
+
+        next_q = getattr(last_result, "next_question", None)
+        if next_q and isinstance(next_q, dict):
+            prompt_text = next_q.get("prompt_text") or str(next_q)
+            LOGGER.info(
+                "NLP_SLOT_RESUME: next_question returned case_id=%s ticket_id=%s slot=%s",
+                case_id, ticket_id, next_q.get("slot_name"),
+            )
+            return prompt_text
+
+        LOGGER.info(
+            "NLP_SLOT_RESUME: all_slots_filled case_id=%s ticket_id=%s — proceeding to investigation",
+            case_id, ticket_id,
+        )
+        return None
 
     def _status_to_lifecycle(self, status: Any) -> ConversationLifecycle:
         try:

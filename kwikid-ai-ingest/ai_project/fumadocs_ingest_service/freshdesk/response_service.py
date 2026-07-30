@@ -184,6 +184,90 @@ class FreshdeskResponseService:
             )
             return {}
 
+    async def get_ticket(
+        self,
+        ticket_id: int | str,
+        *,
+        case_id: str = "",
+        client_id: str = "",
+    ) -> dict[str, Any]:
+        """
+        Read a Freshdesk ticket by ID.
+
+        Used by closure-step callers to retrieve current ticket state so
+        ClosureFieldGuard can verify cf_clients is populated before status=4.
+        Never raises — returns empty dict on failure.
+        """
+        start = time.monotonic()
+        try:
+            result = await self._client.get_ticket(ticket_id)
+            latency_ms = int((time.monotonic() - start) * 1000)
+            self._record_latency(LATENCY_FD_API_CALL_MS, latency_ms)
+            LOGGER.debug(
+                "freshdesk.response_service.get_ticket: ticket_id=%s latency_ms=%d",
+                ticket_id, latency_ms,
+            )
+            return result
+        except Exception as exc:
+            latency_ms = int((time.monotonic() - start) * 1000)
+            self._record_counter(COUNTER_FD_API_ERRORS_TOTAL)
+            LOGGER.error(
+                "freshdesk.response_service.get_ticket: FAILED ticket_id=%s error=%s",
+                ticket_id, exc,
+            )
+            return {}
+
+    async def update_ticket_fields(
+        self,
+        ticket_id: int | str,
+        custom_fields: dict[str, Any],
+        *,
+        status: int | None = None,
+        ticket_type: str | None = None,
+        case_id: str = "",
+        client_id: str = "",
+    ) -> dict[str, Any]:
+        """
+        Update Freshdesk ticket fields (PUT /api/v2/tickets/{id}).
+
+        This is the ONLY approved path for writing custom fields and optional
+        status/ticket_type to Freshdesk. Custom fields are nested under the
+        "custom_fields" key. When status=4 (Resolved) is requested, all four
+        required closure fields must already be populated — callers must run
+        ClosureFieldGuard.guard_status_transition() before calling this method.
+
+        Args:
+            ticket_id:    Freshdesk ticket ID.
+            custom_fields: Dict of custom field names → values.
+            status:       Optional status integer (e.g. 4 for Resolved).
+            ticket_type:  Optional ticket type string (e.g. "Issues").
+
+        Never raises — returns empty dict on failure.
+        """
+        payload: dict[str, Any] = {"custom_fields": custom_fields}
+        if status is not None:
+            payload["status"] = status
+        if ticket_type is not None:
+            payload["type"] = ticket_type  # Freshdesk API write name for ticket_type
+        start = time.monotonic()
+        try:
+            result = await self._client.update_ticket(ticket_id, payload)
+            latency_ms = int((time.monotonic() - start) * 1000)
+            self._record_latency(LATENCY_FD_API_CALL_MS, latency_ms)
+            LOGGER.info(
+                "freshdesk.response_service.update_ticket_fields: ticket_id=%s fields=%s status=%s latency_ms=%d",
+                ticket_id, list(custom_fields.keys()), status, latency_ms,
+            )
+            return result
+        except Exception as exc:
+            latency_ms = int((time.monotonic() - start) * 1000)
+            self._record_counter(COUNTER_FD_API_ERRORS_TOTAL)
+            LOGGER.error(
+                "freshdesk.response_service.update_ticket_fields: FAILED ticket_id=%s fields=%s error=%s",
+                ticket_id, list(custom_fields.keys()), exc,
+            )
+            return {}
+
     # ── Internal helpers ───────────────────────────────────────────────────────
 
     def _record_counter(self, name: str) -> None:

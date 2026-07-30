@@ -40,8 +40,9 @@ class TopicKey(str, Enum):
 class ClassificationResult:
     topic: TopicKey
     confidence: float          # 0.0 – 1.0
-    tier_used: int             # 1 = regex, 2 = semantic, 0 = none
+    tier_used: int             # 1 = regex, 2 = LLM semantic router, 0 = none
     raw_text_excerpt: str = ""
+    nlp_signal: dict[str, Any] | None = None  # Sprint 2.5.6: NLPSignal dict from LLM router
 
     @property
     def meets_threshold(self) -> bool:
@@ -102,6 +103,11 @@ class Case:
     # Sprint 2.27.9: Tenant context (in-process only — not persisted in DB)
     # Carries client_id, enabled_tools, credentials_ref, environment, etc.
     tenant_context: Any = None
+
+    # Sprint 2.5.6: NLP Semantic Router output (in-process only — not persisted in DB)
+    # Set by CaseService.classify_case() after LLM routing. Used by slot extractor
+    # to pre-fill entities and by the clarification engine to gate on missing slots.
+    nlp_signal: dict[str, Any] | None = None
 
     def to_db_row(self) -> dict[str, Any]:
         return {

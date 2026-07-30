@@ -64,6 +64,8 @@ class EvidenceSource(str, Enum):
     # Sprint 2.50 — Uptime Kuma monitoring dashboard
     METRIC_TOOL           = "MetricTool"
     SERVER_TOOL           = "ServerTool"
+    # Sprint 2.60 — Multi-Tenant Log Platform (Grafana Loki)
+    GET_SESSION_LOGS      = "GetSessionLogsTool"
 
 
 class RootCauseCategory(str, Enum):

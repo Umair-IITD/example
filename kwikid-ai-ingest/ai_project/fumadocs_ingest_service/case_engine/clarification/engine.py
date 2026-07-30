@@ -35,20 +35,29 @@ LOGGER = logging.getLogger(__name__)
 # Default max attempts before escalation
 _DEFAULT_MAX_ATTEMPTS: int = 2
 
-# Customer-facing prompt templates for known slot names
+# Customer-facing prompt templates for known slot names.
+# Sprint 2.5.6: urn and session_id prompts added — these are the L1 investigation
+# identifiers per Blueprint §6. NEVER ask for phone_number as the primary identifier.
 _SLOT_PROMPTS: dict[str, str] = {
-    "session_id":     "Please provide the session ID (format: KID-XXXXXXXX).",
-    "phone_number":   "Please provide the registered mobile phone number.",
-    "channel":        "Please specify the OTP delivery channel: SMS, EMAIL, or VOICE.",
-    "callback_type":  "Please specify the callback type: CBS, DMS, SFDC, or WEBHOOK.",
-    "application_id": "Please provide the application ID.",
-    "document_type":  "Please specify the document type: AADHAAR, PAN, PASSPORT, or VOTERID.",
-    "agent_id":       "Please provide your agent ID.",
-    "portal_type":    "Please specify the portal type: WEB, MOBILE, or DESKTOP.",
+    "urn":            (
+        "To investigate this issue in the admin portal, please provide the customer's "
+        "URN (Unique Reference Number) and VKYC Session ID (format: KID-XXXXXXXX)."
+    ),
+    "session_id":     (
+        "Please also provide the VKYC Session ID (format: KID-XXXXXXXX) "
+        "so I can look up the session logs and evidence."
+    ),
+    "agent_id":       "Please provide the agent's ID (e.g., AGT-XXXXXXXX or login username).",
+    "application_id": "Please provide the Application ID (e.g., APP-00129871).",
+    "callback_type":  "Please specify the callback type that is failing: CBS, DMS, SFDC, or WEBHOOK.",
+    "phone_number":   "Please provide the last 4 digits of the customer's registered phone number. (optional — used after investigation)",
+    "channel":        "Please specify the OTP delivery channel: SMS, EMAIL, or VOICE. (optional)",
+    "document_type":  "Please specify the document type: AADHAAR, PAN, PASSPORT, or VOTERID. (optional)",
+    "portal_type":    "Please specify the portal type: WEB, MOBILE, or DESKTOP. (optional)",
     "operation_id":   "Please provide the operation ID for this request.",
-    "failure_code":   "Please provide the failure code shown in the error message.",
-    "error_message":  "Please provide the error message you received.",
-    "attempt_count":  "Please confirm how many OTP attempts have been made.",
+    "failure_code":   "Please provide the failure code shown in the error message. (optional)",
+    "error_message":  "Please provide the error message you received. (optional)",
+    "attempt_count":  "How many OTP attempts have been made so far? (optional)",
 }
 
 _DEFAULT_PROMPT = "Please provide your {slot_name}."

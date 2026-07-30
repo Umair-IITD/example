@@ -54,7 +54,8 @@ from rag_engine.retrieval.ticket_retriever import (
 
 LOGGER = logging.getLogger(__name__)
 
-_WORD_RE = re.compile(r"[a-z0-9]+")
+from rag_engine.retrieval.bm25 import tokenize as _tokenize, bm25_rerank_inplace as _bm25_rerank_inplace  # noqa: E402
+
 _RRF_K_MIN = int(os.getenv("RETRIEVAL_RRF_K_MIN", "20"))
 _RRF_K_MAX = int(os.getenv("RETRIEVAL_RRF_K_MAX", "100"))
 _RRF_K_BASE = int(os.getenv("B1_RRF_K", "60"))
@@ -86,10 +87,6 @@ _CHUNK_TYPE_BOOSTS: dict[str, float] = {
 # to provide ticket context. Combined with the assembly-level cap (2 headers), the
 # LLM context always has substantive chunk diversity.
 _MAX_ISSUE_HEADERS: int = int(os.getenv("RETRIEVAL_MAX_ISSUE_HEADERS", "3"))
-
-def _tokenize(text: str) -> set[str]:
-    return set(_WORD_RE.findall(text.lower()))
-
 
 def _bm25_score_single(query: str, content: str, k1: float = 1.5) -> float:
     """Lightweight TF-only BM25 approximation for ranking keyword results."""
@@ -634,7 +631,7 @@ class HybridTicketRetriever(TicketRetriever):
         fused.sort(key=lambda r: r["_rrf_score"], reverse=True)
 
         # BM25 rerank within fused set
-        self._bm25_rerank_inplace(request.query_text, fused)
+        _bm25_rerank_inplace(request.query_text, fused)
         fused.sort(key=lambda r: (r.get("_bm25_score", 0.0), r["_rrf_score"]), reverse=True)
 
         # Retrieval confidence: both legs agree on ≥30% of candidates → high
@@ -653,27 +650,4 @@ class HybridTicketRetriever(TicketRetriever):
         }
         return fused, "hybrid", rrf_diagnostics
 
-    @staticmethod
-    def _bm25_rerank_inplace(query: str, rows: list[dict]) -> None:
-        """In-place BM25 scoring on fused rows for post-fusion reranking."""
-        q_tokens = _tokenize(query)
-        if not q_tokens or not rows:
-            return
-        n = len(rows)
-        contents = [str(r.get("content", "")) for r in rows]
-        doc_token_sets = [_tokenize(c) for c in contents]
-        doc_lengths = [len(dt) for dt in doc_token_sets]
-        avg_dl = sum(doc_lengths) / n if n else 1.0
-        df = {t: sum(1 for dt in doc_token_sets if t in dt) for t in q_tokens}
-        k1, b = 1.5, 0.75
-        for row, content, dl in zip(rows, contents, doc_lengths):
-            content_lower = content.lower()
-            score = 0.0
-            for term in q_tokens:
-                tf = content_lower.count(term)
-                if tf == 0:
-                    continue
-                idf = math.log((n - df.get(term, 0) + 0.5) / (df.get(term, 0) + 0.5) + 1.0)
-                tf_norm = tf * (k1 + 1.0) / (tf + k1 * (1.0 - b + b * dl / max(1.0, avg_dl)))
-                score += idf * tf_norm
-            row["_bm25_score"] = round(score, 6)
+    # _bm25_rerank_inplace removed (Sprint 2.60) — now imported from rag_engine.retrieval.bm25

@@ -19,6 +19,22 @@ investigation_steps:
   - tool: GetOnboardingStatusTool
     purpose: Confirm the application is at the KYC stage and document upload exists
     required_input: application_id
+  - tool: GetSessionDetailsTool
+    purpose: >
+      Retrieve VKYC session metadata and timeline for the KYC session linked
+      to this application. Provides start_epoch / end_epoch for Loki log retrieval.
+    required_input: session_id
+    note: session_id may be derived from GetOnboardingStatusTool or provided by the bank agent
+  - tool: GetSessionLogsTool
+    purpose: >
+      Retrieve and curate backend log evidence for the OCR processing session
+      from the Multi-Tenant Log Platform. Uses the timeline from GetSessionDetailsTool.
+      Log excerpt is PII-redacted and BM25-ranked before delivery.
+    required_input: session_id
+    optional_inputs:
+      - start_epoch
+      - end_epoch
+      - ticket_query
   - tool: GetUserDetailsTool
     purpose: Verify user identity and check KYC tier before reprocessing
     required_input: phone_number
@@ -28,6 +44,8 @@ investigation_steps:
 
 tool_candidates:
   - GetOnboardingStatusTool
+  - GetSessionDetailsTool
+  - GetSessionLogsTool
   - GetUserDetailsTool
   - GetFailureReasonTool
 

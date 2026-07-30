@@ -115,18 +115,25 @@ class TicketOrchestrator:
         self,
         ticket_id:    str,
         message_text: str,
+        *,
+        case_id: str | None = None,
     ) -> TicketOrchestrationResult:
         """
         Resume processing a ticket after a customer reply (CLARIFY loop).
 
         Per blueprint: CLOSECHECK -->|No| CLARIFICATION → customer replies → resume.
 
+        Args:
+            case_id: Optional hint for registry recovery after server restart.
+                     When provided and ticket_id is missing from the in-memory
+                     registry, the case is soft-recovered from CaseService.
+
         Returns TicketOrchestrationResult. Never raises.
         """
-        LOGGER.info("ENTER_ORCHESTRATOR_RESUME_TICKET ticket_id=%s", ticket_id)
+        LOGGER.info("ENTER_ORCHESTRATOR_RESUME_TICKET ticket_id=%s case_id=%s", ticket_id, case_id)
         started_ms = int(time.monotonic() * 1000)
         try:
-            _result = self._resume_ticket(ticket_id, message_text, started_ms)
+            _result = self._resume_ticket(ticket_id, message_text, started_ms, case_id=case_id)
             LOGGER.info(
                 "RETURN_ORCHESTRATOR_RESUME_TICKET ticket_id=%s error_code=%s",
                 ticket_id, _result.error_code,
@@ -481,18 +488,43 @@ class TicketOrchestrator:
         ticket_id:    str,
         message_text: str,
         started_ms:   int,
+        *,
+        case_id: str | None = None,
     ) -> TicketOrchestrationResult:
         LOGGER.info("ENTER_REGISTRY_GET ticket_id=%s", ticket_id)
         entry = self._registry.get(ticket_id)
         LOGGER.info("RETURN_REGISTRY_GET ticket_id=%s found=%s", ticket_id, entry is not None)
         if entry is None:
-            return TicketOrchestrationResult.failure(
-                ticket_id=ticket_id,
-                operation="resume",
-                error_code="TICKET_NOT_FOUND",
-                error_msg=f"Ticket {ticket_id} not in orchestrator registry",
-                duration_ms=_ms_elapsed(started_ms),
-            )
+            # Soft recovery after server restart: if caller provides case_id and
+            # CaseService is wired, reconstruct a minimal registry entry so the
+            # agent can resume the case without requiring the in-memory registry.
+            if case_id and self._case_svc is not None:
+                try:
+                    _case = self._case_svc.get_case(case_id)
+                    if _case is not None:
+                        entry = {
+                            "context":  None,
+                            "case_id":  case_id,
+                            "state":    TicketLifecycleState.WAITING,
+                        }
+                        self._registry[ticket_id] = entry
+                        LOGGER.warning(
+                            "ORCHESTRATOR_REGISTRY_RECOVERED ticket_id=%s case_id=%s",
+                            ticket_id, case_id,
+                        )
+                except Exception as _exc:
+                    LOGGER.warning(
+                        "ticket_orchestrator.resume soft_recovery_failed ticket_id=%s case_id=%s error=%s",
+                        ticket_id, case_id, _exc,
+                    )
+            if entry is None:
+                return TicketOrchestrationResult.failure(
+                    ticket_id=ticket_id,
+                    operation="resume",
+                    error_code="TICKET_NOT_FOUND",
+                    error_msg=f"Ticket {ticket_id} not in orchestrator registry",
+                    duration_ms=_ms_elapsed(started_ms),
+                )
 
         case_id = entry.get("case_id")
         case    = None

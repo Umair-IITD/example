@@ -363,10 +363,24 @@ async def _process_ticket_created(request: Request, payload: dict[str, Any]) -> 
     """
     Async background task: process a ticket-created webhook event.
 
+    Blueprint: FD → TICKET → CASE → CLASSIFIER → INVESTIGATION → ... → USERRESPONSE
+
+    The sync handler chain includes asyncio.run() calls (Unity tools, intelligence
+    layer). Running it directly inside this async function would raise
+    "asyncio.run() cannot be called from a running event loop". Fix: delegate to
+    asyncio.to_thread() so the entire sync chain executes in an OS thread where
+    asyncio.run() is always safe.
+
     On UNKNOWN_CLIENT: posts an internal Freshdesk note so the ticket is not
     silently dropped. Human agents can then review and act. Automation is
     never executed for unknown tenants.
+
+    Blueprint §14: Observation Generator → Freshdesk Internal Notes.
+    After the pipeline completes, the investigation observation is posted as an
+    internal note BEFORE sending the customer reply.
     """
+    import asyncio as _asyncio  # noqa: PLC0415
+
     # TRACE_ENTER_BACKGROUND_TASK — always emits at WARNING; proves background task started
     LOGGER.warning(
         "TRACE_ENTER_BACKGROUND_TASK event=ticket_created payload_keys=%s",
@@ -377,25 +391,86 @@ async def _process_ticket_created(request: Request, payload: dict[str, Any]) -> 
         LOGGER.warning("freshdesk.bg.ticket_created: no handler available (offline mode)")
         return
     try:
-        result = handler.handle(payload)
+        # Run the sync handler in a thread pool so asyncio.run() inside the
+        # investigation/tool execution chain doesn't collision with the running loop.
+        result = await _asyncio.to_thread(handler.handle, payload)
 
         if result.success:
             LOGGER.info(
                 "freshdesk.bg.ticket_created: done ticket_id=%s case_id=%s skipped=%s",
                 result.ticket_id, result.case_id, result.skipped,
             )
-            if not result.skipped and result.response_draft:
+            if not result.skipped:
                 _resp_svc = _get_response_service(request)
                 if _resp_svc is not None:
-                    await _resp_svc.send_customer_reply(
-                        result.ticket_id,
-                        result.response_draft,
-                        case_id=result.case_id or "",
-                    )
-                    LOGGER.warning(
-                        "RETURN_CUSTOMER_REPLY_SENT ticket_id=%s case_id=%s",
-                        result.ticket_id, result.case_id,
-                    )
+                    # Blueprint §14 + flow_diagram OBSGEN → FDNOTE:
+                    # Post L1 investigation observation as internal note first.
+                    obs_note = _extract_observation_note(result)
+                    if obs_note:
+                        LOGGER.warning(
+                            "ENTER_OBSERVATION_NOTE ticket_id=%s case_id=%s",
+                            result.ticket_id, result.case_id,
+                        )
+                        await _resp_svc.add_internal_note(
+                            result.ticket_id, obs_note, case_id=result.case_id or "",
+                        )
+                        LOGGER.warning(
+                            "EXIT_OBSERVATION_NOTE_POSTED ticket_id=%s",
+                            result.ticket_id,
+                        )
+
+                    # Sprint 2.5.8: Blueprint §20A — Asana escalation post-processing.
+                    # When a live Asana task was created (external_id populated), update
+                    # cf_asana_ticket_link and send the escalation reply with the URL.
+                    # response_draft is None in this case (suppressed by handlers.py).
+                    _eng_result = (result.detail or {}).get("engineering_result")
+                    if _eng_result and _eng_result.get("success"):
+                        _ticket_data = (_eng_result.get("ticket") or {})
+                        _task_gid = _ticket_data.get("external_id")
+                        _proj_gid = _ticket_data.get("asana_project_id")
+                        if _task_gid and _proj_gid:
+                            from asana.client import build_task_url  # noqa: PLC0415
+                            _asana_url = build_task_url(_proj_gid, _task_gid)
+                            await _resp_svc.update_ticket_fields(
+                                result.ticket_id,
+                                {"cf_asana_ticket_link": _asana_url},
+                                case_id=result.case_id or "",
+                            )
+                            LOGGER.warning(
+                                "EXIT_ASANA_LINK_UPDATED ticket_id=%s asana_url=%s",
+                                result.ticket_id, _asana_url,
+                            )
+                            _root_cause = _ticket_data.get("title", "")
+                            _esc_body = (
+                                "<p>Hi,</p>"
+                                "<p>We have investigated the issue regarding your KYC session. "
+                                + (f"{_root_cause} " if _root_cause else "")
+                                + "This has been escalated to our engineering team "
+                                + f"(Ref: <a href=\"{_asana_url}\">{_asana_url}</a>). "
+                                + "We will update you once it is resolved.</p>"
+                                + "<p>KwikID Support Team</p>"
+                            )
+                            await _resp_svc.send_customer_reply(
+                                result.ticket_id,
+                                _esc_body,
+                                case_id=result.case_id or "",
+                            )
+                            LOGGER.warning(
+                                "EXIT_ESCALATION_REPLY_SENT ticket_id=%s case_id=%s",
+                                result.ticket_id, result.case_id,
+                            )
+
+                    # Blueprint flow_diagram USERRESPONSE: send customer reply.
+                    if result.response_draft:
+                        await _resp_svc.send_customer_reply(
+                            result.ticket_id,
+                            result.response_draft,
+                            case_id=result.case_id or "",
+                        )
+                        LOGGER.warning(
+                            "RETURN_CUSTOMER_REPLY_SENT ticket_id=%s case_id=%s",
+                            result.ticket_id, result.case_id,
+                        )
                 else:
                     LOGGER.warning(
                         "RETURN_NO_RESPONSE_SERVICE ticket_id=%s",
@@ -453,13 +528,18 @@ async def _process_ticket_updated(request: Request, payload: dict[str, Any]) -> 
       When action="customer_reply", if a rag_processor is available on app.state,
       it is called to generate a follow-up response and post it back to Freshdesk.
       The rag_processor must be a callable(ticket_id, query_text, tenant) → None.
+
+    Same asyncio.to_thread() fix as _process_ticket_created: the sync handler chain
+    includes asyncio.run() calls (Unity tools, intelligence layer) that collide with
+    the running event loop if called directly.
     """
+    import asyncio as _asyncio  # noqa: PLC0415
     handler = _get_updated_handler(request)
     if handler is None:
         LOGGER.warning("freshdesk.bg.ticket_updated: no handler available (offline mode)")
         return
     try:
-        result = handler.handle(payload)
+        result = await _asyncio.to_thread(handler.handle, payload)
         LOGGER.info(
             "freshdesk.bg.ticket_updated: done ticket_id=%s action=%s skipped=%s has_draft=%s",
             result.ticket_id, result.action, result.skipped, result.response_draft is not None,
@@ -723,6 +803,24 @@ def _audit_signature_failure(request: Request, event_type: str, reason: str) -> 
         audit._write(entry)
     except Exception:
         pass
+
+
+def _extract_observation_note(result: Any) -> str:
+    """
+    Extract the L1 investigation observation note from a HandlerResult.
+
+    Blueprint §14: ObservationGenerator → Freshdesk Internal Notes (FDNOTE).
+    Sources (in priority order):
+      1. result.observation_note — populated by handler from intelligence/investigation
+      2. result.detail["observation_note"] — fallback via detail dict
+    """
+    obs = getattr(result, "observation_note", None)
+    if obs:
+        return str(obs)
+    obs = (getattr(result, "detail", None) or {}).get("observation_note")
+    if obs:
+        return str(obs)
+    return ""
 
 
 # Type alias for response service (avoids import cycle at module level)

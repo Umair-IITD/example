@@ -260,11 +260,23 @@ class TestSupportAgentRuntimeRunCase:
         mock_msg_result.workflow_started = False
         mock_msg_result.next_question = {"text": "What is your session ID?"}
         mock_cs.receive_message.return_value = mock_msg_result
+        # Sprint 2.54 Wave 4B: investigation now runs before clarification.
+        # Configure start_workflow so L2CHECK does not fire for VKYC_Session_Failure topic.
+        mock_wf = MagicMock()
+        mock_wf.workflow_id = "wf-clarify"
+        mock_wf.workflow_state = "SLOT_FILL"
+        mock_wf.step_results = []
+        mock_wf.resolved = False
+        mock_wf.escalated = False
+        mock_wf.escalation_reason = None
+        mock_wf.resolution_note = None
+        mock_cs.start_workflow.return_value = mock_wf
         rt = SupportAgentRuntime(
             case_service=mock_cs,
             response_generation_service=build_response_generation_service(),
         )
-        case = _make_case()
+        # Use OTP_Delivery_Failure — not in _L2_ESCALATION_TOPICS — so L2CHECK stays False.
+        case = _make_case(topic="OTP_Delivery_Failure")
         result = rt.run_case(case, "help")
         assert result.agent_status == AgentStatus.AWAITING_CLARIFICATION
         assert "CLARIFY" in result.steps_completed

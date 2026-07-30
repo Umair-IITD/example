@@ -361,10 +361,10 @@ class TestDoubleStartProtection:
         case.current_state = CaseState.WORKFLOW_ACTIVE
         case.workflow_state = WorkflowState.RUNNING.value  # already running
 
-        # Pre-fill slots so all_required_filled triggers
+        # Pre-fill slots so all_required_filled triggers (VKYC requires urn + session_id)
         case.slot_state = {
-            "session_id":   {"status": "FILLED", "value": "KID-123", "attempt_count": 1},
-            "phone_number": {"status": "FILLED", "value": "+91-9999", "attempt_count": 1},
+            "urn":        {"status": "FILLED", "value": "URN123456", "attempt_count": 0},
+            "session_id": {"status": "FILLED", "value": "KID-123",   "attempt_count": 1},
         }
 
         result = svc.receive_message(case, "hello")

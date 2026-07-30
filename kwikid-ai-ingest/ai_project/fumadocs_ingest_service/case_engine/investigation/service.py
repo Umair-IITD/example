@@ -103,8 +103,15 @@ class InvestigationService:
         slot_values: dict[str, Any],
         case: Case | None,
     ) -> InvestigationResult:
+        case_id = getattr(case, "case_id", None) or slot_values.get("case_id", "?")
+
         # 1. Plan
+        LOGGER.warning("ENTER_INVESTIGATION_PLANNER case_id=%s topic=%s", case_id, topic)
         plan = self._planner.plan(topic, workflow_def, slot_values)
+        LOGGER.warning(
+            "EXIT_INVESTIGATION_PLANNER case_id=%s plan_id=%s steps=%d",
+            case_id, plan.plan_id, len(plan.steps),
+        )
 
         if case is not None and self._audit is not None:
             self._audit.log_investigation_started(
@@ -115,7 +122,15 @@ class InvestigationService:
             )
 
         # 2. Collect evidence
+        LOGGER.warning(
+            "ENTER_EVIDENCE_COLLECTION case_id=%s plan_id=%s steps=%d",
+            case_id, plan.plan_id, len(plan.steps),
+        )
         bundle = self._collector.collect(plan, slot_values)
+        LOGGER.warning(
+            "EXIT_EVIDENCE_COLLECTION case_id=%s bundle_id=%s items=%d",
+            case_id, bundle.bundle_id, len(bundle.items),
+        )
 
         # 3. Root cause analysis
         root_cause = self._rca.analyse(bundle)

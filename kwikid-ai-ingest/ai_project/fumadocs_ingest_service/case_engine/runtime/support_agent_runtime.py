@@ -265,6 +265,148 @@ def _first_str_from_dict(d: Any, key: str) -> str:
     return ""
 
 
+def _extract_slots_from_nlp_signal(
+    case: "Case",
+    topic: str | None,
+    message_text: str,
+) -> dict[str, str]:
+    """
+    Extract slot values for pre-fill, using NLPSignal entities as primary source.
+
+    Sprint 2.5.6: NLPSignal entities from the LLM Semantic Router are the
+    primary extraction method. Regex fallback is retained for slots not covered
+    by NLPSignal (session_id format normalization, agent_id, endpoint_url).
+
+    PII discipline: callers must NOT log the returned values, only the slot names.
+    """
+    import re as _re  # noqa: PLC0415
+
+    extracted: dict[str, str] = {}
+
+    # Primary: NLPSignal entities (LLM-extracted — more accurate than regex)
+    nlp_signal = getattr(case, "nlp_signal", None)
+    if isinstance(nlp_signal, dict):
+        entities = nlp_signal.get("entities") or {}
+        if isinstance(entities, dict):
+            for slot_name, value in entities.items():
+                if isinstance(value, str) and value.strip():
+                    extracted[slot_name] = value.strip()
+
+    if not message_text or not topic:
+        return extracted
+
+    text = message_text
+
+    # Fallback regex for session_id normalization (KID-XXXXXXXX format)
+    # Only applies if NLPSignal didn't already extract session_id
+    if "session_id" not in extracted:
+        ms = _re.search(r"\b(KID[-_]?[A-Z0-9]{6,12})\b", text, _re.IGNORECASE)
+        if ms:
+            extracted["session_id"] = ms.group(1).upper().replace("_", "-")
+
+    # Fallback regex for agent_id (Agent Portal topic)
+    if topic == "Agent_Portal_Issue" and "agent_id" not in extracted:
+        ma = _re.search(r"\b(AG[T]?[-_]?[0-9A-Z]{4,12}|\d{6,10})\b", text, _re.IGNORECASE)
+        if ma:
+            extracted["agent_id"] = ma.group(1)
+
+    # Fallback regex for channel (OTP topic, optional slot)
+    if topic == "OTP_Delivery_Failure" and "channel" not in extracted:
+        mc = _re.search(r"\b(email|e[\s\-]?mail|voice|sms)\b", text, _re.IGNORECASE)
+        if mc:
+            raw = mc.group(1).lower().replace(" ", "").replace("-", "")
+            if raw in ("email", "e-mail"):
+                extracted["channel"] = "EMAIL"
+            elif raw == "voice":
+                extracted["channel"] = "VOICE"
+            else:
+                extracted["channel"] = "SMS"
+
+    # Fallback regex for phone_number (optional — used post-investigation for resend)
+    if topic in ("OTP_Delivery_Failure", "VKYC_Session_Failure") and "phone_number" not in extracted:
+        m = _re.search(r"\b([6-9]\d{9})\b", text)
+        if m:
+            extracted["phone_number"] = m.group(1)[-4:]
+
+    # Fallback regex for endpoint_url (API Callback Failure)
+    if topic == "API_Callback_Failure" and "endpoint_url" not in extracted:
+        mu = _re.search(r"https?://[^\s,\"'<>]+", text)
+        if mu:
+            extracted["endpoint_url"] = mu.group(0).rstrip(".")
+
+    return extracted
+
+
+def _extract_free_form_slots(topic: str | None, message_text: str) -> dict[str, str]:
+    """
+    Legacy regex-only slot extraction (used when no Case/NLPSignal is available).
+
+    Sprint 2.5.6: This function is kept for callers that don't have access to the
+    Case object. New code should use _extract_slots_from_nlp_signal() instead.
+
+    PII discipline: callers must NOT log the returned values, only the slot names.
+    """
+    import re as _re  # noqa: PLC0415
+    if not message_text or not topic:
+        return {}
+    extracted: dict[str, str] = {}
+    text = message_text
+
+    # session_id: KID-XXXXXXXX format — only for VKYC and OCR topics
+    # (OTP investigation requires URN + session_id, but session_id must come from
+    #  the agent-provided context, not regex-guessed from unrelated ticket text)
+    if topic in ("VKYC_Session_Failure", "Document_OCR_Failure"):
+        ms = _re.search(r"\b(KID[-_]?[A-Z0-9]{6,12})\b", text, _re.IGNORECASE)
+        if ms:
+            extracted["session_id"] = ms.group(1).upper().replace("_", "-")
+
+    # channel: OTP delivery channel (optional slot)
+    if topic == "OTP_Delivery_Failure":
+        mc = _re.search(r"\b(email|e[\s\-]?mail|voice|sms)\b", text, _re.IGNORECASE)
+        if mc:
+            raw = mc.group(1).lower().replace(" ", "").replace("-", "")
+            if raw in ("email", "e-mail"):
+                extracted["channel"] = "EMAIL"
+            elif raw == "voice":
+                extracted["channel"] = "VOICE"
+            else:
+                extracted["channel"] = "SMS"
+
+    # phone_number: optional, post-investigation (10-digit mobile or "last N digits" mention)
+    if topic in ("OTP_Delivery_Failure", "VKYC_Session_Failure"):
+        m = _re.search(r"\b([6-9]\d{9})\b", text)
+        if m:
+            extracted["phone_number"] = m.group(1)[-4:]
+        elif "phone_number" not in extracted:
+            m4 = _re.search(
+                r"(?:last\s+\d+\s+digits?)\s+(?:are\s+|is\s+)?(\d{4})\b",
+                text,
+                _re.IGNORECASE,
+            )
+            if m4:
+                extracted["phone_number"] = m4.group(1)
+
+    # document_id: alphanumeric document ID for OCR failures (e.g., AB12345678)
+    if topic == "Document_OCR_Failure":
+        md = _re.search(r"\b([A-Z]{2}\d{8})\b", text, _re.IGNORECASE)
+        if md:
+            extracted["document_id"] = md.group(1).upper()
+
+    # agent_id: Agent Portal
+    if topic == "Agent_Portal_Issue":
+        ma = _re.search(r"\b(AG[T]?[-_]?[0-9A-Z]{4,12}|\d{6,10})\b", text, _re.IGNORECASE)
+        if ma:
+            extracted["agent_id"] = ma.group(1)
+
+    # endpoint_url: API Callback
+    if topic == "API_Callback_Failure":
+        mu = _re.search(r"https?://[^\s,\"'<>]+", text)
+        if mu:
+            extracted["endpoint_url"] = mu.group(0).rstrip(".")
+
+    return extracted
+
+
 # ── SupportAgentRuntime ───────────────────────────────────────────────────────
 
 class SupportAgentRuntime:
@@ -384,6 +526,22 @@ class SupportAgentRuntime:
         """Full pipeline execution. Raises on unrecoverable errors (caught by run_case)."""
         self._emit_agent_started(case)
 
+        # Frozen state guard: ESCALATED cases cannot re-enter automated pipeline.
+        # ESCALATED can only transition to CLOSED (human agent closes it).
+        # Attempting ESCALATED → CLASSIFYING/WORKFLOW_ACTIVE is an illegal transition.
+        if case.current_state == CaseState.ESCALATED:
+            LOGGER.warning(
+                "RETURN_RUNTIME_FROZEN case_id=%s state=ESCALATED — skipping pipeline",
+                case.case_id,
+            )
+            return self._build_result(
+                case=case, steps_completed=steps_completed,
+                agent_status=AgentStatus.ESCALATED, workflow_result=None,
+                response_draft=None, engineering_result=None,
+                classification={"topic": case.topic, "confidence": case.confidence or 0.0},
+                started_at=started_at, started_ms=started_ms, clarification_question="",
+            )
+
         LOGGER.warning(
             "ENTER_CLASSIFICATION case_id=%s response_svc_wired=%s case_svc_wired=%s topic_pre=%s",
             case.case_id, self._response_svc is not None, self._case_svc is not None, case.topic,
@@ -452,7 +610,31 @@ class SupportAgentRuntime:
                         if v is not None:
                             explicit_slot[k] = str(v)
 
-                # receive_message handles slot extraction + workflow auto-start
+                # Pre-extract slots from NLPSignal entities (primary) + regex fallback.
+                # Sprint 2.5.6: NLPSignal from LLM router is more accurate than regex.
+                # Entities include urn, session_id, phone_number, agent_id, etc.
+                _free_form = _extract_slots_from_nlp_signal(case, case.topic, message_text)
+                # Merge: explicit_slot (caller-provided) takes priority over NLPSignal/regex
+                _pre_slots: dict[str, str] = {
+                    k: v for k, v in {**_free_form, **explicit_slot}.items() if v
+                }
+
+                # Pre-fill each free-form slot through the official CaseService API.
+                # This persists to case.slot_state and may auto-start the workflow
+                # (idempotent — WorkflowAlreadyStartedError is caught inside).
+                for _sn, _sv in _pre_slots.items():
+                    LOGGER.warning(
+                        "ENTER_PREFILL_SLOT case_id=%s topic=%s slot=%s",
+                        case.case_id, case.topic, _sn,
+                    )
+                    self._case_svc.receive_message(
+                        case, message_text,
+                        slot_name=_sn,
+                        slot_value_str=str(_sv),
+                    )
+
+                # Final receive_message: enum extraction + all_slots_filled check.
+                # Idempotent if workflow was auto-started by a pre-fill call above.
                 LOGGER.warning(
                     "ENTER_SLOT_EXTRACTION case_id=%s topic=%s slot_state_keys=%s",
                     case.case_id, case.topic, list((case.slot_state or {}).keys()),
@@ -469,50 +651,24 @@ class SupportAgentRuntime:
                 )
 
                 if not msg_result.all_slots_filled:
-                    # Clarification needed
+                    # Capture the clarification question for use in Step 7 response
+                    # generation, but do NOT return early — investigation runs first
+                    # per Blueprint §7 "Investigate First" policy (Sprint 2.54 Wave 4B).
                     if msg_result.next_question:
-                        # ClarificationQuestion.to_dict() uses "prompt_text" key.
-                        # Also accept "text" for forward compatibility with older callers.
                         clarification_question = (
                             msg_result.next_question.get("prompt_text")
                             or msg_result.next_question.get("text")
                             or ""
                         )
                     steps_completed.append("CLARIFY")
-
                     LOGGER.warning(
-                        "ENTER_CLARIFICATION_ENGINE case_id=%s question=%r response_svc_wired=%s",
+                        "ENTER_CLARIFICATION_POLICY case_id=%s question=%r — investigating with available slots",
                         case.case_id, clarification_question[:80] if clarification_question else "",
-                        self._response_svc is not None,
                     )
-
-                    response_draft = self._generate_response(
-                        case=case,
-                        topic=case.topic or "",
-                        response_type=ResponseType.CLARIFICATION,
-                        workflow_result=None,
-                        clarification_question=clarification_question,
-                    )
-
-                    LOGGER.warning(
-                        "RETURN_CLARIFICATION_REQUIRED case_id=%s draft_is_none=%s response_svc_wired=%s",
-                        case.case_id, response_draft is None, self._response_svc is not None,
-                    )
-
-                    return self._build_result(
-                        case=case,
-                        steps_completed=steps_completed,
-                        agent_status=AgentStatus.AWAITING_CLARIFICATION,
-                        workflow_result=None,
-                        response_draft=response_draft,
-                        engineering_result=None,
-                        classification=classification,
-                        started_at=started_at,
-                        started_ms=started_ms,
-                        clarification_question=clarification_question,
-                    )
-
-                steps_completed.append("SLOTS_COMPLETE")
+                    # Fall through to investigation (Step 4). EvidenceCollector handles
+                    # missing slots by producing failed evidence items rather than crashing.
+                else:
+                    steps_completed.append("SLOTS_COMPLETE")
 
                 # Workflow was auto-started by receive_message if all slots filled
                 if msg_result.workflow_started:
@@ -528,6 +684,21 @@ class SupportAgentRuntime:
                     case.case_id, exc,
                 )
 
+        # Recover workflow_result when a pre-fill receive_message() auto-started the
+        # workflow (return value was discarded in the for-loop so workflow_result is
+        # still None here, but case.workflow_id proves the workflow already started).
+        # Without this guard the explicit start_workflow() below runs a second time,
+        # causing the investigation planner to execute twice.
+        if workflow_result is None and getattr(case, "workflow_id", None):
+            workflow_result = dict(getattr(case, "workflow_context", None) or {})
+            workflow_result["workflow_state"] = case.workflow_state
+            workflow_result["workflow_id"]    = case.workflow_id
+            steps_completed.append("WORKFLOW_PREFILL_AUTOSTARTED")
+            LOGGER.warning(
+                "ENTER_WORKFLOW_PREFILL_AUTOSTARTED case_id=%s workflow_id=%s",
+                case.case_id, case.workflow_id,
+            )
+
         # ── Step 4: WORKFLOW (if not auto-started) ────────────────────────────
         LOGGER.warning(
             "ENTER_WORKFLOW_SELECTION case_id=%s workflow_result_is_none=%s case_svc_wired=%s",
@@ -539,13 +710,15 @@ class SupportAgentRuntime:
                 sv = ClarificationEngine.slot_values_from_dict(case.slot_state or {})
                 wf_start = self._case_svc.start_workflow(case, sv)
                 workflow_result = {
-                    "workflow_id":     wf_start.workflow_id,
-                    "workflow_state":  wf_start.workflow_state,
-                    "step_results":    wf_start.step_results,
-                    "resolved":        wf_start.resolved,
-                    "escalated":       wf_start.escalated,
-                    "escalation_reason": wf_start.escalation_reason,
-                    "resolution_note": wf_start.resolution_note,
+                    "workflow_id":        wf_start.workflow_id,
+                    "workflow_state":     wf_start.workflow_state,
+                    "step_results":       wf_start.step_results,
+                    "resolved":           wf_start.resolved,
+                    "escalated":          wf_start.escalated,
+                    "escalation_reason":  wf_start.escalation_reason,
+                    "resolution_note":    wf_start.resolution_note,
+                    "workflow_context":   getattr(wf_start, "workflow_context", None),
+                    "investigation_result": getattr(wf_start, "investigation_result", None),
                 }
                 steps_completed.append("WORKFLOW")
             except Exception as exc:
@@ -676,12 +849,15 @@ class SupportAgentRuntime:
         )
 
         # ── CLOSECHECK ────────────────────────────────────────────────────────
+        # Clarification takes priority over L2 escalation: the case is waiting for
+        # customer input. Blueprint §7: investigation runs first, then clarification
+        # is issued only if evidence is genuinely incomplete — not skipped for L2.
         if response_type == ResponseType.RESOLUTION:
             agent_status = AgentStatus.SUCCESS
-        elif response_type == ResponseType.ESCALATION or needs_l2:
-            agent_status = AgentStatus.ESCALATED
         elif response_type == ResponseType.CLARIFICATION:
             agent_status = AgentStatus.AWAITING_CLARIFICATION
+        elif response_type == ResponseType.ESCALATION or needs_l2:
+            agent_status = AgentStatus.ESCALATED
         elif response_type == ResponseType.APPROVAL_NEEDED:
             agent_status = AgentStatus.AWAITING_APPROVAL
         else:
@@ -909,7 +1085,16 @@ class SupportAgentRuntime:
                     except Exception:
                         pass
 
-            intel_result = asyncio.run(_do())
+            # asyncio.run() cannot be called from a running event loop (FastAPI async
+            # background tasks). Detect the running loop and use a ThreadPoolExecutor
+            # so asyncio.run() executes in a thread with no existing event loop.
+            try:
+                asyncio.get_running_loop()
+                import concurrent.futures as _cf  # noqa: PLC0415
+                with _cf.ThreadPoolExecutor(max_workers=1) as _pool:
+                    intel_result = _pool.submit(asyncio.run, _do()).result()
+            except RuntimeError:
+                intel_result = asyncio.run(_do())
             duration_ms  = int((time.monotonic() - started) * 1000)
 
             _intel_boundary_trace(

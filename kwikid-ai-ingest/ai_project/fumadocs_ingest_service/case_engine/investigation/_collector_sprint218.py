@@ -139,10 +139,18 @@ class EvidenceCollector:
         tool_inputs = {step.input_key: raw_value}
 
         # Execute via ToolExecutor — never raises
+        LOGGER.warning(
+            "ENTER_TOOL_EXECUTION tool=%s slot=%s",
+            step.tool_name, step.required_slot,
+        )
         result: ToolResult = self._executor.execute(
             step.tool_name,
             tool_inputs,
             requested_by="investigation_collector",
+        )
+        LOGGER.warning(
+            "EXIT_TOOL_EXECUTION tool=%s success=%s error=%s",
+            step.tool_name, result.success, result.error_code,
         )
 
         return self._normalize(step, result, evidence_id)

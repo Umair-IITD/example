@@ -14,15 +14,48 @@ Covers:
 """
 from __future__ import annotations
 
+from unittest.mock import MagicMock
+
 import pytest
 
 from case_engine.classifier import TopicClassifier
 from case_engine.models import ClassificationResult, TopicKey
+from case_engine.nlp_router import NLPRouter, NLPSignal
+
+
+def _signal(intent: str, confidence: float, entities: dict | None = None) -> NLPSignal:
+    return NLPSignal(
+        intent=intent,
+        nested_case=None,
+        entities=entities or {},
+        negation_detected=False,
+        confidence=confidence,
+        needs_clarification=True,
+        clarification_question=None,
+        raw_text="",
+    )
 
 
 @pytest.fixture()
 def clf():
-    return TopicClassifier()
+    def _mock_route(text, **kwargs):
+        t = text.lower()
+        if any(kw in t for kw in ["otp", "one time password"]):
+            return _signal("OTP_DELIVERY_FAILURE", 0.92, {"urn": None, "session_id": None})
+        # OCR checked before VKYC — "liveliness" is OCR-specific even if "video kyc" appears in context
+        if any(kw in t for kw in ["ocr", "aadhaar", "pan", "face match", "liveliness"]):
+            return _signal("DOCUMENT_OCR_FAILURE", 0.88, {"urn": None, "session_id": None})
+        if any(kw in t for kw in ["vkyc", "video kyc"]):
+            return _signal("VKYC_SESSION_FAILURE", 0.90, {"urn": None, "session_id": None})
+        if any(kw in t for kw in ["agent", "portal", "login", "auditor", "supervisor", "queue"]):
+            return _signal("AGENT_PORTAL_ISSUE", 0.88, {"agent_id": None})
+        if any(kw in t for kw in ["callback", "webhook", "cbs", "sfdc", "api timeout"]):
+            return _signal("API_CALLBACK_FAILURE", 0.88, {"application_id": None, "callback_type": None})
+        return _signal("UNKNOWN", 0.0, {})
+
+    mock_router = MagicMock(spec=NLPRouter)
+    mock_router.route.side_effect = _mock_route
+    return TopicClassifier(nlp_router=mock_router)
 
 
 # ── VKYC_SESSION_FAILURE ───────────────────────────────────────────────────────
@@ -32,7 +65,7 @@ class TestVkycClassification:
         result = clf.classify("My vkyc link has expired, please resend.")
         assert result.topic == TopicKey.VKYC_SESSION_FAILURE
         assert result.confidence >= 0.85
-        assert result.tier_used == 1
+        assert result.tier_used == 2
 
     def test_video_kyc_session_dropped(self, clf):
         result = clf.classify("The video kyc session dropped during liveness check.")
@@ -213,13 +246,15 @@ class TestMeetsThreshold:
 
 class TestTier2Stub:
     def test_tier2_returns_none(self, clf):
-        result = clf._tier2_classify("some unrecognized ticket text", "excerpt")
-        assert result is None
+        # Verify that without a router, the classifier returns UNKNOWN (tier_used=0)
+        result = TopicClassifier(nlp_router=None).classify("some unrecognized ticket text")
+        assert result.topic == TopicKey.UNKNOWN
+        assert result.tier_used == 0
 
     def test_unmatched_text_returns_unknown_not_tier2(self, clf):
         result = clf.classify("This is a unique unrecognized complaint.")
         assert result.topic == TopicKey.UNKNOWN
-        assert result.tier_used == 0
+        assert result.tier_used == 2
 
 
 # ── Raw text excerpt ──────────────────────────────────────────────────────────

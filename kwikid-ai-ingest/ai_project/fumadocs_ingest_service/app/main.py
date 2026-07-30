@@ -50,6 +50,7 @@ from api.routes import (
     workflow_admin as _wf_admin_routes,
 )
 from api.routes.webhooks import freshdesk as _fd_webhook_routes
+from api.routes.webhooks import asana as _asana_webhook_routes
 from app.security import (
     _GATEWAY_PREFIXES,
     api_key_auth_middleware,
@@ -707,6 +708,26 @@ def _build_lifespan(*, skip_config_validation: bool = False):
             _fd_idem_store = WebhookIdempotencyStore(supabase_client=_sb_singleton)
             _app.state.freshdesk_idempotency_store = _fd_idem_store
 
+            # ── Sprint 2.6x: Asana webhook receiver (L2 resolution loop) ────
+            # Activates POST /webhooks/asana/task-completed. Degrades gracefully
+            # (route just ignores events) if ASANA_PROJECT_ID isn't configured —
+            # matches the same graceful-degradation shape as the Asana task
+            # creation path (asana.client.build_asana_client()).
+            try:
+                from asana.webhook import AsanaWebhookSecretStore, AsanaEventIdempotencyStore  # noqa: PLC0415
+                _app.state.asana_webhook_secret_store = AsanaWebhookSecretStore()
+                _app.state.asana_idempotency_store = AsanaEventIdempotencyStore()
+                _app.state.asana_project_gid = os.getenv("ASANA_PROJECT_ID", "").strip()
+                _LOGGER_PRE.info(
+                    "asana_webhook_receiver_wired project_gid_configured=%s",
+                    bool(_app.state.asana_project_gid),
+                )
+            except Exception as exc:
+                _app.state.asana_webhook_secret_store = None
+                _app.state.asana_idempotency_store = None
+                _app.state.asana_project_gid = ""
+                _LOGGER_PRE.warning("asana_webhook_receiver_wire_failed error=%s", exc)
+
             _fd_conv_store = ConversationStateStore(supabase_client=_sb_singleton)
             _app.state.freshdesk_conversation_store = _fd_conv_store
 
@@ -1288,6 +1309,7 @@ def create_app(
     local_app.include_router(_gw_webhook.router,                 tags=["Webhooks"])
     # Sprint 2.28.1: Freshdesk Foundation Layer webhook receiver
     local_app.include_router(_fd_webhook_routes.router,          tags=["Freshdesk Webhooks"])
+    local_app.include_router(_asana_webhook_routes.router,       tags=["Asana Webhooks"])
 
     # ── Gateway health and metrics (under /gateway prefix to avoid path conflicts) ──
     # /gateway/health, /gateway/health/live, /gateway/health/ready — gateway runtime health

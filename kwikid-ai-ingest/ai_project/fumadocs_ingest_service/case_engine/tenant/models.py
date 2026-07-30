@@ -91,22 +91,24 @@ class TenantConfig:
     environment:        TenantEnvironment
     tool_config:        TenantToolConfig
     auth_config:        TenantAuthConfig
-    workflow_overrides: dict[str, Any] = field(default_factory=dict)
-    portal_base_url:    str = ""
-    enabled:            bool = True
+    workflow_overrides:  dict[str, Any] = field(default_factory=dict)
+    portal_base_url:     str = ""
+    log_datasource_ref:  str = ""
+    enabled:             bool = True
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "client_id":          self.client_id,
-            "client_name":        self.client_name,
-            "domains":            list(self.domains),
-            "tenant_type":        self.tenant_type.value,
-            "environment":        self.environment.value,
-            "tool_config":        self.tool_config.to_dict(),
-            "auth_config":        self.auth_config.to_dict(),
-            "workflow_overrides": dict(self.workflow_overrides),
-            "portal_base_url":    self.portal_base_url,
-            "enabled":            self.enabled,
+            "client_id":           self.client_id,
+            "client_name":         self.client_name,
+            "domains":             list(self.domains),
+            "tenant_type":         self.tenant_type.value,
+            "environment":         self.environment.value,
+            "tool_config":         self.tool_config.to_dict(),
+            "auth_config":         self.auth_config.to_dict(),
+            "workflow_overrides":  dict(self.workflow_overrides),
+            "portal_base_url":     self.portal_base_url,
+            "log_datasource_ref":  self.log_datasource_ref,
+            "enabled":             self.enabled,
         }
 
 
@@ -137,22 +139,24 @@ class TenantContext:
     domain:              str
     tenant_type:         TenantType
     environment:         TenantEnvironment
-    enabled_tools:       tuple[str, ...]
-    credentials_ref:     str
-    workflow_overrides:  dict[str, Any] = field(default_factory=dict)
-    portal_base_url:     str = ""
+    enabled_tools:              tuple[str, ...]
+    credentials_ref:            str
+    workflow_overrides:         dict[str, Any] = field(default_factory=dict)
+    portal_base_url:            str = ""
+    log_datasource_reference:   str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "client_id":          self.client_id,
-            "client_name":        self.client_name,
-            "domain":             self.domain,
-            "tenant_type":        self.tenant_type.value,
-            "environment":        self.environment.value,
-            "enabled_tools":      list(self.enabled_tools),
-            "credentials_ref":    self.credentials_ref,
-            "workflow_overrides": dict(self.workflow_overrides),
-            "portal_base_url":    self.portal_base_url,
+            "client_id":                 self.client_id,
+            "client_name":               self.client_name,
+            "domain":                    self.domain,
+            "tenant_type":               self.tenant_type.value,
+            "environment":               self.environment.value,
+            "enabled_tools":             list(self.enabled_tools),
+            "credentials_ref":           self.credentials_ref,
+            "workflow_overrides":        dict(self.workflow_overrides),
+            "portal_base_url":           self.portal_base_url,
+            "log_datasource_reference":  self.log_datasource_reference,
         }
 
 
