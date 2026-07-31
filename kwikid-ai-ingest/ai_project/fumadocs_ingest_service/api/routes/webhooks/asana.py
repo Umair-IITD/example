@@ -34,10 +34,15 @@ On a verified "task completed" event this route:
   1. Checks AsanaEventIdempotencyStore — skips if already processed.
   2. Marks the internal EngineeringTicket RESOLVED.
   3. GETs the current Freshdesk ticket, runs ClosureFieldGuard.
-  4. If guard passes: sends customer resolution reply, then PUTs status=4 +
-     closure fields (cf_sop_status, cf_resolution_classification, type) in a
-     single combined call — satisfying ticket_lifecycle.md §6.
-  5. If guard blocks: posts an internal note for manual closure.
+  4. If guard passes: runs the resolution reply through ReplySafetyGate
+     (Sprint 2.63.1 — fixed template, confidence=1.0, still subject to
+     kill-switch/duplicate/force-escalation checks). If allowed, sends the
+     customer resolution reply, then PUTs status=4 + closure fields
+     (cf_sop_status, cf_resolution_classification, type) in a single combined
+     call — satisfying ticket_lifecycle.md §6.
+  5. If ClosureFieldGuard blocks: posts an internal note for manual closure.
+  6. If ReplySafetyGate blocks: posts an internal draft note and does NOT
+     close the ticket — same manual-handling shape as a guard block.
 
 Closure-field mapping (confirmed in sprint-2-6-3.md §3.2):
   cf_sop_status              = "No SOP Available"
@@ -62,6 +67,7 @@ from asana.webhook import (
     verify_signature,
 )
 from freshdesk.closure_guard import ClosureFieldGuard
+from freshdesk.templates import build_draft_reply_note
 
 LOGGER = logging.getLogger(__name__)
 
@@ -103,6 +109,13 @@ def _get_idempotency_store(request: Request) -> AsanaEventIdempotencyStore | Non
     if runtime is None:
         return None
     return getattr(runtime, "asana_idempotency_store", None)
+
+
+def _get_safety_gate(request: Request) -> Any | None:
+    runtime = getattr(getattr(request, "app", None), "state", None)
+    if runtime is None:
+        return None
+    return getattr(runtime, "reply_safety_gate", None)
 
 
 # ── Route ──────────────────────────────────────────────────────────────────
@@ -171,6 +184,7 @@ async def receive_asana_webhook(
     engineering_service = _get_engineering_service(request)
     response_service = _get_response_service(request)
     idempotency_store = _get_idempotency_store(request)
+    safety_gate = _get_safety_gate(request)
     for event in completed_events:
         background_tasks.add_task(
             _handle_task_completed,
@@ -178,6 +192,7 @@ async def receive_asana_webhook(
             engineering_service,
             response_service,
             idempotency_store,
+            safety_gate,
         )
 
     LOGGER.info("asana.webhook.event queued task_completed_count=%d", len(completed_events))
@@ -191,6 +206,7 @@ async def _handle_task_completed(
     engineering_service: Any,
     response_service: Any,
     idempotency_store: Any,
+    safety_gate: Any = None,
 ) -> None:
     """
     Full L2 resolution loop: resolve engineering ticket, notify customer, close Freshdesk ticket.
@@ -283,6 +299,47 @@ async def _handle_task_completed(
             "you experience any further problems.</p>"
             "<p>Thank you for your patience.</p>"
         )
+
+        # Sprint 2.63.1: ReplySafetyGate — fixed, deterministic template
+        # (confidence=1.0), but still subject to kill-switch, duplicate, and
+        # force-escalation checks. If blocked, do NOT close the ticket either —
+        # post an internal note and leave it for manual handling, same shape as
+        # the ClosureFieldGuard-blocked branch above.
+        if safety_gate is None:
+            LOGGER.error(
+                "asana.webhook.task_completed: reply_safety_gate.NOT_WIRED — "
+                "refusing to auto-send freshdesk_ticket_id=%s", ticket.freshdesk_ticket_id,
+            )
+            await response_service.add_internal_note(
+                ticket.freshdesk_ticket_id,
+                build_draft_reply_note(
+                    customer_reply,
+                    reason_not_auto_sent="ReplySafetyGate not wired on this instance",
+                ),
+                case_id=ticket.case_id,
+            )
+            return
+
+        decision = safety_gate.check(
+            ticket_id=str(ticket.freshdesk_ticket_id),
+            body_html=customer_reply,
+            confidence=1.0,
+            impact=None,
+        )
+        if not decision.allowed:
+            LOGGER.warning(
+                "asana.webhook.task_completed: reply_safety_gate.BLOCKED "
+                "freshdesk_ticket_id=%s outcome=%s reason=%s",
+                ticket.freshdesk_ticket_id, decision.outcome.value, decision.reason,
+            )
+            if decision.should_draft:
+                await response_service.add_internal_note(
+                    ticket.freshdesk_ticket_id,
+                    build_draft_reply_note(customer_reply, reason_not_auto_sent=decision.reason),
+                    case_id=ticket.case_id,
+                )
+            return
+
         await response_service.send_customer_reply(
             ticket.freshdesk_ticket_id,
             customer_reply,
@@ -298,6 +355,11 @@ async def _handle_task_completed(
             ticket_type="Issues",
             case_id=ticket.case_id,
         )
+
+        # Sprint 2.63.2: board-level "Done" signal on the Asana task itself,
+        # distinct from the `completed` checkbox dev already set — never
+        # raises, never blocks closure if it fails.
+        engineering_service.notify_asana_progress(ticket, "Done")
 
         LOGGER.info(
             "asana.webhook.task_completed: closed freshdesk_ticket_id=%s case_id=%s",

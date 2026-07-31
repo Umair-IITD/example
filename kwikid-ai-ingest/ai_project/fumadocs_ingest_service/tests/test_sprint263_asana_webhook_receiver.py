@@ -55,6 +55,7 @@ from asana.webhook import (
 from case_engine.engineering.models import EngineeringStatus
 from case_engine.engineering.service import EngineeringEscalationService
 from freshdesk.closure_guard import ClosureFieldGuard
+from freshdesk.safety_gate import ReplySafetyGate
 
 
 # ---------------------------------------------------------------------------
@@ -434,7 +435,9 @@ class TestG_ResolutionLoop:
         reply_log, fields_log = [], []
         resp_svc = _make_fake_resp_svc_with_cf_clients(reply_log, fields_log)
 
-        await _handle_task_completed("999", svc, resp_svc, None)
+        # Sprint 2.63.1: a wired, non-kill-switched gate is required for the
+        # resolution reply to actually send — see TestJ for gate-specific coverage.
+        await _handle_task_completed("999", svc, resp_svc, None, ReplySafetyGate())
 
         updated = svc.get_ticket(ticket_id)
         assert updated.status == EngineeringStatus.RESOLVED
@@ -663,3 +666,136 @@ class TestI_ClosureStep:
 
         client.get_ticket.assert_called_once_with(99)
         assert result["custom_fields"]["cf_clients"] == "Unity Bank"
+
+
+# ---------------------------------------------------------------------------
+# Section J — ReplySafetyGate wiring on the Asana resolution-closure reply
+# (Sprint 2.63.1: gate was fully implemented in Sprint 2.48 but never actually
+# invoked by any send_customer_reply() call site — see also
+# tests/test_sprint2631_reply_safety_gate_wiring.py for the freshdesk.py sites.)
+# ---------------------------------------------------------------------------
+
+def _make_fake_resp_svc_tracking_notes(reply_log, fields_log, notes_log):
+    class FakeRespSvc:
+        async def get_ticket(self, ticket_id, **kw):
+            return {"custom_fields": {"cf_clients": "Unity Bank"}}
+
+        async def send_customer_reply(self, ticket_id, body, **kw):
+            reply_log.append((ticket_id, body))
+            return {"id": "reply-1"}
+
+        async def update_ticket_fields(self, ticket_id, custom_fields, *, status=None, ticket_type=None, **kw):
+            fields_log.append({"ticket_id": ticket_id, "status": status, "ticket_type": ticket_type, "custom_fields": custom_fields})
+            return {}
+
+        async def add_internal_note(self, ticket_id, note, **kw):
+            notes_log.append((ticket_id, note))
+            return {}
+
+    return FakeRespSvc()
+
+
+class TestJ_ReplySafetyGateOnResolutionReply:
+
+    @pytest.mark.asyncio
+    async def test_J1_no_gate_wired_fails_closed_does_not_send_or_close(self):
+        """
+        Regression guard for the exact bug this sprint fixes: if
+        reply_safety_gate is None (not wired), the resolution reply must NOT
+        be auto-sent and the ticket must NOT be closed — draft a note instead.
+        """
+        from api.routes.webhooks.asana import _handle_task_completed
+        from dataclasses import replace
+
+        svc = EngineeringEscalationService()
+        result = svc.create_ticket(case=None, topic="X", freshdesk_ticket_id="fd-j1")
+        ticket_id = result.ticket.ticket_id
+        svc._store[ticket_id] = replace(svc._store[ticket_id], external_id="j1-task")
+
+        reply_log, fields_log, notes_log = [], [], []
+        resp_svc = _make_fake_resp_svc_tracking_notes(reply_log, fields_log, notes_log)
+
+        await _handle_task_completed("j1-task", svc, resp_svc, None, None)
+
+        assert reply_log == []
+        assert fields_log == []
+        assert len(notes_log) == 1
+        assert "not wired" in notes_log[0][1].lower()
+
+    @pytest.mark.asyncio
+    async def test_J2_kill_switch_blocks_send_and_close(self):
+        """Kill switch engaged → no customer reply, no ticket closure, draft posted."""
+        from api.routes.webhooks.asana import _handle_task_completed
+        from dataclasses import replace
+
+        svc = EngineeringEscalationService()
+        result = svc.create_ticket(case=None, topic="X", freshdesk_ticket_id="fd-j2")
+        ticket_id = result.ticket.ticket_id
+        svc._store[ticket_id] = replace(svc._store[ticket_id], external_id="j2-task")
+
+        reply_log, fields_log, notes_log = [], [], []
+        resp_svc = _make_fake_resp_svc_tracking_notes(reply_log, fields_log, notes_log)
+        gate = ReplySafetyGate(kill_switch=True)
+
+        await _handle_task_completed("j2-task", svc, resp_svc, None, gate)
+
+        assert reply_log == []
+        assert fields_log == []
+        assert len(notes_log) == 1
+        assert "kill switch" in notes_log[0][1].lower()
+
+    @pytest.mark.asyncio
+    async def test_J3_duplicate_reply_hash_blocks_second_ticket_close(self):
+        """
+        Same gate instance, two DIFFERENT engineering tickets that happen to
+        produce an identical rendered reply body for the same Freshdesk ticket
+        id — the gate's duplicate-hash protection is ticket_id+body scoped and
+        must block the second send even though idempotency_store (task_gid
+        scoped) would not catch it.
+        """
+        from api.routes.webhooks.asana import _handle_task_completed
+        from dataclasses import replace
+
+        svc = EngineeringEscalationService()
+        r1 = svc.create_ticket(case=None, topic="X", freshdesk_ticket_id="fd-j3")
+        svc._store[r1.ticket.ticket_id] = replace(svc._store[r1.ticket.ticket_id], external_id="j3-task-a")
+
+        reply_log, fields_log, notes_log = [], [], []
+        resp_svc = _make_fake_resp_svc_tracking_notes(reply_log, fields_log, notes_log)
+        gate = ReplySafetyGate()
+
+        await _handle_task_completed("j3-task-a", svc, resp_svc, None, gate)
+        assert len(reply_log) == 1
+
+        # Second, distinct engineering ticket resolving to the SAME Freshdesk
+        # ticket id renders the identical fixed template body — the gate must
+        # block the duplicate autonomous send.
+        r2 = svc.create_ticket(case=None, topic="X", freshdesk_ticket_id="fd-j3")
+        svc._store[r2.ticket.ticket_id] = replace(svc._store[r2.ticket.ticket_id], external_id="j3-task-b")
+
+        await _handle_task_completed("j3-task-b", svc, resp_svc, None, gate)
+        assert len(reply_log) == 1  # still 1 — second send was blocked
+        assert len(fields_log) == 1  # ticket was not closed a second time
+        # BLOCK_DUPLICATE has should_draft=False by design (safety_gate.py) — the
+        # first send already produced a customer-visible reply, no redraft needed.
+        assert notes_log == []
+
+    @pytest.mark.asyncio
+    async def test_J4_allowed_path_sends_and_closes_exactly_as_before(self):
+        """A wired, non-kill-switched gate on a fresh ticket allows the full flow through."""
+        from api.routes.webhooks.asana import _handle_task_completed
+        from dataclasses import replace
+
+        svc = EngineeringEscalationService()
+        result = svc.create_ticket(case=None, topic="X", freshdesk_ticket_id="fd-j4")
+        ticket_id = result.ticket.ticket_id
+        svc._store[ticket_id] = replace(svc._store[ticket_id], external_id="j4-task")
+
+        reply_log, fields_log, notes_log = [], [], []
+        resp_svc = _make_fake_resp_svc_tracking_notes(reply_log, fields_log, notes_log)
+
+        await _handle_task_completed("j4-task", svc, resp_svc, None, ReplySafetyGate())
+
+        assert len(reply_log) == 1
+        assert len(fields_log) == 1
+        assert notes_log == []

@@ -4,28 +4,39 @@
 
 Date: 2026-07-31  
 Branch: `major-architecture-change`  
-Last Certified Sprint: **2.63**
+Last Certified Sprint: **2.64**
 
 ---
 
 ## 1. Current Sprint
 
-**Sprint 2.63 — L2 Asana Resolution Loop (Full Closure)** is the last certified sprint.
+**Sprint 2.64 — Final Go-Live Audit** is the last certified sprint.
 
-### L1 + L2 Pipeline: 100% Code-Complete as of Sprint 2.63
+### L1 + L2 Pipeline: 100% Code-Complete and Fully Audited as of Sprint 2.64
 
-Full end-to-end flow is implemented and certified:
-Freshdesk intake → NLP classification → L1 investigation → observation note →
+Full end-to-end flow is implemented, audited, and certified:
+Freshdesk intake → NLP classification → L1 investigation (with SOP guidance) → observation note →
 L2 Asana escalation (if needed) → Asana task-completed webhook →
-customer notification → Freshdesk status=4 closure
+ReplySafetyGate → customer notification → Freshdesk status=4 closure
 
-### What Sprint 2.63 Delivered
+### What Sprint 2.64 (Go-Live Audit) Delivered
 
-- `asana/webhook.py` — `AsanaEventIdempotencyStore` (in-memory dedup for Asana redeliveries)
-- `api/routes/webhooks/asana.py` — Full closure loop wired: idempotency check → resolve EngineeringTicket → ClosureFieldGuard → send_customer_reply → update_ticket_fields(status=4, type="Issues", cf_sop_status="No SOP Available", cf_resolution_classification="Permanent Fix Applied by Dev")
-- `freshdesk/response_service.py` — `get_ticket()` method added; `update_ticket_fields()` extended with `status: int | None` and `ticket_type: str | None` params for combined PUT (required by ticket_lifecycle.md §6)
-- `app/main.py` — `asana_idempotency_store` wired into app.state
-- `tests/test_sprint263_asana_webhook_receiver.py` — Sections G (rewritten), H (idempotency), I (closure guard + combined PUT) added; 41 tests total, all pass
+**Sprint 2.63.1 — ReplySafetyGate wiring (Cowork session, certified this sprint):**
+- `freshdesk/handlers.py` — `HandlerResult.response_confidence: float | None`; confidence extracted from `response_draft` at 3 sites
+- `api/routes/webhooks/freshdesk.py` — `_get_safety_gate()` accessor; `_gated_customer_reply()` single funnel gates Sites 1-3; fail-CLOSED if gate absent
+- `api/routes/webhooks/asana.py` — `_get_safety_gate()` accessor; inline GUARD→GATE sequence in `_handle_task_completed()` (Site 4)
+- `app/main.py` — `ReplySafetyGate(kill_switch=REPLY_SAFETY_KILL_SWITCH)` wired as shared `app.state.reply_safety_gate`
+- `.env.example` — `REPLY_SAFETY_KILL_SWITCH` documented
+- `tests/test_sprint2631_reply_safety_gate_wiring.py` — 10 new tests (Sections K, M)
+- `tests/test_sprint263_asana_webhook_receiver.py` — 4 new tests (Section J); total 45 tests
+
+**Sprint 2.64 — Knowledge Layer SOP fix + Master E2E:**
+- `case_engine/runtime/support_agent_runtime.py` — Fixed: `_run_intelligence()` now extracts SOP content from `search_result.matches[:3][entry]` (the correct path) instead of the non-existent `chunks` key — LLM now receives SOP guidance for every ticket
+- `tests/test_sprint264_master_e2e_validation.py` — 22-test master E2E suite (Sections A-E): Knowledge Layer SOP extraction, PII redaction ordering, ReplySafetyGate wiring, Asana closure chain, full ticket lifecycle
+
+**Subagent review verdicts (Node 5):**
+- `architecture-drift-corrector`: **ALIGNED** — no drift found across all 8 Blueprint requirements
+- `freshdesk-safety-reviewer`: **ALL RULES SATISFIED** — no safety gate bypass in tests or production code
 
 ### Closure-Field Mapping (Confirmed, sprint-2-6-3.md §2.1)
 
@@ -50,7 +61,7 @@ customer notification → Freshdesk status=4 closure
 
 **Status: PRE-PRODUCTION — 1 admin action remaining**
 
-L1 + L2 pipeline is 100% code-complete. 3 of 4 production admin actions are done.
+L1 + L2 pipeline is 100% code-complete. 4 of 5 production gates are done.
 
 | # | Gate | Status |
 |---|---|---|
@@ -58,9 +69,11 @@ L1 + L2 pipeline is 100% code-complete. 3 of 4 production admin actions are done
 | §4.2 | Dispatch'r rule extended to Unity Bank tickets | ✅ Done (Sprint 2.48) |
 | §4.3 | Observer rule for customer-reply webhook | ✅ Done (Sprint 2.48) |
 | §4.4 | Dedicated AI agent account (`ai.support@getkwikid.com`) | ⚠️ PENDING — only remaining blocker |
-| §20B.wh | Asana webhook registered (`scripts/register_asana_webhook.py`) | ⚠️ PENDING — needs live server + ngrok URL |
+| §20B.wh | Asana webhook registered (`scripts/register_asana_webhook.py`) | ✅ Done (registered live 2026-07-31, project gid=1217038113542074, active=true, confirmed by Umair) |
+| 2.63.1 | ReplySafetyGate wired to all 4 autonomous reply sites | ✅ Done (Sprint 2.63.1, certified Sprint 2.64) |
+| 2.64 | KnowledgeResult SOP extraction fixed — LLM receives SOP content | ✅ Done (Sprint 2.64) |
 
-`SUPPORT_AGENT_MODE=PRODUCTION` must NOT be set until §4.4 + Asana webhook registration are done.
+`SUPPORT_AGENT_MODE=PRODUCTION` must NOT be set until §4.4 is complete.
 
 ---
 
@@ -131,11 +144,11 @@ A `STARTUP_READY` event is logged when all checks pass. `CRITICAL` failures stop
 | 7c | Metrics tools (Uptime Kuma, 2 tools) | ✅ Done | Sprint 2.50, production-ready |
 | 8 | Evidence Collection pipeline | ✅ Done | Sprint 2.54 |
 | 9 | Root Cause Engine | ✅ Done | Sprint 2.18 |
-| 9b | Knowledge/SOP retrieval (Hybrid RAG) | ✅ Done | Supabase pgvector + FTS |
+| 9b | Knowledge/SOP retrieval (Hybrid RAG) | ✅ Done | Supabase pgvector + FTS; SOP extraction path fixed Sprint 2.64 (search_result.matches[*].entry → LLM context) |
 | 10 | Intelligence Orchestrator (LLM reasoning) | ✅ Done | Sprint 2.53 |
 | 11 | Observation Generator (L1 notes) | ✅ Done | Posts private Freshdesk note |
 | 12 | Freshdesk note writer | ✅ Done | Via FreshdeskResponseService |
-| 12b | Safety Guardrails | ✅ Done | ReplySafetyGate + ClosureFieldGuard |
+| 12b | Safety Guardrails | ✅ Done | ReplySafetyGate wired to all 4 reply sites (Sprint 2.63.1) + ClosureFieldGuard; fail-CLOSED design |
 | 13 | Action Proposal | ✅ Done | Structured action from reasoning output |
 | 14 | Action Gateway (risk model + routing) | ✅ Done | Sprint 2.21 |
 | 14b | Action execution (Unity API calls) | ⚠️ Partial | Some action endpoints wired |
@@ -227,7 +240,7 @@ These must be resolved before real Unity Bank traffic.
 
 ### Technical Blockers
 
-**Sprint cert pending**: The sprint-2-5-6.md certification report must be written before starting the next sprint. Use `/sprint-cert 2.5.6`.
+**Sprint 2.64 certified**: All production code is certified through Sprint 2.64. No pending sprint cert blockers.
 
 **Supabase FTS migrations**: SQL migrations `B1_007` and `B1_008` must be applied to production Supabase before hybrid retrieval RPCs work. Some tests that hit these RPCs will fail until the migrations are applied.
 

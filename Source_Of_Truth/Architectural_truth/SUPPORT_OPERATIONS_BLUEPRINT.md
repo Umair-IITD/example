@@ -2,22 +2,45 @@
 
 # Enterprise Support Agent — Business Truth & System Blueprint
 
-Version: 1.5
-Status: Approved Architecture (Updated: L1 Investigation-Only, Action Execution Reserved, Wave 8 Asana L2 Escalation, Multi-Tenant Log Platform integration corrected and specified, L2 Asana Resolution Loop specified — §§5,7-13,20B,21,27,33-35)
+Version: 1.7
+Status: Approved Architecture (Updated: L1 Investigation-Only, Action Execution Reserved, Wave 8 Asana L2 Escalation, Multi-Tenant Log Platform integration corrected and specified, L2 Asana Resolution Loop fully implemented and certified, ReplySafetyGate wired to all autonomous customer replies, Asana board/ticket-content rewrite — §§5,7-13,20A,20B,21,27,33-35)
 Owner: Support Automation Program
 
-**v1.5 note**: Adds new §20B, documenting the Asana webhook resolution-loop
-receiver built this sprint (uncertified — awaiting Claude Code sprint-cert
-review; see `.remember/remember.md` "HANDOFF FROM PARALLEL COWORK SESSION"
-for the full diff list). §20A previously documented only task *creation*;
-§20B covers the other direction — detecting when engineering marks the
-Asana task complete and closing the loop back to Freshdesk. As of this
-revision the loop closes only as far as an internal verification note;
-auto-reply-to-customer and auto-close are explicitly NOT yet wired pending
-confirmation of the exact `cf_sop_status` / `cf_resolution_classification`
-values (see §20B for the proposed mapping and why it isn't live yet). §23's
-"Engineering Workflow" diagram is unchanged in spirit but §20B is now the
-concrete implementation of its "Resolution Event → Freshdesk Update" step.
+**v1.7 note**: §20A rewritten (Sprint 2.63.2) — Asana ticket descriptions were
+silently missing the entire investigation summary (a dead dict key, never
+populated), and used markdown syntax Asana's rich text doesn't render.
+Rebuilt around Asana's real allowed html_notes tags with actual evidence/
+observation/root-cause content. Added real project sections (triage board)
+and native Priority/Task Progress custom fields, replacing tag-only signals.
+See §20A for the full breakdown.
+
+**v1.6 note**: §20B is now fully implemented and certified (Sprint 2.63,
+`sprint-2-6-3.md`) — the closure loop sends the customer resolution reply
+and transitions the Freshdesk ticket to status=4 automatically when
+`ClosureFieldGuard` allows it, using the confirmed field mapping below. This
+sprint (2.63.1) also closed a gap found during independent post-cert review:
+`ReplySafetyGate` (`freshdesk/safety_gate.py`, built Sprint 2.48 — confidence
+threshold, force-escalation-impact override, duplicate-hash detection, kill
+switch) was fully implemented but never actually invoked by any of the four
+autonomous customer-facing reply call sites (§20A escalation notice, the two
+orchestrator response-draft replies, and this §20B resolution reply). It is
+now wired into all four via a shared `app.state.reply_safety_gate` instance
+— deterministic template replies pass a fixed confidence=1.0 (they still get
+kill-switch/duplicate/impact protection); LLM-generated replies pass the
+real reasoning-layer confidence score, which previously was silently
+discarded before reaching the send call. An unwired gate now fails CLOSED
+(drafts an internal note) rather than sending unprotected. See
+`.remember/remember.md` for the full file list and
+`tests/test_sprint2631_reply_safety_gate_wiring.py` +
+`tests/test_sprint263_asana_webhook_receiver.py` Section J for coverage.
+
+**v1.5 note**: Added §20B, documenting the Asana webhook resolution-loop
+receiver (superseded by the v1.6 note above — §20A previously documented
+only task *creation*; §20B covers the other direction — detecting when
+engineering marks the Asana task complete and closing the loop back to
+Freshdesk). §23's "Engineering Workflow" diagram is unchanged in spirit but
+§20B is now the concrete implementation of its "Resolution Event → Freshdesk
+Update" step.
 
 **v1.4 note**: This revision corrects a drift discovered during live
 integration testing — the Admin Portal (§9) does not and cannot provide
@@ -878,7 +901,7 @@ Not active in current L1 pipeline.
 
 ---
 
-# 20A. L2 Asana Escalation (Active — Wave 8)
+# 20A. L2 Asana Escalation (Active — Wave 8; ticket content/board rewritten Sprint 2.63.2)
 
 When the Reasoning Engine determines `outcome=ESCALATE` or the workflow
 signals `needs_l2=True`, the system executes the L2 escalation path:
@@ -893,18 +916,62 @@ signals `needs_l2=True`, the system executes the L2 escalation path:
    [Root cause summary]. This has been escalated to our engineering team
    (Ref: [Asana Task URL]). We will update you once it is resolved."
 
+**Ticket content (Sprint 2.63.2).** `_build_description()`
+(`case_engine/engineering/service.py`) previously read a `summary` key that
+never existed on `InvestigationResult.to_dict()`, so the Investigation
+Summary section silently rendered empty on every ticket ever created. Rewritten
+to use the real shape (`observation`, `evidence.items[]`, `root_cause`) and to
+emit Asana rich-text HTML (`html_notes`) instead of plain-text markdown syntax
+that Asana never rendered as headings. A ticket now contains: a `[PRIORITY]`
+heading, the Freshdesk ticket + case ID, escalation reason, root cause
+category/confidence/explanation, the full L1 investigation observation note,
+every evidence tool's result (tool name, success/fail, key payload values —
+e.g. session ID, failure code), and any SOP steps already attempted — enough
+for a dev to act without leaving Asana. Only Asana's actual allowed rich-text
+tags are used (no `<p>`/`<br>` — Asana's rich text has neither; see
+https://developers.asana.com/docs/rich-text) — every dynamic value is
+HTML-escaped before interpolation (Asana rejects malformed XML with 400).
+
+**Board organization (Sprint 2.63.2).** The "Support Escalation" project now
+has four sections set up via `scripts/setup_asana_project.py` (idempotent,
+re-runnable): "New - Needs Triage", "In Progress", "Blocked / Needs Info",
+"Done". New tickets are placed into "New - Needs Triage" at creation
+(`AsanaClient.create_task(section_gid=...)`, falling back to
+`AsanaConfig.new_ticket_section_gid` from `ASANA_NEW_TICKET_SECTION_ID`); the
+other three are for the dev team to drag cards between manually — the app
+never reads section membership after creation.
+
+**Real custom fields (Sprint 2.63.2).** The project has native Asana custom
+fields "Priority" (High/Medium/Low) and "Task Progress" (Not Started/In
+Progress/Waiting/Deferred/Done), discovered via `get_project`. Ticket
+creation now sets Priority from `EngineeringPriority` (CRITICAL and HIGH both
+map to Asana's "High" — Asana only has 3 tiers; CRITICAL tickets keep the
+`[CRITICAL]` title prefix for extra visibility) and Task Progress="Not
+Started". The §20B resolution webhook sets Task Progress="Done" on successful
+closure via `EngineeringEscalationService.notify_asana_progress()` — never
+blocks closure if it fails. The legacy priority tag (`_PRIORITY_TO_TAG`) is
+still set too, for backward-compat with any saved tag-based views.
+
 DRY_RUN mode: all Asana calls and Freshdesk writes are skipped. The audit
 event `ASANACREATE_DRY_RUN` is emitted instead, containing the full payload
 that would have been sent.
 
 Env vars:
-  ASANA_API_KEY       — Bearer token for Asana REST API
-  ASANA_PROJECT_ID    — Target project GID for new tasks
-  ASANA_WORKSPACE_ID  — Workspace GID (used in task creation payload)
+  ASANA_API_KEY               — Bearer token for Asana REST API
+  ASANA_PROJECT_ID            — Target project GID for new tasks
+  ASANA_WORKSPACE_ID          — Workspace GID (used in task creation payload)
+  ASANA_NEW_TICKET_SECTION_ID — Section GID new tickets are placed into
+                                 (printed by scripts/setup_asana_project.py)
+
+Files: `asana/client.py` (create_section, get_project_sections,
+set_task_progress, custom_fields/html_notes/section_gid on create_task),
+`case_engine/engineering/service.py` (_build_description rewrite,
+notify_asana_progress), `scripts/setup_asana_project.py` (new).
+Tests: `tests/test_sprint2632_asana_ticket_content.py` (27 tests, Sections A-C).
 
 ---
 
-# 20B. L2 Asana Resolution Loop (New — Sprint 2.6x, uncertified)
+# 20B. L2 Asana Resolution Loop (Sprint 2.63, certified; ReplySafetyGate wired Sprint 2.63.1)
 
 The other direction of §20A: detecting when engineering marks the Asana task
 complete, and closing the loop back to the Freshdesk ticket. Implements the
@@ -932,38 +999,45 @@ detection.
    project are ignored.
 4. **Resolution**: `EngineeringEscalationService.get_ticket_by_external_id()`
    maps the Asana task GID back to the internal `EngineeringTicket`, then
-   `resolve_ticket()` transitions it to `RESOLVED`.
-5. **Freshdesk write**: an **internal** note is posted via
-   `FreshdeskResponseService.add_internal_note()` (sole approved write path,
-   per §26/Rule A) linking the Asana task and asking a human to verify before
-   replying to the customer or closing the ticket.
+   `resolve_ticket()` transitions it to `RESOLVED`. `AsanaEventIdempotencyStore`
+   deduplicates redeliveries of the same task GID within the process lifetime.
+5. **Closure guard**: the current Freshdesk ticket is fetched and
+   `ClosureFieldGuard` (`freshdesk/closure_guard.py`) verifies `cf_clients`,
+   `ticket_type`, `cf_sop_status`, and `cf_resolution_classification` will all
+   be populated before allowing `status=4`. Confirmed mapping (SOT:
+   `Freshdesk_discovery/api_reference.md` §3.2/§7.4,
+   `Freshdesk_discovery/ticket_lifecycle.md` §6):
+   `cf_sop_status = "No SOP Available"` (escalated precisely because no SOP
+   covered it), `cf_resolution_classification = "Permanent Fix Applied by Dev"`,
+   `status = 4`, `type = "Issues"`. If the guard blocks (e.g. `cf_clients`
+   missing), an internal note is posted for manual closure instead.
+6. **ReplySafetyGate**: if the guard allows, the fixed-template resolution
+   reply is still evaluated by `ReplySafetyGate.check()` (confidence=1.0 for
+   this deterministic template — kill-switch, duplicate-hash, and
+   force-escalation-impact checks still apply). If the gate blocks (kill
+   switch engaged, or an identical reply already sent within the TTL window),
+   an internal draft note is posted and the ticket is **not** closed — same
+   manual-handling shape as a `ClosureFieldGuard` block.
+7. **Freshdesk write**: if both the guard and the gate allow,
+   `FreshdeskResponseService.send_customer_reply()` sends the resolution
+   notice, then a single combined `update_ticket_fields()` call sets
+   `status=4` + the closure custom fields (sole approved write path, per
+   §26/Rule A; single-PUT requirement per `ticket_lifecycle.md` §6).
 
-**Deliberately not yet implemented: auto-reply + auto-close.** Closing a
-Freshdesk ticket (`status=4/5`) requires `ClosureFieldGuard`
-(`freshdesk/closure_guard.py`) to see `cf_clients`, `ticket_type`,
-`cf_sop_status`, and `cf_resolution_classification` all populated. The exact
-allowed values for the latter two are documented in
-`Source_Of_Truth/Freshdesk_discovery/api_reference.md` §3.2, but no existing
-document states which specific value applies to an "engineering resolved via
-Asana" closure — that is a business-semantics decision, not a technical fact,
-and guessing wrong risks writing incorrect classification data to a live
-ticket. Proposed mapping (pending confirmation):
-`cf_sop_status = "No SOP Available"` (escalated precisely because no SOP
-covered it), `cf_resolution_classification = "Permanent Fix Applied by Dev"`
-(or `"Temporary Fix Applied by Dev (Pending Permanent)"` if the fix is a
-workaround). Once confirmed, wiring `send_customer_reply()` +
-`update_ticket_fields()` (guarded) into the same resolution handler is a
-small, well-scoped addition — see `.remember/remember.md` for the exact
-function to extend.
-
-Files: `asana/webhook.py`, `asana/client.py::create_webhook()`,
+Files: `asana/webhook.py` (incl. `AsanaEventIdempotencyStore`),
+`asana/client.py::create_webhook()`,
 `case_engine/engineering/service.py::get_ticket_by_external_id()`,
-`api/routes/webhooks/asana.py`, `scripts/register_asana_webhook.py`.
-Tests: `tests/test_sprint263_asana_webhook_receiver.py` (31 tests, Sections
-A-G — signature verification, event parsing, secret persistence, webhook
-client, ticket lookup, route handshake/signature gate, resolution-loop
-background task). Not yet run through `/regression` + `sprint-auditor` +
-`freshdesk-safety-reviewer` + `/sprint-cert`.
+`api/routes/webhooks/asana.py`, `scripts/register_asana_webhook.py`,
+`freshdesk/safety_gate.py`, `app/main.py` (`reply_safety_gate` /
+`asana_idempotency_store` wiring).
+Tests: `tests/test_sprint263_asana_webhook_receiver.py` (45 tests, Sections
+A-J), `tests/test_sprint2631_reply_safety_gate_wiring.py` (10 tests, Sections
+K-M — covers the §20A + Pass 1/2 call sites in `api/routes/webhooks/freshdesk.py`).
+Certified: Sprint 2.63 (`sprint-2-6-3.md`, closure loop) + Sprint 2.63.1
+(ReplySafetyGate wiring, this revision).
+
+Live: webhook registered against the "Support Escalation" Asana project
+(confirmed by Umair, `active=true`) as of 2026-07-31.
 
 Env vars (new):
   ASANA_WEBHOOK_SECRET_STORE_PATH — optional, defaults to

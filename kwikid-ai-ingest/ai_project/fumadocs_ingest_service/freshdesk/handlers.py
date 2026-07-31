@@ -72,6 +72,7 @@ class HandlerResult:
     skipped: bool = False
     skip_reason: str = ""
     response_draft: str | None = None
+    response_confidence: float | None = None
     observation_note: str | None = None
 
 
@@ -335,6 +336,7 @@ class FreshdeskTicketCreatedHandler:
         #    TicketContext object, NOT flat keyword arguments (interface correction).
         case_id: str | None = None
         _response_draft: str | None = None
+        _response_confidence: float | None = None
         _obs_note: str | None = None
         _agent_result: dict | None = None  # populated when orchestrator is wired
         _agent_status: str = ""            # populated from orchestrator result if available
@@ -404,6 +406,11 @@ class FreshdeskTicketCreatedHandler:
                     _rd = _agent_result.get("response_draft") or {}
                     if isinstance(_rd, dict):
                         _response_draft = _rd.get("body_html") or _rd.get("body_text") or None
+                        # Sprint 2.63.1: preserve the reasoning-layer confidence score
+                        # alongside the draft so ReplySafetyGate can evaluate it at the
+                        # route layer — previously this was silently dropped here,
+                        # leaving send_customer_reply() with no confidence to gate on.
+                        _response_confidence = _rd.get("confidence")
                     # Blueprint §14: extract observation note for OBSGEN → FDNOTE path.
                     # Source 1: intelligence layer (Wave 4A — LLM-generated, richest)
                     _intel = (_agent_result.get("metadata") or {}).get("intelligence_result") or {}
@@ -411,9 +418,12 @@ class FreshdeskTicketCreatedHandler:
                     if _intel_obs:
                         _obs_note = _intel_obs
                     # Source 2: workflow investigation step (structural fallback)
+                    # step_results is always a list (WorkflowExecutionResult.step_results:
+                    # list[dict]); guard handles None and the legacy dict shape defensively.
                     if not _obs_note:
                         _wf = _agent_result.get("workflow_result") or {}
-                        for _step_val in (_wf.get("step_results") or {}).values():
+                        _sr = _wf.get("step_results")
+                        for _step_val in (_sr.values() if isinstance(_sr, dict) else (_sr or [])):
                             _step_obs = ((_step_val or {}).get("result") or {}).get("observation_note") or ""
                             if _step_obs:
                                 _obs_note = _step_obs
@@ -502,6 +512,7 @@ class FreshdeskTicketCreatedHandler:
             case_id=case_id,
             action="ticket_ingested",
             response_draft=_response_draft,
+            response_confidence=_response_confidence,
             observation_note=_obs_note,
             detail=_detail or None,
         )
@@ -643,6 +654,7 @@ class FreshdeskTicketUpdatedHandler:
         # 5. Route by action
         result_detail: dict[str, Any] = {"action": action, "ticket_id": ticket_id}
         _resume_response_draft: str | None = None  # populated if Pass 2 produces a reply
+        _resume_response_confidence: float | None = None
 
         if action == "customer_reply":
             self._inc(COUNTER_FD_CUSTOMER_REPLIES_TOTAL)
@@ -685,6 +697,9 @@ class FreshdeskTicketUpdatedHandler:
                         )
                         if _nlp_slot_question is not None:
                             _resume_response_draft = _nlp_slot_question
+                            # Deterministic, template-driven clarification prompt (not
+                            # LLM free text) — treated as fixed-confidence for the gate.
+                            _resume_response_confidence = 1.0
                             LOGGER.info(
                                 "NLP_SLOT_RESUME: still_needs_clarification ticket_id=%s",
                                 ticket_id,
@@ -741,6 +756,7 @@ class FreshdeskTicketUpdatedHandler:
                                     or _resume_rd.get("body_text")
                                     or None
                                 )
+                                _resume_response_confidence = _resume_rd.get("confidence")
                         LOGGER.info(
                             "HANDLER_RESUME_DRAFT ticket_id=%s has_draft=%s",
                             ticket_id, _resume_response_draft is not None,
@@ -808,6 +824,7 @@ class FreshdeskTicketUpdatedHandler:
                                         or _cont_rd.get("body_text")
                                         or None
                                     )
+                                    _resume_response_confidence = _cont_rd.get("confidence")
                         except Exception as _cont_exc:
                             LOGGER.warning(
                                 "ticket_updated.handle: continue_ticket failed ticket_id=%s error=%s",
@@ -887,6 +904,7 @@ class FreshdeskTicketUpdatedHandler:
             action=action,
             detail=result_detail,
             response_draft=_resume_response_draft,
+            response_confidence=_resume_response_confidence,
         )
 
     # ── Detection helpers ──────────────────────────────────────────────────────

@@ -21,6 +21,8 @@ Design:
 """
 from __future__ import annotations
 
+import html as _html
+import json
 import logging
 import time
 import uuid
@@ -66,42 +68,128 @@ def _infer_priority(root_cause: dict[str, Any] | None, topic: str) -> Engineerin
     return EngineeringPriority.MEDIUM
 
 
+def _esc(value: Any) -> str:
+    """HTML-escape any value for safe interpolation into Asana html_notes.
+
+    Asana's rich-text writer rejects malformed/unescaped XML with a 400 —
+    every piece of dynamic text (case IDs, tool payload values, free-text
+    explanations) MUST be escaped before going into the body.
+    """
+    return _html.escape(str(value), quote=False)
+
+
+def _render_evidence_value(value: Any, *, max_len: int = 240) -> str:
+    """Render one evidence payload value as a short, safe, escaped string."""
+    if isinstance(value, (dict, list)):
+        rendered = json.dumps(value, default=str, ensure_ascii=False)
+    else:
+        rendered = str(value)
+    if len(rendered) > max_len:
+        rendered = rendered[: max_len - 1] + "…"
+    return _esc(rendered)
+
+
 def _build_description(
     case_id:              str,
     topic:                str,
+    freshdesk_ticket_id:  str,
+    priority:             "EngineeringPriority",
     investigation_result: dict[str, Any] | None,
     root_cause:           dict[str, Any] | None,
     sop_steps:            list[str] | None,
     escalation_reason:    str,
 ) -> str:
-    """Build a structured engineering ticket description."""
-    parts: list[str] = [
-        f"## Engineering Escalation: {topic}",
-        f"**Case ID**: {case_id}",
-        f"**Escalation Reason**: {escalation_reason or 'L1 automation could not resolve this issue.'}",
-    ]
+    """
+    Build a structured Asana html_notes body for an engineering escalation
+    ticket — everything a dev needs to understand and fix the issue without
+    leaving Asana: escalation context, root cause, the L1 observation note,
+    every piece of evidence collected (tool name + key data points), and any
+    SOP steps already attempted.
+
+    Sprint 2.63.2: rewritten to use investigation_result's REAL shape
+    (case_engine/investigation/models.py::InvestigationResult.to_dict() —
+    keys "observation", "evidence", "root_cause") instead of a "summary" key
+    that never actually existed in that dict, which meant the Investigation
+    Summary section silently rendered empty on every prior ticket.
+
+    Output is Asana rich-text HTML (html_notes) — ONLY the tags Asana's API
+    accepts for tasks are used: body, h1, h2, hr, strong, em, ul, ol, li,
+    pre, a. No <p> or <br> — Asana's rich text has no paragraph tag; block
+    separation is done with <hr/> and headers instead (see
+    https://developers.asana.com/docs/rich-text). Headers/lists/pre may not
+    be nested inside each other, so the structure below stays flat.
+    """
+    parts: list[str] = ["<body>"]
+
+    parts.append(f"<h1>[{_esc(priority.value)}] {_esc(topic)}</h1>")
+    parts.append(
+        f"<strong>Freshdesk Ticket:</strong> #{_esc(freshdesk_ticket_id or 'unknown')}"
+        f" |<strong>Case ID:</strong> {_esc(case_id)}"
+    )
+    parts.append("<hr/>")
+
+    parts.append("<h2>Escalation Reason</h2>")
+    parts.append(_esc(escalation_reason or "L1 automation could not resolve this issue automatically."))
+    parts.append("<hr/>")
 
     if root_cause:
-        category = root_cause.get("category", "Unknown")
+        category    = root_cause.get("category", "Unknown")
+        confidence  = root_cause.get("confidence")
         explanation = root_cause.get("explanation", "")
-        parts.append(f"\n## Root Cause Analysis")
-        parts.append(f"**Category**: {category}")
+        recommended = root_cause.get("recommended_action", "")
+        parts.append("<h2>Root Cause Analysis</h2>")
+        conf_str = f"{confidence:.0%}" if isinstance(confidence, (int, float)) else "unknown"
+        parts.append(f"<strong>Category:</strong> {_esc(category)} |<strong>Confidence:</strong> {_esc(conf_str)}")
+        if recommended:
+            parts.append(f"<strong>Recommended Action:</strong> {_esc(recommended)}")
         if explanation:
-            parts.append(f"**Explanation**: {explanation}")
+            parts.append(_esc(explanation))
+        parts.append("<hr/>")
 
-    if investigation_result:
-        summary = investigation_result.get("summary", "")
-        if summary:
-            parts.append(f"\n## Investigation Summary")
-            parts.append(summary)
+    observation = (investigation_result or {}).get("observation") or ""
+    if observation:
+        parts.append("<h2>Investigation Observation (L1 note)</h2>")
+        parts.append(f"<pre>{_esc(observation)}</pre>")
+        parts.append("<hr/>")
+
+    evidence = (investigation_result or {}).get("evidence") or {}
+    items = evidence.get("items") or []
+    if items:
+        total = evidence.get("total_items", len(items))
+        success_count = evidence.get("success_count", sum(1 for i in items if i.get("success")))
+        parts.append(f"<h2>Evidence Collected ({_esc(success_count)}/{_esc(total)} tools succeeded)</h2>")
+        parts.append("<ul>")
+        for item in items:
+            status = "OK" if item.get("success") else "FAILED"
+            tool_name = item.get("tool_name", "unknown_tool")
+            line = f"<li><strong>{_esc(tool_name)}</strong> [{status}]"
+            payload = item.get("payload") or {}
+            if isinstance(payload, dict) and payload:
+                pairs = "; ".join(f"{_esc(k)}: {_render_evidence_value(v)}" for k, v in payload.items())
+                line += f" — {pairs}"
+            if not item.get("success"):
+                err = item.get("error_message") or item.get("error_code") or ""
+                if err:
+                    line += f" — <strong>Error:</strong> {_esc(err)}"
+            line += "</li>"
+            parts.append(line)
+        parts.append("</ul>")
+        parts.append("<hr/>")
 
     if sop_steps:
-        parts.append(f"\n## SOP Steps Already Attempted")
-        for i, step in enumerate(sop_steps, 1):
-            parts.append(f"{i}. {step}")
+        parts.append("<h2>SOP Steps Already Attempted</h2>")
+        parts.append("<ol>")
+        for step in sop_steps:
+            parts.append(f"<li>{_esc(step)}</li>")
+        parts.append("</ol>")
+        parts.append("<hr/>")
 
-    parts.append("\n---")
-    parts.append("*Generated by KwikID L1 Support Agent*")
+    parts.append("<em>Generated automatically by the KwikID L1 Support Agent.</em>")
+    parts.append("</body>")
+    # Joined with newlines (not ""): Asana renders rich-text body whitespace
+    # with white-space: pre-wrap, so this gives real visual line breaks
+    # between fields/sections without needing a <br> tag (which Asana's rich
+    # text does not support at all — see module docstring above).
     return "\n".join(parts)
 
 
@@ -411,6 +499,29 @@ class EngineeringEscalationService:
         except Exception:
             return None
 
+    def notify_asana_progress(self, ticket: EngineeringTicket, progress: str) -> None:
+        """
+        Set the "Task Progress" custom field on the ticket's Asana task.
+
+        Sprint 2.63.2: called by the resolution webhook (api/routes/webhooks/
+        asana.py) with progress="Done" once the Freshdesk closure loop
+        actually completes — gives the dev team a visible board-level signal
+        distinct from the raw `completed` checkbox they set themselves.
+
+        No-op if this ticket has no external_id (mock mode) or no Asana
+        client is configured. Never raises — this is a UI nicety, not
+        something that should ever block ticket closure.
+        """
+        if self._asana is None or not ticket.external_id:
+            return
+        try:
+            self._asana.set_task_progress(ticket.external_id, progress)
+        except Exception as exc:
+            LOGGER.debug(
+                "engineering.notify_asana_progress failed ticket_id=%s error=%s",
+                ticket.ticket_id, exc,
+            )
+
     # ── Private helpers ───────────────────────────────────────────────────────
 
     def _create_ticket_internal(
@@ -427,12 +538,20 @@ class EngineeringEscalationService:
         description = _build_description(
             case_id=case_id,
             topic=topic,
+            freshdesk_ticket_id=freshdesk_ticket_id,
+            priority=priority,
             investigation_result=investigation_result,
             root_cause=root_cause,
             sop_steps=sop_steps,
             escalation_reason=escalation_reason,
         )
-        title     = f"[L2] {topic}: {escalation_reason[:80]}" if escalation_reason else f"[L2] {topic} Escalation"
+        # Sprint 2.63.2: priority prefix makes triage possible from Asana's
+        # list/board view alone (see AsanaClient.create_task docstring), on
+        # top of the real Priority custom field the task also gets set.
+        case_ref = (case_id or "")[:8]
+        title = f"[{priority.value}] {topic}: {escalation_reason[:80]}" if escalation_reason else f"[{priority.value}] {topic} Escalation"
+        if case_ref:
+            title = f"{title} (Case {case_ref})"
         now       = _now_iso()
         ticket_id = _new_id()
 
@@ -441,7 +560,10 @@ class EngineeringEscalationService:
         asana_project_id = None
         if self._asana is not None:
             try:
-                result          = self._asana.create_task(title=title, description=description, priority=priority.value)
+                result = self._asana.create_task(
+                    title=title, description=description, priority=priority.value,
+                    html_notes=True,
+                )
                 external_id      = result.get("gid")
                 asana_project_id = result.get("project_id")
             except Exception as exc:

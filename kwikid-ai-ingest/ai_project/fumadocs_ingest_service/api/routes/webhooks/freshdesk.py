@@ -450,10 +450,14 @@ async def _process_ticket_created(request: Request, payload: dict[str, Any]) -> 
                                 + "We will update you once it is resolved.</p>"
                                 + "<p>KwikID Support Team</p>"
                             )
-                            await _resp_svc.send_customer_reply(
-                                result.ticket_id,
-                                _esc_body,
-                                case_id=result.case_id or "",
+                            # Sprint 2.63.1: gated via ReplySafetyGate. This is a fixed,
+                            # deterministic template (not LLM free text), so confidence=1.0 —
+                            # the gate still applies kill-switch, duplicate, and
+                            # force-escalation-impact protection.
+                            await _gated_customer_reply(
+                                _resp_svc, _get_safety_gate(request),
+                                ticket_id=result.ticket_id, body_html=_esc_body,
+                                confidence=1.0, case_id=result.case_id or "",
                             )
                             LOGGER.warning(
                                 "EXIT_ESCALATION_REPLY_SENT ticket_id=%s case_id=%s",
@@ -462,10 +466,13 @@ async def _process_ticket_created(request: Request, payload: dict[str, Any]) -> 
 
                     # Blueprint flow_diagram USERRESPONSE: send customer reply.
                     if result.response_draft:
-                        await _resp_svc.send_customer_reply(
-                            result.ticket_id,
-                            result.response_draft,
-                            case_id=result.case_id or "",
+                        # Sprint 2.63.1: gated via ReplySafetyGate using the real
+                        # reasoning-layer confidence score (may be None — the gate
+                        # treats missing confidence as a block, which is correct).
+                        await _gated_customer_reply(
+                            _resp_svc, _get_safety_gate(request),
+                            ticket_id=result.ticket_id, body_html=result.response_draft,
+                            confidence=result.response_confidence, case_id=result.case_id or "",
                         )
                         LOGGER.warning(
                             "RETURN_CUSTOMER_REPLY_SENT ticket_id=%s case_id=%s",
@@ -552,10 +559,12 @@ async def _process_ticket_updated(request: Request, payload: dict[str, Any]) -> 
                 # Send it back to the customer via Freshdesk — same path as Pass 1.
                 _resp_svc = _get_response_service(request)
                 if _resp_svc is not None:
-                    await _resp_svc.send_customer_reply(
-                        result.ticket_id,
-                        result.response_draft,
-                        case_id=result.case_id or "",
+                    # Sprint 2.63.1: gated via ReplySafetyGate using the Pass 2
+                    # reasoning-layer confidence score (None → gate blocks, drafts instead).
+                    await _gated_customer_reply(
+                        _resp_svc, _get_safety_gate(request),
+                        ticket_id=result.ticket_id, body_html=result.response_draft,
+                        confidence=result.response_confidence, case_id=result.case_id or "",
                     )
                     LOGGER.warning(
                         "RETURN_CUSTOMER_REPLY_SENT_PASS2 ticket_id=%s case_id=%s",
@@ -692,6 +701,73 @@ def _get_response_service(request: Request) -> Any | None:
     if runtime is None:
         return None
     return getattr(runtime, "freshdesk_response_service", None)
+
+
+def _get_safety_gate(request: Request) -> Any | None:
+    runtime = getattr(getattr(request, "app", None), "state", None)
+    if runtime is None:
+        return None
+    return getattr(runtime, "reply_safety_gate", None)
+
+
+async def _gated_customer_reply(
+    response_service: Any,
+    safety_gate: Any,
+    *,
+    ticket_id: str,
+    body_html: str,
+    confidence: float | None,
+    case_id: str = "",
+    impact: str | None = None,
+) -> bool:
+    """
+    Sprint 2.63.1: single funnel for every autonomous customer-facing reply.
+
+    Evaluates ReplySafetyGate.check() before calling send_customer_reply().
+    On ALLOW: sends the reply, returns True.
+    On BLOCK: posts the reply as an internal draft note instead (per
+    safety_gate.py's documented fallback contract) and returns False.
+    If no gate is wired (None), fails CLOSED — never send ungated. This is a
+    deliberate change from the prior behavior (send unconditionally); an
+    unwired gate must not silently mean "no protection."
+    """
+    from freshdesk.templates import build_draft_reply_note  # noqa: PLC0415
+
+    if safety_gate is None:
+        LOGGER.error(
+            "reply_safety_gate.NOT_WIRED — refusing to auto-send, drafting instead "
+            "ticket_id=%s", ticket_id,
+        )
+        if response_service is not None:
+            await response_service.add_internal_note(
+                ticket_id,
+                build_draft_reply_note(
+                    body_html, reason_not_auto_sent="ReplySafetyGate not wired on this instance",
+                ),
+                case_id=case_id,
+            )
+        return False
+
+    decision = safety_gate.check(
+        ticket_id=str(ticket_id), body_html=body_html, confidence=confidence, impact=impact,
+    )
+    if decision.allowed:
+        if response_service is not None:
+            await response_service.send_customer_reply(ticket_id, body_html, case_id=case_id)
+        return True
+
+    LOGGER.warning(
+        "reply_safety_gate.BLOCKED ticket_id=%s outcome=%s reason=%s",
+        ticket_id, decision.outcome.value, decision.reason,
+    )
+    if decision.should_draft and response_service is not None:
+        conf_str = "" if decision.confidence is None else f"{decision.confidence:.2f}"
+        await response_service.add_internal_note(
+            ticket_id,
+            build_draft_reply_note(body_html, reason_not_auto_sent=decision.reason, confidence=conf_str),
+            case_id=case_id,
+        )
+    return False
 
 
 def _get_idempotency_store(request: Request) -> WebhookIdempotencyStore | None:

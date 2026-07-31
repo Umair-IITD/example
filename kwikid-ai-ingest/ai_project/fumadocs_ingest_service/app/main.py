@@ -805,6 +805,29 @@ def _build_lifespan(*, skip_config_validation: bool = False):
                 _fd_resp_svc = None
                 _app.state.freshdesk_response_service = None
 
+            # Sprint 2.63.1: ReplySafetyGate — was fully implemented (Sprint 2.48)
+            # but never actually instantiated/wired to any send_customer_reply()
+            # call site. Every autonomous customer-facing reply (escalation
+            # notification, Pass 1/Pass 2 orchestrator replies, Asana resolution
+            # closure reply) was bypassing confidence, force-escalation, duplicate,
+            # and kill-switch protection. Wiring it here as shared app.state so all
+            # four call sites in api/routes/webhooks/{freshdesk,asana}.py gate
+            # through the same instance (duplicate-detection and kill switch only
+            # work meaningfully if state is shared, not per-request).
+            try:
+                from freshdesk.safety_gate import ReplySafetyGate  # noqa: PLC0415
+                _kill_switch_env = os.getenv("REPLY_SAFETY_KILL_SWITCH", "").strip().lower()
+                _app.state.reply_safety_gate = ReplySafetyGate(
+                    kill_switch=_kill_switch_env in {"1", "true", "yes", "on"},
+                )
+                _LOGGER_PRE.info(
+                    "reply_safety_gate_wired kill_switch=%s",
+                    _kill_switch_env in {"1", "true", "yes", "on"},
+                )
+            except Exception as exc:
+                _app.state.reply_safety_gate = None
+                _LOGGER_PRE.warning("reply_safety_gate_wire_failed error=%s", exc)
+
             _fd_generator_ref  = _generator_singleton
             _fd_resp_svc_ref   = _fd_resp_svc
 

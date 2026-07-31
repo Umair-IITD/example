@@ -1037,6 +1037,18 @@ class SupportAgentRuntime:
                     chunk = _to_retrieved_chunk(entry, RetrievedChunk)
                     if chunk is not None:
                         knowledge_chunks.append(chunk)
+            # KnowledgeResult.to_dict() stores SOP content in
+            # search_result.matches[*].entry — not under a "chunks" key. Extract
+            # top-3 matches as RetrievedChunks so the LLM receives SOP body text.
+            # This is the primary knowledge path when the workflow ran KNOWLEDGE_LOOKUP.
+            if not knowledge_chunks:
+                for match in (wf_knowledge.get("search_result") or {}).get("matches", [])[:3]:
+                    if isinstance(match, dict):
+                        entry = match.get("entry") or {}
+                        merged = {**entry, "score": match.get("relevance_score", 0.0)}
+                        chunk = _to_retrieved_chunk(merged, RetrievedChunk)
+                        if chunk is not None:
+                            knowledge_chunks.append(chunk)
 
             # Tenant + customer-identifier extraction (all PII-safe from here;
             # context_builder does the actual masking).
