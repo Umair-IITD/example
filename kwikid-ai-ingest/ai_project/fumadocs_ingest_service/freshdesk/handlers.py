@@ -689,6 +689,13 @@ class FreshdeskTicketUpdatedHandler:
                     and event.latest_comment is not None
                 ):
                     _nlp_msg = event.latest_comment.body_text or event.latest_comment.body or ""
+                    if not _nlp_msg.strip():
+                        LOGGER.warning(
+                            "ticket_updated.handle: EMPTY_COMMENT_BODY ticket_id=%s action=%s "
+                            "— latest_comment present but body_text and body are both empty; "
+                            "skipping NLP slot resume",
+                            ticket_id, action,
+                        )
                     if _nlp_msg.strip():
                         _nlp_slot_question = self._nlp_slot_resume(
                             ticket_id=ticket_id,

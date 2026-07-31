@@ -259,11 +259,19 @@ ENTITY TYPES TO EXTRACT:
 - application_id: Customer's application or onboarding reference ID (e.g., APP-00129871)
 - callback_type: Type of API callback (CBS, DMS, SFDC, or WEBHOOK)
 
+KEYWORD → INTENT DISAMBIGUATION (use these as ground truth when in doubt):
+- audio / sound / voice / mic / microphone / "can't hear" / "no sound" / "voice not coming" → VKYC_SESSION_FAILURE (nested_case: CAMERA_MIC_ISSUE)
+- video / camera / freeze / lag / "dropped call" / disconnect / "screen share" / network / connection / bandwidth / "poor quality" → VKYC_SESSION_FAILURE
+- OTP / "one time password" / SMS / "verification code" / "password not received" / "nahi aa raha" → OTP_DELIVERY_FAILURE
+- scan / OCR / PAN / Aadhaar / "face match" / document / "blurry" / "mismatch" → DOCUMENT_OCR_FAILURE
+- login / portal / "agent console" / "locked out" / "access denied" / queue / dashboard / "not loading" → AGENT_PORTAL_ISSUE
+- CBS / DMS / SFDC / webhook / "API callback" / integration / timeout / "not triggered" → API_CALLBACK_FAILURE
+
 CRITICAL RULES (must follow exactly):
 1. NEGATION: "not receiving", "didn't get", "haven't gotten", "unable to get", "not coming", "nahi aa raha" ALL indicate a delivery FAILURE, not a success. Set negation_detected=true and classify normally.
 2. INVESTIGATION SLOTS: If the text does NOT contain the required investigation identifiers (urn, session_id, etc.), set needs_clarification=true. NEVER ask for phone_number as the primary investigation identifier.
-3. UNKNOWN: Only use UNKNOWN if the text genuinely does not match any domain intent (e.g., billing question, general inquiry).
-4. CONFIDENCE: Set high confidence (0.85-0.99) when the intent is unambiguous. Lower (0.60-0.84) when the text is vague but still classifiable.
+3. UNKNOWN: Only use UNKNOWN if the text genuinely does not match ANY domain intent (e.g., billing questions, branch hours, general inquiries). When in doubt, pick the closest intent with lower confidence rather than UNKNOWN. A technical complaint during VKYC is NEVER UNKNOWN.
+4. CONFIDENCE: Set high confidence (>=0.85) when the intent is unambiguous. Use 0.60-0.84 when the text is vague but still classifiable. NEVER set UNKNOWN when keywords from the disambiguation table above appear.
 5. ENTITIES: Extract ALL entities present. If not found, set value to null.
 
 RESPONSE FORMAT (strict JSON, no extra text):

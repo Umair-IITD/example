@@ -567,7 +567,18 @@ class EngineeringEscalationService:
                 external_id      = result.get("gid")
                 asana_project_id = result.get("project_id")
             except Exception as exc:
-                LOGGER.warning("engineering: asana.create_task failed error=%s — mock mode", exc)
+                try:
+                    import httpx as _httpx  # noqa: PLC0415
+                    if isinstance(exc, _httpx.HTTPStatusError):
+                        LOGGER.warning(
+                            "engineering: asana.create_task http_error status=%d "
+                            "body=%.800s — verify ASANA_PROJECT_ID and ASANA_WORKSPACE_ID",
+                            exc.response.status_code, exc.response.text,
+                        )
+                    else:
+                        LOGGER.warning("engineering: asana.create_task failed error=%s", exc)
+                except Exception:
+                    LOGGER.warning("engineering: asana.create_task failed error=%s", exc)
 
         return EngineeringTicket(
             ticket_id=ticket_id,

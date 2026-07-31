@@ -55,7 +55,7 @@
     {
       "intent_name": "VKYC_SESSION_FAILURE",
       "topic_key": "VKYC_Session_Failure",
-      "description": "A Video KYC session failed, expired, disconnected, or could not be completed. Covers session link expiry, mid-session disconnections, camera or microphone failures, bandwidth issues, liveness/face detection failures, and VKYC session timeout.",
+      "description": "A Video KYC session failed, expired, disconnected, or could not be completed. Covers session link expiry, mid-session disconnections, camera or microphone failures, audio issues (no sound, can't hear, mic not working), video issues (frozen, blurry, no video), network/bandwidth issues (lag, freeze, poor connection), screen share failures, dropped calls, liveness/face detection failures, and VKYC session timeout. ANY audio, video, connectivity, or session-quality complaint during a VKYC session belongs here.",
       "required_slots_for_investigation": [
         "urn",
         "session_id"
@@ -100,7 +100,24 @@
         "camera not working in vkyc",
         "vkyc dropped",
         "session disconnected",
-        "video quality poor"
+        "video quality poor",
+        "audio issue",
+        "audio not working",
+        "no audio in vkyc",
+        "customer can't hear",
+        "mic not working",
+        "microphone issue",
+        "no sound during kyc",
+        "voice not coming",
+        "screen share not working",
+        "screen share issue",
+        "network issue during vkyc",
+        "call dropped",
+        "connection problem in kyc",
+        "video freezing",
+        "video lagging",
+        "poor network quality",
+        "session link expired"
       ]
     },
     {

@@ -111,10 +111,24 @@ class FreshdeskResponseService:
         except Exception as exc:
             latency_ms = int((time.monotonic() - start) * 1000)
             self._record_counter(COUNTER_FD_API_ERRORS_TOTAL)
-            LOGGER.error(
-                "freshdesk.response_service.internal_note: FAILED ticket_id=%s error=%s",
-                ticket_id, exc,
-            )
+            try:
+                import httpx as _httpx  # noqa: PLC0415
+                if isinstance(exc, _httpx.HTTPStatusError) and exc.response.status_code == 404:
+                    LOGGER.error(
+                        "freshdesk.response_service.internal_note: 404_NOT_FOUND ticket_id=%s "
+                        "— ticket does not exist or API key lacks write scope; response=%.400s",
+                        ticket_id, exc.response.text,
+                    )
+                else:
+                    LOGGER.error(
+                        "freshdesk.response_service.internal_note: FAILED ticket_id=%s error=%s",
+                        ticket_id, exc,
+                    )
+            except Exception:
+                LOGGER.error(
+                    "freshdesk.response_service.internal_note: FAILED ticket_id=%s error=%s",
+                    ticket_id, exc,
+                )
             # Sprint 2.49 — TRACE_FD_08_NOTE_SENT: with FAILURE status.
             emit_trace(
                 TRACE_FD_08_NOTE_SENT,
@@ -170,10 +184,24 @@ class FreshdeskResponseService:
         except Exception as exc:
             latency_ms = int((time.monotonic() - start) * 1000)
             self._record_counter(COUNTER_FD_API_ERRORS_TOTAL)
-            LOGGER.error(
-                "freshdesk.response_service.customer_reply: FAILED ticket_id=%s error=%s",
-                ticket_id, exc,
-            )
+            try:
+                import httpx as _httpx  # noqa: PLC0415
+                if isinstance(exc, _httpx.HTTPStatusError) and exc.response.status_code == 404:
+                    LOGGER.error(
+                        "freshdesk.response_service.customer_reply: 404_NOT_FOUND ticket_id=%s "
+                        "— ticket does not exist or API key lacks write scope; response=%.400s",
+                        ticket_id, exc.response.text,
+                    )
+                else:
+                    LOGGER.error(
+                        "freshdesk.response_service.customer_reply: FAILED ticket_id=%s error=%s",
+                        ticket_id, exc,
+                    )
+            except Exception:
+                LOGGER.error(
+                    "freshdesk.response_service.customer_reply: FAILED ticket_id=%s error=%s",
+                    ticket_id, exc,
+                )
             # Sprint 2.49 — TRACE_FD_10_REPLY_SENT: with FAILURE status.
             emit_trace(
                 TRACE_FD_10_REPLY_SENT,
