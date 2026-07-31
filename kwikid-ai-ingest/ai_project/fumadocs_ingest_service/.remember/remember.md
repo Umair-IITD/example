@@ -1,14 +1,21 @@
 # Handoff
 
 ## State
-Sprint 2.64 CERTIFIED (22/22 tests, 462/462 combined 2.48+2.60+2.61+2.62+2.63+2.63.1+2.63.2+2.64, 0 regressions).
-All sprint changes committed on `major-architecture-change` (commit 4a909ca). sentry-sdk[fastapi] added to requirements.txt and installed.
+INTERNSHIP COMPLETE. System is LIVE in PRODUCTION (SUPPORT_AGENT_MODE=PRODUCTION).
+Last code commit: d468e4f "Production hardening: NLU audio fix, error logging, security (DEBUG_RAG=false)".
+Knowledge Transfer docs created in `knowledge-transfer-documentations/` (7 files, NOT yet committed — awaiting `git add`).
 Full regression: 1267 passed, 2 pre-existing failures (test_sprint2281 interface drift), 0 errors.
 
 ## Next
-1. **§4.4 admin action** — create `ai.support@getkwikid.com` Freshdesk agent account. Last remaining production gate. Then set `SUPPORT_AGENT_MODE=PRODUCTION`.
-2. Post-deploy verification: test ticket through Freshdesk → confirm observation note posted; complete Asana task → confirm customer reply + status=4.
-3. Optional: merge `major-architecture-change` → `main` when Umair confirms post-deploy verification passes.
+1. **Commit the KT docs**: `git add knowledge-transfer-documentations/ && git commit -m "docs: knowledge transfer documentation for project handover"`
+2. **§4.4 admin action** — create `ai.support@getkwikid.com` Freshdesk agent account. Update FRESHDESK_API_KEY.
+3. **Re-register Asana webhook** on production public URL: `python scripts/register_asana_webhook.py`
+4. Optional: merge `major-architecture-change` → `main` after post-deploy verification.
+
+## Context
+Pre-existing test failures (not regressions): test_sprint2281 (2 tests, Sprint 2.30.1 interface drift).
+AUTH_ENABLED=false — explicit decision required before enabling (see REMAINING_BLOCKERS.md §Blocker 3).
+BOB/Canara Loki credentials not yet configured — Loki investigation falls back to Unity only for those banks.
 
 ## Context
 Pre-existing test failures (not regressions): test_sprint2281 (2 tests, Sprint 2.30.1 interface drift).

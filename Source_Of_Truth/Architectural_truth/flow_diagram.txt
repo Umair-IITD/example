@@ -272,6 +272,10 @@ ASANACREATE --> ASANA
 ASANA <--> DEV
 ASANACREATE --> FDUPDATE_ESC
 FDUPDATE_ESC --> USERRESPONSE[Generate Escalation Reply NLG]
+%% Sprint 2.63.1: this send, and the two orchestrator response_draft replies
+%% below (Direct Reply Path), are now all gated through ReplySafetyGate
+%% (api/routes/webhooks/freshdesk.py::_gated_customer_reply) before reaching
+%% FreshdeskResponseService.send_customer_reply().
 USERRESPONSE --> FD
 
 %% =========================
@@ -283,10 +287,24 @@ CLOSECHECK -->|No| CLARIFICATION
 CLOSECHECK -->|Yes| CLOSE
 
 %% =========================
-%% ASYNC ENGINEERING RESOLUTION (future — after dev fixes the bug)
+%% ASYNC ENGINEERING RESOLUTION — Blueprint §20B (Sprint 2.63, certified;
+%% ReplySafetyGate wired Sprint 2.63.1)
+%% FIXED is a REAL event: an Asana webhook (task.completed), not polling —
+%% see asana/webhook.py + api/routes/webhooks/asana.py. GUARD is
+%% ClosureFieldGuard (cf_clients/ticket_type/cf_sop_status/
+%% cf_resolution_classification all populated?). GATE is ReplySafetyGate
+%% (confidence=1.0 fixed template; kill-switch/duplicate/impact checks still
+%% apply). Only if BOTH allow does FDUPDATE send the customer reply +
+%% status=4 in one combined PUT and proceed to CLOSE. Either block routes to
+%% MANUALNOTE (internal draft note) instead, and the ticket stays open for a
+%% human to close.
 %% =========================
-ASANA --> FIXED[Issue Fixed Event]
-FIXED --> FDUPDATE[Update Freshdesk Notes]
+ASANA --> FIXED[Issue Fixed Event - Asana Webhook]
+FIXED --> GUARD{ClosureFieldGuard passes?}
+GUARD -->|No| MANUALNOTE[Post Internal Note - Manual Closure Needed]
+GUARD -->|Yes| GATE{ReplySafetyGate allows?}
+GATE -->|No| MANUALNOTE
+GATE -->|Yes| FDUPDATE[Send Customer Resolution Reply + status=4]
 FDUPDATE --> CLOSE
 
 %% =========================
